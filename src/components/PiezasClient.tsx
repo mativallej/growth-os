@@ -80,7 +80,7 @@ export default function PiezasClient({ cards, nets }: { cards: PiezaCard[]; nets
                 {c.stats.map((d) => (
                   <div key={d.k}>
                     <div className="text-[11px] text-muted-foreground">{d.k}</div>
-                    <div className={`mt-1 text-base font-semibold tabular-nums ${d.good ? "text-emerald-400" : ""}`}>
+                    <div className={`mt-1 text-base font-semibold tabular-nums ${d.good ? "text-[var(--tg-green)]" : ""}`}>
                       {d.v}
                     </div>
                   </div>

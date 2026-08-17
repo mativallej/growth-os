@@ -4,26 +4,40 @@
 
 @layer base {
   :root {
-    --background: 250 14% 5%;
-    --foreground: 0 0% 93%;
-    --card: 250 12% 7%;
-    --card-foreground: 0 0% 93%;
-    --popover: 250 12% 7%;
-    --popover-foreground: 0 0% 93%;
-    --primary: 258 88% 66%;
+    /* Tegu design system — monocromo, light. Los vars semánticos de shadcn
+       mapeados a la escala ink+greys de Tegu (--tg-*). Sin dark, sin violeta:
+       el énfasis lo lleva el ink + peso, nunca un hue. */
+    --background: 240 11% 98%; /* --tg-screen  #FAFAFB */
+    --foreground: 253 26% 10%; /* --tg-ink     #15121F */
+    --card: 0 0% 100%; /* white */
+    --card-foreground: 253 26% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 253 26% 10%;
+    --primary: 253 26% 10%; /* ink */
     --primary-foreground: 0 0% 100%;
-    --secondary: 250 8% 13%;
-    --secondary-foreground: 0 0% 93%;
-    --muted: 250 8% 13%;
-    --muted-foreground: 250 6% 58%;
-    --accent: 258 88% 66%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 62%;
+    --secondary: 240 9% 96%; /* --tg-surface #F3F3F5 */
+    --secondary-foreground: 253 26% 10%;
+    --muted: 240 9% 96%;
+    --muted-foreground: 258 11% 37%; /* --tg-ink-2  #5A5468 */
+    --accent: 240 9% 96%;
+    --accent-foreground: 253 26% 10%;
+    --destructive: 358 75% 59%; /* --tg-red   #E5484D */
     --destructive-foreground: 0 0% 100%;
-    --border: 250 8% 15%;
-    --input: 250 8% 15%;
-    --ring: 258 88% 66%;
-    --radius: 0.65rem;
+    --border: 240 9% 93%; /* --tg-hairline #ECECEF */
+    --input: 240 9% 93%;
+    --ring: 253 26% 10%; /* ink */
+    --radius: 0.8125rem; /* 13px — tegu radius-lg */
+
+    /* Tokens Tegu para uso directo (semánticos funcionales) */
+    --tg-ink: #15121f;
+    --tg-ink-2: #5a5468;
+    --tg-ink-3: #9a93a8;
+    --tg-hairline: #ececef;
+    --tg-surface: #f3f3f5;
+    --tg-screen: #fafafb;
+    --tg-white: #ffffff;
+    --tg-green: #16a34a; /* funcional: métrica positiva / verificado */
+    --tg-red: #e5484d;
   }
 }
 
@@ -33,7 +47,6 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-inter), system-ui, sans-serif;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-family: -apple-system, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
 }

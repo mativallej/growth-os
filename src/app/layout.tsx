@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import DashboardNav from "@/components/DashboardNav";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "X Analytics · tegu-growth",
@@ -12,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`dark ${inter.variable}`}>
+    <html lang="es">
       <body className="min-h-screen antialiased">
         <DashboardNav />
         <main className="max-w-[1080px] px-6 py-9 md:ml-[220px] md:px-10">{children}</main>

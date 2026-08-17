@@ -74,7 +74,7 @@ export default async function PiezaPage({ params }: { params: Promise<{ slug: st
             {derived.map((d) => (
               <div key={d.k}>
                 <div className="text-[11px] text-muted-foreground">{d.k}</div>
-                <div className={`mt-1 text-lg font-semibold tabular-nums ${d.good ? "text-emerald-400" : ""}`}>{d.v}</div>
+                <div className={`mt-1 text-lg font-semibold tabular-nums ${d.good ? "text-[var(--tg-green)]" : ""}`}>{d.v}</div>
               </div>
             ))}
           </div>

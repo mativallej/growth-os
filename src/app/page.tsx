@@ -56,7 +56,7 @@ export default function OverviewPage() {
           <Card key={t.k}>
             <CardContent className="p-4">
               <div className="text-[11px] text-muted-foreground">{t.k}</div>
-              <div className={`mt-2 text-2xl font-semibold tabular-nums tracking-tight ${t.good ? "text-emerald-400" : ""}`}>
+              <div className={`mt-2 text-2xl font-semibold tabular-nums tracking-tight ${t.good ? "text-[var(--tg-green)]" : ""}`}>
                 {t.v}
               </div>
             </CardContent>
