@@ -125,7 +125,8 @@ def main():
 
     brand = brands[a.brand]
     csv_path = resolve(a.csv)
-    with io.open(csv_path, encoding="utf-8") as fh:
+    enc = "utf-8-sig"
+    with io.open(csv_path, encoding=enc) as fh:
         header = next(csv.reader(fh))
 
     nid = a.network or detect_network(header, networks)
@@ -165,8 +166,11 @@ def main():
 
     matched = unmatched = already = 0
     writes = {}
-    with io.open(csv_path, encoding="utf-8") as fh:
+    acc_col = net.get("account_col")
+    with io.open(csv_path, encoding=net.get("encoding", enc)) as fh:
         for row in csv.DictReader(fh):
+            if acc_col and (row.get(acc_col) or "").strip().lstrip("@") != account["handle"]:
+                continue
             pid = (row.get(net.get("id_col", "")) or "").strip()
             if not pid:
                 m = re.search(net["id_from_link"], row.get(net.get("link_col", ""), "") or "")

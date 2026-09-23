@@ -4,25 +4,61 @@
     "x": {
       "label": "X",
       "status": "completo",
-      "detect": ["Post id", "Post Link", "Impressions"],
+      "detect": [
+        "Post id",
+        "Post Link",
+        "Impressions"
+      ],
       "id_col": "Post id",
       "link_col": "Post Link",
       "id_from_link": "/status/(\\d+)",
       "date_col": "Date",
-      "date_formats": ["%a, %b %d, %Y", "%Y-%m-%d", "%b %d, %Y"],
+      "date_formats": [
+        "%a, %b %d, %Y",
+        "%Y-%m-%d",
+        "%b %d, %Y"
+      ],
       "metrics": {
-        "Impressions": "imp", "Engagements": "eng", "Likes": "likes",
-        "Bookmarks": "bmk", "Reposts": "rt", "Replies": "replies",
-        "Shares": "shares", "Profile visits": "pv", "New follows": "follows",
-        "Detail Expands": "detail", "URL Clicks": "clicks"
+        "Impressions": "imp",
+        "Engagements": "eng",
+        "Likes": "likes",
+        "Bookmarks": "bmk",
+        "Reposts": "rt",
+        "Replies": "replies",
+        "Shares": "shares",
+        "Profile visits": "pv",
+        "New follows": "follows",
+        "Detail Expands": "detail",
+        "URL Clicks": "clicks"
       }
     },
     "instagram": {
       "label": "Instagram",
-      "status": "pendiente — falta un export real de IG Insights para mapear columnas",
-      "detect": [],
-      "id_from_link": "/(?:p|reel)/([A-Za-z0-9_-]+)",
-      "metrics": {}
+      "status": "completo",
+      "detect": [
+        "Permalink",
+        "Post type",
+        "Saves"
+      ],
+      "link_col": "Permalink",
+      "id_from_link": "/(?:p|reel|tv)/([A-Za-z0-9_-]+)",
+      "account_col": "Account username",
+      "date_col": "Publish time",
+      "date_formats": [
+        "%m/%d/%Y %H:%M",
+        "%m/%d/%Y"
+      ],
+      "encoding": "utf-8-sig",
+      "metrics": {
+        "Views": "views",
+        "Reach": "reach",
+        "Likes": "likes",
+        "Saves": "saves",
+        "Shares": "shares",
+        "Comments": "comments",
+        "Follows": "follows"
+      },
+      "_nota": "El export de Meta Business Suite trae varias cuentas en el mismo archivo (las propias y aquellas donde te etiquetan). Por eso account_col es obligatorio acá. Las métricas son Lifetime: el corte es la fecha del export, no la del dato."
     },
     "linkedin": {
       "label": "LinkedIn",

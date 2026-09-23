@@ -14,9 +14,24 @@
       "content": "Personal Brand/Content/Create",
       "data": "Personal Brand/Analytics",
       "accounts": [
-        { "id": "mativallej_x",  "network": "x",         "handle": "mativallej_", "url_contains": "x.com/mativallej_/" },
-        { "id": "mativallej_ig", "network": "instagram", "handle": "mativallej",  "url_contains": "instagram.com/" },
-        { "id": "mativallej_li", "network": "linkedin",  "handle": "mativallej",  "url_contains": "linkedin.com/" }
+        {
+          "id": "mativallej_x",
+          "network": "x",
+          "handle": "mativallej_",
+          "url_contains": "x.com/mativallej_/"
+        },
+        {
+          "id": "mativallej_ig",
+          "network": "instagram",
+          "handle": "mativallej_",
+          "url_contains": "instagram.com/"
+        },
+        {
+          "id": "mativallej_li",
+          "network": "linkedin",
+          "handle": "mativallej",
+          "url_contains": "linkedin.com/"
+        }
       ]
     },
     {
@@ -26,9 +41,24 @@
       "content": "Brand/Content/Create",
       "data": "Brand/Analytics",
       "accounts": [
-        { "id": "tegu_x",  "network": "x",         "handle": "tegu_app", "url_contains": "x.com/tegu_app/" },
-        { "id": "tegu_ig", "network": "instagram", "handle": "tegu_app", "url_contains": "instagram.com/" },
-        { "id": "tegu_li", "network": "linkedin",  "handle": "tegu",     "url_contains": "linkedin.com/" }
+        {
+          "id": "tegu_x",
+          "network": "x",
+          "handle": "tegu_app",
+          "url_contains": "x.com/tegu_app/"
+        },
+        {
+          "id": "tegu_ig",
+          "network": "instagram",
+          "handle": "tegu_app",
+          "url_contains": "instagram.com/"
+        },
+        {
+          "id": "tegu_li",
+          "network": "linkedin",
+          "handle": "tegu",
+          "url_contains": "linkedin.com/"
+        }
       ]
     }
   ]
