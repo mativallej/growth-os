@@ -32,7 +32,11 @@
           "handle": "mativallej",
           "url_contains": "linkedin.com/"
         }
-      ]
+      ],
+      "notify": {
+        "discord_webhook_env": "DISCORD_WEBHOOK_MATIVALLEJ",
+        "channel": "growth-mativallej"
+      }
     },
     {
       "id": "tegu",
@@ -59,7 +63,11 @@
           "handle": "tegu",
           "url_contains": "linkedin.com/"
         }
-      ]
+      ],
+      "notify": {
+        "discord_webhook_env": "DISCORD_WEBHOOK_TEGU",
+        "channel": "growth-tegu"
+      }
     }
   ]
 }
