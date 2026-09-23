@@ -1,0 +1,35 @@
+{
+  "_doc": "Marcas y sus cuentas. Tres dimensiones independientes: n marcas × n redes (config/networks.json) × n cuentas por marca. Agregar cualquiera de las tres es agregar un objeto acá o allá; el script no se toca. Las rutas van por ~/vaults/, nunca la ruta real.",
+  "_campos": {
+    "vault": "raíz del repo, vía ~/vaults/",
+    "content": "subcarpeta con las piezas, relativa al vault",
+    "accounts[].id": "lo que va en el campo 'account' del footer de cada pieza",
+    "accounts[].url_contains": "cómo se reconoce una pieza de ESTA cuenta cuando dos cuentas comparten red y vault"
+  },
+  "brands": [
+    {
+      "id": "mativallej",
+      "label": "Marca personal",
+      "vault": "~/vaults/brain",
+      "content": "Personal Brand/Content/Create",
+      "data": "Personal Brand/Analytics",
+      "accounts": [
+        { "id": "mativallej_x",  "network": "x",         "handle": "mativallej_", "url_contains": "x.com/mativallej_/" },
+        { "id": "mativallej_ig", "network": "instagram", "handle": "mativallej",  "url_contains": "instagram.com/" },
+        { "id": "mativallej_li", "network": "linkedin",  "handle": "mativallej",  "url_contains": "linkedin.com/" }
+      ]
+    },
+    {
+      "id": "tegu",
+      "label": "Tegu",
+      "vault": "~/vaults/tegu-growth",
+      "content": "Brand/Content/Create",
+      "data": "Brand/Analytics",
+      "accounts": [
+        { "id": "tegu_x",  "network": "x",         "handle": "tegu_app", "url_contains": "x.com/tegu_app/" },
+        { "id": "tegu_ig", "network": "instagram", "handle": "tegu_app", "url_contains": "instagram.com/" },
+        { "id": "tegu_li", "network": "linkedin",  "handle": "tegu",     "url_contains": "linkedin.com/" }
+      ]
+    }
+  ]
+}

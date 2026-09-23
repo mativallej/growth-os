@@ -1,0 +1,35 @@
+{
+  "_doc": "Adapters por red social: cómo leer un export y cómo nombrar sus métricas. Agregar una red = agregar un objeto acá; no hay que tocar el script. Las que están en 'pendiente' NO se inventaron: falta un export real para mapear las columnas.",
+  "networks": {
+    "x": {
+      "label": "X",
+      "status": "completo",
+      "detect": ["Post id", "Post Link", "Impressions"],
+      "id_col": "Post id",
+      "link_col": "Post Link",
+      "id_from_link": "/status/(\\d+)",
+      "date_col": "Date",
+      "date_formats": ["%a, %b %d, %Y", "%Y-%m-%d", "%b %d, %Y"],
+      "metrics": {
+        "Impressions": "imp", "Engagements": "eng", "Likes": "likes",
+        "Bookmarks": "bmk", "Reposts": "rt", "Replies": "replies",
+        "Shares": "shares", "Profile visits": "pv", "New follows": "follows",
+        "Detail Expands": "detail", "URL Clicks": "clicks"
+      }
+    },
+    "instagram": {
+      "label": "Instagram",
+      "status": "pendiente — falta un export real de IG Insights para mapear columnas",
+      "detect": [],
+      "id_from_link": "/(?:p|reel)/([A-Za-z0-9_-]+)",
+      "metrics": {}
+    },
+    "linkedin": {
+      "label": "LinkedIn",
+      "status": "pendiente — falta un export real de LinkedIn Analytics",
+      "detect": [],
+      "id_from_link": "(?:ugcPost|activity)[-:](\\d+)",
+      "metrics": {}
+    }
+  }
+}

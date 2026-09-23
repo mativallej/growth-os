@@ -37,7 +37,7 @@ Estos no envejecen, así que sí van como campos.
 | clave | valores | regla |
 |---|---|---|
 | `platform` | `X` · `LinkedIn` · `Instagram` · `Blog` · `TikTok` | uno solo; los cross-post llevan un archivo por red |
-| `account` | `personal` · `tegu` | quién publicó, no de qué habla |
+| `account` | id de `config/sources.json` (`mativallej_x`, `tegu_ig`…) | **qué cuenta publicó**, no de qué habla. Una marca puede tener varias cuentas en la misma red |
 | `date` | `AAAA-MM-DD` | la fecha sola, sin texto al lado |
 | `url` | link al post | **sin esto la pieza no se puede medir**: es la llave del ingest |
 | `formula` | código del catálogo + nombre | `X1 · storytelling-de-tercero` · `E · origin story` |
@@ -75,6 +75,20 @@ LinkedIn: `sends` · `link_eng`. IG: `accounts_engaged` · `link_taps`.
 ### El bloque de análisis y su compuerta
 
 `verdict` / `drivers` / `why` / `lesson`. **No se escribe sin OK explícito del humano al verdict**, y no antes de tener cortes suficientes (+24/48h en adelante). El criterio es de la persona: Claude propone y contrasta, el humano decide.
+
+## Tres dimensiones, y ninguna hardcodeada
+
+El sistema escala en tres ejes independientes, y agregar cualquiera es editar config, no código:
+
+| eje | dónde se agrega | qué define |
+|---|---|---|
+| **n marcas** | `config/sources.json` → `brands[]` | vault, carpeta de contenido, carpeta de data |
+| **n cuentas** | `brands[].accounts[]` | red, handle, y `url_contains` para no pisarse con otra cuenta de la misma red en el mismo vault |
+| **n redes** | `config/networks.json` → `networks{}` | cómo leer el export: columnas, columna de ID, patrón de ID en la URL, formatos de fecha, y el mapeo de métricas |
+
+Hoy: 2 marcas × 6 cuentas × 3 redes declaradas. **X está completo; Instagram y LinkedIn están declarados como `pendiente`** — sus columnas no se inventaron, faltan exports reales. Si se corre el ingest contra una red pendiente, **falla con un mensaje claro en vez de no hacer nada**.
+
+Nombrar la cuenta en el footer no es burocracia: es lo que permite que dos cuentas de la misma red convivan en un vault y que el ingest sepa cuál es cuál.
 
 ## Prohibido
 
