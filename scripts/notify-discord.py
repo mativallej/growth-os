@@ -44,6 +44,7 @@ def main():
     ap.add_argument("--brand", required=True)
     ap.add_argument("--text", help="si se omite, lee de stdin")
     ap.add_argument("--username", default="growth-loop")
+    ap.add_argument("--webhook-env", help="usar otra variable de entorno como destino (ej. un canal por evento)")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
 
@@ -52,7 +53,7 @@ def main():
     if a.brand not in brands:
         sys.exit("Marca desconocida: %s" % a.brand)
     notify = brands[a.brand].get("notify") or {}
-    var = notify.get("discord_webhook_env")
+    var = a.webhook_env or notify.get("discord_webhook_env")
     if not var:
         sys.exit("La marca '%s' no tiene notify.discord_webhook_env en la config." % a.brand)
     url = os.environ.get(var)
@@ -64,7 +65,8 @@ def main():
         sys.exit("Nada para mandar.")
 
     parts = chunks(text)
-    print("→ %s · canal %s · %d mensaje(s)" % (a.brand, notify.get("channel", "?"), len(parts)))
+    destino = ch.get("channel") if (ch := next((c for c in (json.load(io.open(os.path.join(ROOT,"config/sources.json"), encoding="utf-8")).get("channels") or {}).values() if c.get("discord_webhook_env") == var), None)) else notify.get("channel", "?")
+    print("→ marca %s · canal #%s · %d mensaje(s)" % (a.brand, destino, len(parts)))
     if a.dry_run:
         print("DRY-RUN, no se envió.")
         return

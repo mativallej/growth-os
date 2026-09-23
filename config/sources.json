@@ -69,5 +69,26 @@
         "channel": "growth-tegu"
       }
     }
-  ]
+  ],
+  "channels": {
+    "ideas": {
+      "_doc": "Canal por TIPO DE EVENTO, no por marca: las ideas de las dos marcas caen acá.",
+      "discord_webhook_env": "DISCORD_WEBHOOK_IDEAS",
+      "channel": "ideas",
+      "watch": [
+        {
+          "brand": "mativallej",
+          "path": "Personal Brand/Content/Ideas"
+        },
+        {
+          "brand": "tegu",
+          "path": "Brand/Content/Ideas"
+        },
+        {
+          "brand": "tegu",
+          "path": "Create/Ideas"
+        }
+      ]
+    }
+  }
 }
