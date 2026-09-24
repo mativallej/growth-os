@@ -1,6 +1,6 @@
 # OpenSpec — growth-loop
 
-Once changes al 2026-09-24. **Uno por vez**, nunca en paralelo.
+Doce changes al 2026-09-24. **Uno por vez**, nunca en paralelo.
 
 ## Qué es esto
 
@@ -44,6 +44,7 @@ Y dos independientes de la app, que se pueden tomar en cualquier momento:
 | 9 | `unschedule-everything` | Apagar los dos trabajos agendados. **Aplicado el 2026-09-24** |
 | 10 | `move-resilient-keys` | **Urgente.** Una reorganización del vault dejó 57 filas con la llave rota. Hasta que cierre, no correr el sync de Tegu con `--apply` |
 | 11 | `attribution-loop` | Lo único que el research señala y no tenemos: nada conecta una pieza con un lead |
+| 12 | `public-release` | El repo pasa a ser abierto. Sanear sin vaciar, sacar el espacio de trabajo del código, y lo formal |
 
 Las decisiones tomadas y las que siguen abiertas —incluidas las que se descartaron y
 por qué— están en [DECISIONS.md](DECISIONS.md).
@@ -52,6 +53,22 @@ por qué— están en [DECISIONS.md](DECISIONS.md).
 lo que hoy corre solo y falla mudo) o la tarea 1 de `ads-model` (arreglar las cuatro
 buyer personas faltantes y la lectura por ruta). Las dos arreglan algo que está mal
 ahora mismo, ninguna depende de nada.
+
+## Estado al arrancar una sesión nueva
+
+Lo que hay que saber antes de tocar nada:
+
+- **La app no corre.** Nunca se hizo `npm install`, no hay runner de tests, y el
+  parser apunta a un directorio que no existe. Es lo que arregla el change 1.
+- **`unschedule-everything` está aplicado**: no queda nada agendado en el sistema.
+- **El puente con Notion funciona a mano**, por MCP. Los scripts nunca escribieron
+  por API: falta la credencial, y con la regla 6 vigente puede no hacer falta nunca.
+- **No correr el sync de Tegu con `--apply`.** El vault se reestructuró el 2026-09-24
+  y hay filas del tablero con la llave rota. Un intento de repararlas falló porque el
+  vault seguía moviéndose; el detalle está en `move-resilient-keys/tasks.md` y vale
+  la pena leerlo antes de reintentar.
+- **El vault de Tegu puede tener otra sesión trabajando.** Confirmar que está quieto
+  antes de cualquier operación que lo lea para escribir en otro lado.
 
 ## Las reglas duras
 

@@ -18,6 +18,8 @@ reconstruir el razonamiento desde cero.
 | D-10 | Adapter de LinkedIn | **abierta — bloqueada** | — |
 | D-11 | Convergencia de los dos pipelines de contenido de Tegu | **resuelta** | 2026-09-24 |
 | D-12 | Deploy compartido con el socio | **abierta** | — |
+| D-13 | El proyecto pasa a ser open source | **decidida** | 2026-09-24 |
+| D-14 | Nombre definitivo, remote y licencia | **abierta** | — |
 
 ---
 
@@ -138,3 +140,30 @@ de ocultarlo.
 **Bloqueada por** `account-scoped-routes`. Y hay una trampa a verificar antes: en el
 tier gratis del hosting, la protección por autenticación restringe al dueño de la
 cuenta y no admite miembros de equipo — el socio no podría entrar.
+
+## D-13 · El proyecto pasa a ser open source — decidida
+
+**Qué cambia.** Ver `public-release`. Lo verificado: no hay secretos en el historial,
+así que no hay que reescribirlo.
+
+**Lo que requiere criterio, y no es lo obvio.** El OpenSpec de este repo vale
+justamente por lo específico que es: las reglas convencen porque traen la cicatriz de
+haberlas roto. Sanearlo con miedo lo convierte en once documentos de generalidades.
+El criterio es **sale quién, se queda qué pasó**: los terceros se describen por su
+rol, la información sensible por su función, y el mecanismo del fallo se conserva
+entero.
+
+**Consecuencia que conviene asumir de entrada.** Publicar una herramienta que opera
+sobre archivos locales de otra gente convierte los recaudos que ya existen —dry-run
+por defecto, nunca borrar, fallar si falta una raíz— en responsabilidad hacia
+terceros. Hay que decirlos en el README, no dejarlos en el código.
+
+## D-14 · Nombre definitivo, remote y licencia — abierta
+
+Hoy el directorio se llama `growth-loop-obsidian`, `package.json` dice `tegu-growth`
+y el remote apunta a un repositorio de la organización de la empresa. Los tres tienen
+que converger, y la elección es del autor.
+
+La licencia también: el proyecto opera sobre archivos personales de quien lo use, lo
+que hace que la cláusula de ausencia de garantía sea más relevante que en una
+librería cualquiera.
