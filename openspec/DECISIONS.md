@@ -14,12 +14,13 @@ reconstruir el razonamiento desde cero.
 | D-6 | La unidad de medición de ads es el creativo | **decidida** | 2026-09-24 |
 | D-7 | `spend` de ads: acumulado o por ventana | **abierta** | — |
 | D-8 | `nonfoll`: derivada prohibida o excepción documentada | **abierta — la decide Matías** | — |
-| D-9 | Identificador propio dentro de cada `.md` | **descartada por ahora** | 2026-09-24 |
+| D-9 | Identificador propio dentro de cada `.md` | **reabierta** | 2026-09-24 |
 | D-10 | Adapter de LinkedIn | **abierta — bloqueada** | — |
 | D-11 | Convergencia de los dos pipelines de contenido de Tegu | **resuelta** | 2026-09-24 |
 | D-12 | Deploy compartido con el socio | **abierta** | — |
 | D-13 | El proyecto pasa a ser open source | **decidida** | 2026-09-24 |
 | D-14 | Nombre definitivo, remote y licencia | **abierta** | — |
+| D-15 | Supabase como índice derivado del vault | **decidida — con condiciones** | 2026-09-24 |
 
 ---
 
@@ -106,14 +107,32 @@ contrato prohíbe escribir derivadas, pero `growth-analytics` y `src/lib/types.t
 usan hoy. Opciones: guardar los crudos y calcularla, o aceptarla como excepción
 documentada. **Hasta que se decida, no se escribe.**
 
-## D-9 · Identificador propio dentro de cada `.md` — descartada por ahora
+## D-9 · Identificador propio dentro de cada `.md` — reabierta
 
-Resolvería de raíz el problema de llave de `move-resilient-keys`. Se descarta porque
-implica escribir en más de 200 archivos del vault para resolver un problema del otro
-lado del puente, y contradice la regla de que el dashboard se adapta al vault.
+Resolvería de raíz el problema de llave de `move-resilient-keys`. Se descartó el
+2026-09-24 porque implica escribir en más de 200 archivos del vault para resolver un
+problema del otro lado del puente, y contradice la regla de que el dashboard se adapta
+al vault. La condición de reapertura que quedó escrita fue: *"que la reconciliación por
+evidencia resulte insuficiente en la práctica."*
 
-**Qué la reabriría.** Que la reconciliación por evidencia resulte insuficiente en la
-práctica.
+**Se cumplió el mismo día.** El intento de re-llavear las 57 filas por evidencia
+escribió 14 rutas que estaban muertas minutos después, porque otra sesión seguía
+reorganizando el vault (ver `move-resilient-keys/tasks.md`, nota del 17:40). El
+criterio de emparejamiento funcionó; lo que falló es que **no hay nada estable contra
+qué emparejar**: la identidad de una pieza es su ruta, y la ruta cambia.
+
+**Lo que costó no tenerlo.** Una sola reorganización del vault (D-11) dejó 57 filas
+huérfanas, invalidó 14 escrituras de reparación, y bloqueó el sync de Tegu con
+`--apply` por tiempo indefinido. Escribir un id en ~265 archivos es un pase de script
+que corre una vez.
+
+**Lo que la mantiene incómoda.** Sigue contradiciendo *"el dashboard se adapta al
+vault, no al revés"*. La contradicción es real y hay que aceptarla explícitamente: un
+id no es una normalización de estilo, es la condición para que cualquier cosa afuera
+del vault pueda referirse a una pieza sin romperse.
+
+**Bloquea a D-15.** Un índice derivado construido sobre la ruta hereda exactamente el
+mismo problema, una capa más abajo.
 
 ## D-10 · Adapter de LinkedIn — abierta, bloqueada
 
@@ -167,3 +186,63 @@ que converger, y la elección es del autor.
 La licencia también: el proyecto opera sobre archivos personales de quien lo use, lo
 que hace que la cláusula de ausencia de garantía sea más relevante que en una
 librería cualquiera.
+
+## D-15 · Supabase como índice derivado del vault — decidida, con condiciones
+
+Se suma Supabase, con una skill que lo reconstruye desde los `.md` y lo consulta por
+su API. **No es la fuente de verdad: es una proyección.** La verdad siguen siendo los
+`.md`, y la regla de arriba no se toca.
+
+**Por qué no como fuente de verdad.** Ya se vivió el costo de tener la verdad en dos
+lados: Notion como segundo store, y una reorganización del vault lo dejó apuntando al
+vacío (D-11). Un Supabase escribible sería la misma trampa con un actor más. Un índice
+que se rehace no genera conflictos porque no se reconcilia: se borra y se vuelve a
+construir.
+
+**Qué compra que hoy no se puede.** Las preguntas que hoy exigen un script por
+pregunta: qué fórmula rinde mejor por red con los cortes reales; qué piezas publicadas
+no tienen `url` (al 2026-09-24, **99 de 112** en tegu-growth, medido con un scan del
+footer); y sobre todo **comparar el mismo creativo entre sus destinos** — el modelo de
+distribuciones de `multi-destination-pieces` hace que un reel tenga N series
+comparables entre sí, y un `.md` no se consulta así.
+
+**Sin dependencias nuevas.** PostgREST es REST plano y `scripts/` no tiene
+`requirements.txt`: `sync-notion.py:30` ya habla con la API de Notion por
+`urllib.request`. Mismo patrón.
+
+### Las cinco condiciones
+
+1. **Un solo sentido.** Nada escribe de Supabase hacia el `.md`. El día que algo lo
+   haga, hay dos verdades.
+2. **Rebuild completo, nunca incremental.** Borrar y reconstruir tiene que reproducir
+   la tabla idéntica. Con ~265 piezas entre los dos vaults tarda segundos, y el sync
+   incremental es de donde sale la deriva.
+3. **Depende de D-9.** Si la fila se identifica por la ruta, el índice hereda la llave
+   rota. **No arrancar antes de que D-9 cierre.**
+4. **Se dispara con el ingest, pero reconstruye todo.** Las piezas se crean y se editan
+   en Obsidian sin ingest de por medio; un sync que solo toque lo que el ingest tocó
+   queda al día en números y viejo en todo lo demás.
+5. **Fallar ruidoso (REGLA DURA 1).** Si la lectura del vault vuelve vacía, no escribir
+   un Supabase vacío. Es el bug fundacional de este repo, con otro destino.
+
+### Orden de implementación
+
+1. D-9 — id estable en cada `.md`.
+2. Validador de footer que corra al guardar. Al 2026-09-24, **0 de 112** piezas de
+   tegu-growth cumplen el contrato, y el campo `cuenta:` tenía 13 valores distintos en
+   las 33 piezas de Instagram. La evidencia de que el enforcement funciona está al
+   lado: el hook `validar-pieza.py` del vault, que exige fuente para cada número, **se
+   respeta**. Misma gente, mismo vault; la diferencia es que uno se enforza y el otro no.
+3. Recién ahí Supabase.
+
+Hacerlo al revés escribe en Postgres los datos sucios del origen, y se terminan
+debuggeando en dos lugares en vez de uno.
+
+### Lo que queda abierto
+
+- **El esquema.** Una tabla por pieza y otra por corte es lo obvio, pero las
+  distribuciones (`multi-destination-pieces`) piden una tercera, y eso se define con el
+  modelo cerrado, no antes.
+- **Dónde corre la skill.** REGLA DURA 6 dice que nada corre solo: la dispara una
+  persona. Falta decidir si vive en `scripts/` o en la consola de operaciones
+  (`operations-console`).
