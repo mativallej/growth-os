@@ -1,6 +1,6 @@
 # OpenSpec — growth-loop
 
-Nueve changes abiertos al 2026-09-24. **Uno por vez**, nunca en paralelo.
+Once changes al 2026-09-24. **Uno por vez**, nunca en paralelo.
 
 ## Qué es esto
 
@@ -41,7 +41,12 @@ Y dos independientes de la app, que se pueden tomar en cualquier momento:
 | # | Change | Estado |
 |---|---|---|
 | 8 | `notion-bridge-contract` | El puente existe y funciona a mano. Faltan los tests |
-| 9 | `unschedule-everything` | Apagar los dos trabajos agendados. **La tarea 1 se puede hacer hoy** |
+| 9 | `unschedule-everything` | Apagar los dos trabajos agendados. **Aplicado el 2026-09-24** |
+| 10 | `move-resilient-keys` | **Urgente.** Una reorganización del vault dejó 57 filas con la llave rota. Hasta que cierre, no correr el sync de Tegu con `--apply` |
+| 11 | `attribution-loop` | Lo único que el research señala y no tenemos: nada conecta una pieza con un lead |
+
+Las decisiones tomadas y las que siguen abiertas —incluidas las que se descartaron y
+por qué— están en [DECISIONS.md](DECISIONS.md).
 
 **Si hay que elegir uno para empezar:** la tarea 1 de `unschedule-everything` (apagar
 lo que hoy corre solo y falla mudo) o la tarea 1 de `ads-model` (arreglar las cuatro
