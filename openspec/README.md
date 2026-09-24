@@ -33,7 +33,7 @@ Después, sobre esa base:
 | # | Change | Depende de |
 |---|---|---|
 | 5 | `ads-model` | 2 — un creativo no es una pieza: persona × dolor × ángulo × ronda, y la cobertura |
-| 6 | `operations-console` | 3 y 9 — el catálogo de operaciones con botones y la entrega a sesión local |
+| 6 | `operations-console` | **etapa 1, los botones: nada — se puede hacer ya.** Etapa 2, exportaciones: 2 y 3 |
 | 7 | `system-map-page` | nada duro — la pestaña que explica qué se hace dónde |
 
 Y dos independientes de la app, que se pueden tomar en cualquier momento:
