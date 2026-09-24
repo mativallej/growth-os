@@ -3,6 +3,27 @@
 > **Urgente. Hasta que cierre, no correr el sync de Tegu con `--apply`:** crearía 93
 > filas duplicadas y dejaría 57 huérfanas.
 
+> **Intento fallido del 2026-09-24 17:40 — leer antes de reintentar.**
+>
+> Se calculó el mapeo de las 57 filas emparejando por slug largo y distintivo, con
+> guards contra ambigüedad, contra colisión de destino y contra apuntar fuera de
+> `Create/Organic`. El criterio funcionó: descartó 1 falso positivo que apuntaba a un
+> creativo de ads, 2 colisiones y 2 matches que venían de citas cruzadas en el
+> contenido, no de identidad.
+>
+> **Se aplicaron 14 filas y las 14 rutas escritas ya estaban muertas minutos después.**
+> Otra sesión estaba reestructurando `tegu-growth` en paralelo —9 commits entre las
+> 15:57 y las 17:36, el último a tres minutos de la escritura— y movió los archivos
+> otra vez entre la medición y la escritura.
+>
+> **La conclusión no es que el emparejamiento esté mal. Es que no se puede re-llavear
+> contra un vault que alguien está reorganizando.** De ahí el requirement del estado
+> detenido. Antes de reintentar: confirmar que tegu-growth no tiene trabajo en curso.
+>
+> Estado actual del tablero: 14 filas apuntan a rutas `Create/Organic/...` muertas,
+> 14 siguen en `Brand/...` muertas, el resto sin tocar. Ninguna quedó peor que antes
+> —muerta por muerta— pero el trabajo hay que rehacerlo entero.
+
 ## 1. El freno, primero
 
 - [ ] 1.1 Detectar la condición de mudanza: registros sin archivo por encima de un umbral, junto con archivos sin registro. Verifica: correr contra el estado actual de Tegu y confirmar que se detiene.
@@ -18,6 +39,7 @@
 
 ## 3. Reparar lo que ya está roto
 
+- [ ] 3.0 **Confirmar que tegu-growth está quieto** antes de empezar: sin sesiones trabajando, árbol limpio, y anotar el SHA. Verificar el mismo SHA antes de aplicar.
 - [ ] 3.1 Correr la reconciliación en dry-run contra las 57 filas afectadas de Tegu y revisar el mapeo propuesto **una por una** antes de aplicar.
 - [ ] 3.2 Aplicar. Verifica: cero filas huérfanas, cero duplicados, y el recuento del tablero sin cambios.
 - [ ] 3.3 Confirmar que estado, fecha, url y último corte de cada fila sobrevivieron.

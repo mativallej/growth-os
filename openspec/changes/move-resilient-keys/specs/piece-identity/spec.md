@@ -65,6 +65,23 @@ pieza, el sistema MUST NOT emparejarlos por su cuenta.
 - **WHEN** un registro huérfano no tiene ningún archivo que pueda corresponderle
 - **THEN** se reporta como huérfano y se deja intacto
 
+### Requirement: La reconciliación opera sobre un estado detenido del vault
+
+La reconciliación SHALL registrar el estado del vault al comenzar y SHALL verificar
+que no haya cambiado antes de escribir. Si cambió, MUST NOT aplicar nada.
+
+#### Scenario: El vault cambia durante la operación
+
+- **WHEN** el vault se modifica entre el momento de calcular el mapeo y el de aplicarlo
+- **THEN** no se aplica ningún cambio
+- **AND** se informa que el vault se movió y hay que recalcular
+
+#### Scenario: Verificación antes de cada escritura
+
+- **WHEN** se va a actualizar la llave de un registro
+- **THEN** se verifica que el archivo destino exista en ese momento
+- **AND** si no existe, ese registro no se toca
+
 ### Requirement: Los re-emparejamientos se informan
 
 Todo cambio de llave de un registro SHALL informarse, indicando la ubicación anterior
