@@ -1,6 +1,6 @@
 # OpenSpec — growth-loop
 
-Doce changes al 2026-09-24, dos aplicados. **Uno por vez**, nunca en paralelo.
+Catorce changes al 2026-09-24, uno aplicado y otro a medias. **Uno por vez**, nunca en paralelo.
 
 ## Qué es esto
 
@@ -35,6 +35,8 @@ Después, sobre esa base:
 | 5 | `ads-model` | 2 — un creativo no es una pieza: persona × dolor × ángulo × ronda, y la cobertura |
 | 6 | `operations-console` | **etapa 1, los botones: nada — se puede hacer ya.** Etapa 2, exportaciones: 2 y 3 |
 | 7 | `system-map-page` | nada duro — la pestaña que explica qué se hace dónde |
+| 13 | `methodology-alignment` | 2 y 4 — el método tiene seis pasos y la plataforma mira dos. Falta la mitad donde vive el aprendizaje |
+| 14 | `notion-deep-links` | **parte 1: nada.** Parte 2 necesita un sync aplicado. Saltar de una pieza a su fila |
 
 Y dos independientes de la app, que se pueden tomar en cualquier momento:
 
