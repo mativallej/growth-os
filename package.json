@@ -1,12 +1,14 @@
 {
-  "name": "tegu-growth",
+  "name": "growth-loop",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "test": "vitest run",
+    "audit": "node scripts/audit-vaults.mjs"
   },
   "dependencies": {
     "@radix-ui/react-separator": "^1.1.15",
@@ -26,7 +28,10 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.20",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.6",
     "postcss": "^8.4.49",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.0.1"
   }
 }

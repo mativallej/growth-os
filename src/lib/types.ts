@@ -1,6 +1,8 @@
 // Tipos del dashboard. La fuente de verdad son los .md del vault;
 // esto es solo el shape parseado en memoria (no se persiste).
 
+import type { SourceId } from './sources';
+
 export type Snapshot = {
   t: string; // horizonte: "+20m" | "+1h" | "+24h" | "+7d" | "+196d" — sin escalera fija
   date?: string; // AAAA-MM-DD — fecha absoluta de la medición (contrato)
@@ -23,8 +25,9 @@ export type Snapshot = {
 export type Piece = {
   title: string; // nombre de archivo sin .md
   path: string; // ruta absoluta al .md
-  relPath: string; // ruta relativa a Brand/Content
-  slug: string; // id URL-safe para /piezas/[slug]
+  relPath: string; // ruta relativa a la raíz del vault de su fuente
+  slug: string; // id URL-safe para /piezas/[slug] — relativo al content root
+  source: SourceId; // de qué fuente vino (ver src/lib/sources.ts)
   tldr: string;
   body: string; // cuerpo de la pieza (sin TL;DR ni footer)
   canal?: string;

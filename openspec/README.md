@@ -1,6 +1,6 @@
 # OpenSpec — growth-loop
 
-Doce changes al 2026-09-24. **Uno por vez**, nunca en paralelo.
+Doce changes al 2026-09-24, dos aplicados. **Uno por vez**, nunca en paralelo.
 
 ## Qué es esto
 
@@ -23,7 +23,7 @@ Los cuatro primeros son una cadena: cada uno necesita al anterior.
 
 | # | Change | Qué desbloquea |
 |---|---|---|
-| 1 | `fail-loud-sources` | Hoy el dashboard buildea vacío y no avisa. Nada se puede verificar sobre un array vacío |
+| 1 | `fail-loud-sources` | El dashboard buildeaba vacío y no avisaba. **Aplicado el 2026-09-24** |
 | 2 | `footer-contract-parser` | El parser lee un contrato que ya no se escribe, y descarta piezas en silencio |
 | 3 | `account-scoped-routes` | Sin esto, el contenido personal viaja dentro de las vistas de Tegu. **Hasta que cierre, ningún build se comparte** |
 | 4 | `growth-views` | Recién acá el repo entrega algo que Notion no puede dar |
@@ -49,17 +49,29 @@ Y dos independientes de la app, que se pueden tomar en cualquier momento:
 Las decisiones tomadas y las que siguen abiertas —incluidas las que se descartaron y
 por qué— están en [DECISIONS.md](DECISIONS.md).
 
-**Si hay que elegir uno para empezar:** la tarea 1 de `unschedule-everything` (apagar
-lo que hoy corre solo y falla mudo) o la tarea 1 de `ads-model` (arreglar las cuatro
-buyer personas faltantes y la lectura por ruta). Las dos arreglan algo que está mal
-ahora mismo, ninguna depende de nada.
+**El que sigue:** `footer-contract-parser`. El change 1 ya dejó medido lo que hay que
+arreglar: Tegu tiene **0 piezas con `date`** (escribe la fecha adentro de `estado:
+Publicado …`) y el parser descarta 5 archivos que sí tienen footer. Los conteos están
+en `fail-loud-sources/tasks.md`, y el baseline de slugs a diffear en
+`fail-loud-sources/slugs-baseline.txt`.
+
+**Si no, y sin depender de nada:** la tarea 1 de `ads-model` (las cuatro buyer personas
+faltantes y la lectura por ruta), o `move-resilient-keys`, que sigue urgente.
 
 ## Estado al arrancar una sesión nueva
 
 Lo que hay que saber antes de tocar nada:
 
-- **La app no corre.** Nunca se hizo `npm install`, no hay runner de tests, y el
-  parser apunta a un directorio que no existe. Es lo que arregla el change 1.
+- **La app corre.** `npm install` hecho, runner de tests (`vitest`, `npm test`), y
+  `npm run build` levanta 212 piezas — 99 de Tegu y 113 personales. Era 0 hasta el
+  2026-09-24.
+- **Una fuente ausente ahora voltea el build**, nombrando la raíz que falta. Las
+  raíces salen de `config/sources.json` vía `~/vaults/`, nunca del `cwd`.
+  `npm run audit` (read-only) imprime el estado de las dos fuentes.
+- **El deploy sigue sin compartirse.** `GROWTH_SOURCES=tegu` ya deja afuera toda
+  pieza personal, pero el registro entero (con la ruta del vault personal) se
+  inlinea en el bundle de servidor. El aislamiento real lo cierra
+  `account-scoped-routes`.
 - **`unschedule-everything` está aplicado**: no queda nada agendado en el sistema.
 - **El puente con Notion funciona a mano**, por MCP. Los scripts nunca escribieron
   por API: falta la credencial, y con la regla 6 vigente puede no hacer falta nunca.

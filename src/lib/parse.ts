@@ -1,12 +1,12 @@
 import fg from 'fast-glob';
 import { readFileSync } from 'node:fs';
-import { basename, relative, resolve } from 'node:path';
+import { basename, relative, sep as PATH_SEP } from 'node:path';
 import type { Piece, Snapshot } from './types';
+import type { ContentSource } from './sources';
+import { assertRoots, listSources } from './sources';
 
-// Path al contenido del vault. Default: sibling tegu-docs/Brand/Content.
-// Override con VAULT_CONTENT_DIR (útil para el build en Vercel).
-const VAULT = process.env.VAULT_CONTENT_DIR
-  ?? resolve(process.cwd(), '../tegu-docs/Brand/Content');
+// Este archivo ya no sabe DÓNDE está el contenido: lo recibe. El registro de
+// fuentes vive en ./sources.ts, y ahí se rompe si una raíz falta.
 
 const SNAP_KEYS: Record<string, keyof Snapshot> = {
   imp: 'impressions',
@@ -60,8 +60,8 @@ function parseSnapshot(line: string): Snapshot | null {
 // El footer del formato /post: bloque final después del último `---`,
 // con líneas `key: value` (varias por línea separadas por ` · `),
 // un bloque `analytics:` de líneas `- ...`, y un `note:`.
-function parseFooter(footer: string[]): Omit<Piece, 'title' | 'path' | 'relPath' | 'slug' | 'tldr' | 'body'> {
-  const meta: Omit<Piece, 'title' | 'path' | 'relPath' | 'slug' | 'tldr' | 'body'> = { snapshots: [] };
+function parseFooter(footer: string[]): Omit<Piece, 'title' | 'path' | 'relPath' | 'slug' | 'source' | 'tldr' | 'body'> {
+  const meta: Omit<Piece, 'title' | 'path' | 'relPath' | 'slug' | 'source' | 'tldr' | 'body'> = { snapshots: [] };
   let i = 0;
   while (i < footer.length) {
     const line = footer[i].trim();
@@ -156,7 +156,7 @@ function slugify(s: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-function parseFile(path: string): Piece | null {
+function parseFile(path: string, source: ContentSource, root: string): Piece | null {
   const raw = readFileSync(path, 'utf8');
   const lines = raw.split(/\r?\n/);
 
@@ -174,29 +174,67 @@ function parseFile(path: string): Piece | null {
   const tldrLine = lines.find((l) => l.startsWith('TL;DR:'));
   const tldr = tldrLine ? tldrLine.slice('TL;DR:'.length).trim() : '';
   const title = basename(path).replace(/\.md$/i, '').replace(/\.$/, '');
-  const relPath = relative(VAULT, path);
-  const slug = slugify(relPath.replace(/\.md$/i, ''));
+  // La ruta relativa cuelga del VAULT, no del content root: es lo que permite
+  // distinguir de cuál de las raíces de la fuente vino la pieza. El SLUG, en
+  // cambio, sigue saliendo de la ruta relativa al content root — moverlo
+  // cambiaría las URLs de todas las piezas, y este change no toca URLs. La
+  // contracara es que dos fuentes pueden producir el mismo slug: eso lo reporta
+  // `npm run audit` como colisión.
+  const fromVault = relative(source.vault, path);
+  const relPath = fromVault.startsWith('..') ? relative(root, path) : fromVault;
+  const slug = slugify(relative(root, path).replace(/\.md$/i, ''));
   const body = lines
     .slice(0, sep)
     .filter((l) => !l.startsWith('TL;DR:'))
     .join('\n')
     .trim();
 
-  return { title, path, relPath, slug, tldr, body, ...meta };
+  return { title, path, relPath, slug, source: source.id, tldr, body, ...meta };
 }
 
-export function loadPieces(): Piece[] {
-  const files = fg.sync('**/*.md', { cwd: VAULT, absolute: true });
-  const pieces: Piece[] = [];
-  for (const f of files) {
-    try {
-      const p = parseFile(f);
-      if (p) pieces.push(p);
-    } catch {
-      // archivo raro / no-pieza: se ignora, no rompe el build
+export type SourceLoad = { source: ContentSource; pieces: Piece[] };
+
+/**
+ * Lee cada fuente por separado y devuelve su conteo aparte. Que una fuente
+ * devuelva cero tiene que ser visible: sin esto, dos fuentes vacías y una llena
+ * se ven igual que tres llenas.
+ */
+export function loadPiecesBySource(sources: ContentSource[] = listSources()): SourceLoad[] {
+  assertRoots(sources);
+
+  return sources.map((source) => {
+    const pieces: Piece[] = [];
+    const seen = new Set<string>();
+
+    for (const root of source.roots) {
+      for (const file of fg.sync('**/*.md', { cwd: root, absolute: true })) {
+        if (source.ignore.some((dir) => file === dir || file.startsWith(dir + PATH_SEP))) continue;
+        if (seen.has(file)) continue; // dos raíces anidadas no duplican la pieza
+        seen.add(file);
+        let piece: Piece | null;
+        try {
+          piece = parseFile(file, source, root);
+        } catch (err) {
+          // Un archivo ilegible es un problema real, no ruido: antes se tragaba
+          // en silencio y la pieza desaparecía del dashboard sin dejar rastro.
+          throw new Error(
+            `No se pudo leer ${file} (fuente ${source.id}): ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        if (piece) pieces.push(piece);
+      }
     }
-  }
-  return pieces;
+
+    if (pieces.length === 0) {
+      console.warn(
+        `[sources] ${source.id}: 0 piezas legibles en ${source.roots.join(', ')}. ` +
+          'Las raíces existen; o están vacías o ningún archivo tiene footer.',
+      );
+    }
+    return { source, pieces };
+  });
 }
 
-export { VAULT };
+export function loadPieces(sources: ContentSource[] = listSources()): Piece[] {
+  return loadPiecesBySource(sources).flatMap((s) => s.pieces);
+}
