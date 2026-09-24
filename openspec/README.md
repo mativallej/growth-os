@@ -8,9 +8,10 @@ La capa de operación y medición del growth de dos marcas que no se fusionan. T
 capas, y la división entre ellas es la decisión de fondo:
 
 ```
-vaults de Obsidian + agentes   →   donde se crea. La verdad vive acá
-Notion                         →   donde se colabora
-growth-loop                    →   el nexo: desde acá se mira y se opera
+vaults de Obsidian + agentes   →   operación CREATIVA. La verdad vive acá
+Notion                         →   COORDINACIÓN con el equipo
+growth-loop                    →   operación de GROWTH: captar, sincronizar,
+                                   exportar, ingerir, medir
 ```
 
 **Nada corre solo.** Toda operación la dispara una persona desde la consola: la app
@@ -57,6 +58,7 @@ Están en `config.yaml` y valen para todo change:
 4. **Las dos cuentas no se mezclan.** Es privacidad, y la separación es estructural.
 5. **Números reales o nada.** La ausencia de un dato se representa como ausencia, nunca como cero.
 6. **Nada corre solo.** Toda ejecución la dispara una persona, que ve el resultado en el momento.
+7. **La operación creativa es Obsidian; la de growth es la plataforma.** Acá no se escribe una pieza.
 
 Las seis salieron de haberlas roto. La procedencia de cada una está en el `Why` del
 change que la usa.

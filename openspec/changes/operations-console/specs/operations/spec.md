@@ -24,15 +24,15 @@ quitar o modificar una operación MUST NOT requerir cambios en la interfaz.
 - **WHEN** una operación declara que aplica solo a una marca
 - **THEN** no se ofrece desde las vistas de las otras
 
-### Requirement: La aplicación no ejecuta operaciones que modifican datos
+### Requirement: La aplicación no aplica cambios que ella misma dedujo
 
-La aplicación MUST NOT aplicar por sí misma ninguna operación que escriba en los
-vaults o en el destino de colaboración. Estas operaciones SHALL delegarse a una
-sesión donde una persona pueda revisarlas antes de aplicarlas.
+La aplicación MUST NOT aplicar por sí misma ningún cambio cuyo contenido haya sido
+derivado de los datos existentes. Estos cambios SHALL delegarse a una sesión donde
+una persona pueda revisarlos antes de aplicarlos.
 
-#### Scenario: Operación de escritura
+#### Scenario: Cambio derivado
 
-- **WHEN** una persona dispara una operación que modifica datos
+- **WHEN** una persona dispara una operación cuyo efecto la aplicación calculó a partir de los datos
 - **THEN** la aplicación prepara la operación y la entrega a una sesión local
 - **AND** ningún dato resulta modificado por la aplicación misma
 
@@ -40,6 +40,79 @@ sesión donde una persona pueda revisarlas antes de aplicarlas.
 
 - **WHEN** se entrega una operación a una sesión
 - **THEN** la sesión recibe qué se pidió, con qué parámetros, y qué conviene revisar antes de aplicar
+
+### Requirement: El contenido escrito por una persona se guarda sin intermediación
+
+Cuando el contenido de una escritura lo aporta íntegramente la persona en el momento,
+el sistema SHALL guardarlo directamente, sin delegar a una sesión ni exigir una
+revisión adicional.
+
+#### Scenario: Captar una idea
+
+- **WHEN** una persona escribe una idea y la envía
+- **THEN** queda guardada inmediatamente
+- **AND** no se abre ninguna sesión ni se pide confirmación adicional
+
+#### Scenario: Captura sin conexión al destino
+
+- **WHEN** el destino de colaboración no está accesible
+- **THEN** la captura igual se guarda
+- **AND** queda pendiente de publicación, con esa condición visible
+
+#### Scenario: Publicación de lo captado
+
+- **WHEN** se publica lo captado hacia el destino
+- **THEN** cada elemento se publica una sola vez
+- **AND** repetir la publicación no duplica nada
+
+### Requirement: Las operaciones se pueden ejecutar sobre un solo elemento
+
+Toda operación que aplique a un conjunto SHALL poder ejecutarse también sobre un
+elemento individual, desde el contexto donde ese elemento se muestra.
+
+#### Scenario: Sincronizar un solo elemento
+
+- **WHEN** se dispara una operación desde un elemento concreto
+- **THEN** afecta únicamente a ese elemento
+- **AND** el resto del conjunto queda sin tocar
+
+#### Scenario: Misma operación, dos alcances
+
+- **WHEN** la misma operación se ejecuta sobre un elemento y sobre el conjunto
+- **THEN** el resultado sobre ese elemento es el mismo en ambos casos
+
+### Requirement: Toda operación del sistema está en el catálogo
+
+Ninguna operación del sistema SHALL quedar disponible únicamente fuera de la consola.
+Si una operación existe como herramienta ejecutable del proyecto, SHALL estar
+declarada en el catálogo.
+
+#### Scenario: Auditoría de completitud
+
+- **WHEN** se comparan las herramientas ejecutables del proyecto con el catálogo
+- **THEN** no hay ninguna que falte en el catálogo
+
+#### Scenario: Herramienta deliberadamente excluida
+
+- **WHEN** una herramienta se excluye del catálogo a propósito
+- **THEN** la exclusión está declarada junto con su motivo
+
+### Requirement: La plataforma no es donde se hace el trabajo creativo
+
+El sistema MUST NOT ofrecer capacidades de redacción o edición del contenido de
+piezas ni de creativos. Su superficie de escritura SHALL limitarse a captura de
+material de entrada y a operaciones de coordinación y medición.
+
+#### Scenario: Intento de editar una pieza
+
+- **WHEN** se consulta una pieza desde la plataforma
+- **THEN** se puede ver y operar sobre ella
+- **AND** no se puede modificar su contenido
+
+#### Scenario: Una idea se convierte en pieza
+
+- **WHEN** una idea captada pasa a desarrollarse como pieza
+- **THEN** ese trabajo ocurre fuera de la plataforma
 
 ### Requirement: Las operaciones de solo lectura producen un archivo
 

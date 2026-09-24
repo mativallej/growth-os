@@ -59,6 +59,22 @@ corresponden.
 - **WHEN** una persona busca dónde realizar una actividad
 - **THEN** el mapa permite descartar las capas a las que no corresponde
 
+### Requirement: El mapa identifica la actividad propia de cada capa
+
+El mapa SHALL asignar a cada capa la actividad que le corresponde, de forma que para
+cualquier tarea del sistema quede claro en cuál se realiza.
+
+#### Scenario: Escribir una pieza
+
+- **WHEN** se busca dónde se redacta o edita el contenido de una pieza
+- **THEN** el mapa indica que ocurre en la capa de creación
+- **AND** indica que no ocurre en la plataforma
+
+#### Scenario: Captar una idea
+
+- **WHEN** se busca dónde se registra una idea nueva
+- **THEN** el mapa lo distingue del trabajo de desarrollarla
+
 ### Requirement: El mapa no expone contenido
 
 La vista del mapa MUST NOT incluir contenido de piezas ni de creativos de ninguna

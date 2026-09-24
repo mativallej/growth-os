@@ -20,6 +20,35 @@ equivocado el 2026-09-23.
 
 Entonces: **la app prepara, la sesión ejecuta, la persona aprueba.**
 
+## Autoría contra derivación
+
+La primera versión de este documento decía que la app nunca escribe. Es demasiado
+grueso, y se rompe con el caso más simple de todos: un input para captar una idea.
+
+El criterio correcto no es la dirección del dato sino **de dónde sale su contenido**:
+
+| | Quién lo escribió | Qué se revisa | Quién lo aplica |
+|---|---|---|---|
+| Captura | la persona, recién | nada: ya lo aprobó al escribirlo | la app |
+| Derivación | el sistema, desde los datos | qué se va a crear, pisar o devolver | una sesión, con la persona mirando |
+
+Una idea tipeada hace dos segundos no tiene nada que revisar. Un sync que decidió
+crear 40 filas y devolver 12 estados al vault, sí.
+
+## Dónde aterriza una idea captada
+
+Las ideas viven **solo** en Notion desde el 2026-09-23. Entonces una captura tiene
+dos caminos, y el costo de cada uno es distinto:
+
+- **Escribir directo al destino.** La idea aparece al instante. Precio: una credencial de servicio, que es justamente lo que `unschedule-everything` acababa de volver innecesaria.
+- **Encolar local y publicar como operación aparte.** Sin credencial, funciona sin conexión, y la captura nunca falla por un problema de red — que importa, porque una idea se capta en el momento en que aparece o se pierde. Precio: la idea no está en el destino hasta que alguien empuja la cola.
+
+**Se propone la cola local**, por dos razones: la captura no puede depender de la red,
+y la restricción de no tener credencial de servicio es una decisión tomada, no un
+accidente. La cola es visible en la consola con su antigüedad, así que no se olvida
+sola. Si la latencia molesta en la práctica, el cambio a escritura directa es
+localizado y reversible.
+
 ## Qué es una "entrega a sesión local"
 
 La app abre una sesión de agente en la máquina, en el directorio correcto, con la

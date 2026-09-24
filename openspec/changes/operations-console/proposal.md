@@ -25,11 +25,24 @@ que ser obvio.
 
 - **Un catálogo declarativo de operaciones.** Cada una declara qué hace, qué parámetros toma, qué precondiciones necesita y cómo se ejecuta. Agregar una operación es agregar una entrada, no tocar la interfaz.
 - **Parámetros comunes**: rango de fechas, marca, **ads / orgánico / ambos**, canal, estado. Los filtros que el catálogo declara son los que la interfaz ofrece.
-- **Dos formas de ejecución**, declaradas por cada operación:
-  - **Export**: la app produce un archivo y el navegador lo descarga. Solo lectura, la app lo hace sola.
-  - **Entrega a sesión local**: la app arma el contexto y abre una sesión de agente en la máquina, en el directorio correcto y con la operación explicada. **La app no aplica el cambio**; lo hace la sesión, con una persona mirando.
+- **Tres formas de ejecución**, declaradas por cada operación:
+  - **Captura**: la persona escribe el contenido y la app lo guarda. Es el caso del input de ideas: no hay nada que revisar, porque quien lo escribió está ahí.
+  - **Export**: la app produce un archivo y el navegador lo descarga. Solo lectura.
+  - **Entrega a sesión local**: la app arma el contexto y abre una sesión de agente en la máquina, con la operación explicada. **La app no aplica el cambio**; lo hace la sesión, con una persona mirando.
+
+  La línea no es leer contra escribir: es **autoría contra derivación**. Una idea que alguien acaba de tipear se guarda y listo. Un cambio que el sistema *dedujo* de los datos —qué filas crear, qué estados devolver al vault, qué documentos pisar— pasa por revisión.
+
+- **Las operaciones son granulares, no solo por lote.** Sincronizar *este* post, desde la fila de ese post. Hoy los scripts son todo-o-nada por alcance, y eso obliga a correr un lote de 95 para empujar uno.
+
+- **El catálogo cubre todo.** Ninguna operación del sistema queda sin botón: si existe como script o como skill operativa y no está en el catálogo, falta.
 - **Cada operación muestra hace cuánto se ejecutó** por última vez con éxito.
 - **La consola solo existe en el build local.** Un build compartido no la incluye.
+
+**La frontera, que es lo que define el alcance de esta pantalla:** *la operación
+creativa es Obsidian; la operación de growth es la plataforma.* Acá se capta una
+idea, se sube un lote de creativos, se sincroniza un post, se exporta, se ingesta.
+**Acá no se escribe ni se edita una pieza.** Una idea es materia prima de intake, no
+trabajo creativo; en el momento en que se convierte en pieza, se va a Obsidian.
 
 **No incluye:** las operaciones de ads con métricas (no hay contrato todavía, ver `ads-model`), ni la pestaña del mapa del sistema (`system-map-page`).
 

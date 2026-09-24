@@ -5,9 +5,13 @@
 El sistema tiene tres capas y la división de trabajo entre ellas es la decisión más
 importante que se tomó:
 
-- **Los vaults de Obsidian, con sus agentes** — donde se crea y donde está la verdad.
-- **El destino de colaboración** — donde se coordina con otra persona.
-- **Esta plataforma** — el nexo desde donde se opera y se mira.
+- **Los vaults de Obsidian, con sus agentes** — la **operación creativa**: escribir la pieza, el brief, el guion. Y donde está la verdad.
+- **El destino de colaboración** — la **coordinación**: qué está en qué carril, con quién.
+- **Esta plataforma** — la **operación de growth**: captar, sincronizar, exportar, ingerir, medir.
+
+Un verbo por capa, y ninguno se solapa. La frontera que más se pone a prueba es la
+primera: la plataforma no es un editor, y la única escritura de contenido que admite
+es captar una idea, que es materia prima y no trabajo creativo.
 
 Esa división hoy **no está escrita en ningún lado completo.** Vive repartida en los
 `Why` de seis changes, en dos `SKILL.md`, en un docstring y en la cabeza de una sola
