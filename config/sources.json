@@ -1,0 +1,124 @@
+{
+  "_doc": "Marcas y sus cuentas. Tres dimensiones independientes: n marcas × n redes (config/networks.json) × n cuentas por marca. Agregar cualquiera de las tres es agregar un objeto acá o allá; el script no se toca. Las rutas van por ~/vaults/, nunca la ruta real.",
+  "_campos": {
+    "vault": "raíz del repo, vía ~/vaults/",
+    "content": "subcarpeta(s) con las piezas, relativas al vault. Puede ser una lista: tegu-growth tiene dos pipelines conviviendo (Brand/Content/Create y Create/), pendiente de converger.",
+    "accounts[].id": "lo que va en el campo 'account' del footer de cada pieza",
+    "accounts[].url_contains": "cómo se reconoce una pieza de ESTA cuenta cuando dos cuentas comparten red y vault",
+    "notion.marca": "etiqueta EXACTA de la opción del select 'Marca' en Notion. Ojo: Notion guarda el valor del select como texto, así que si se renombra la opción hay que renombrarla acá y migrar las filas.",
+    "notion.docs": "carpetas de documentación a espejar como páginas de Notion. Vacío = esta marca no publica docu (brain sincroniza solo contenido).",
+    "notion.ads": "prefijos (relativos al vault) donde viven los creativos de ads. Salen del kanban de contenido y van a Ads Creator: un ad no es un post.",
+    "notion.operational_days": "el tablero es lo que se mueve, no un archivo. Una pieza publicada hace más de N días no sube. 0 = sin corte."
+  },
+  "brands": [
+    {
+      "id": "mativallej",
+      "label": "Marca personal",
+      "vault": "~/vaults/brain",
+      "content": "Personal Brand/Content/Create",
+      "data": "Personal Brand/Analytics",
+      "accounts": [
+        {
+          "id": "mativallej_x",
+          "network": "x",
+          "handle": "mativallej_",
+          "url_contains": "x.com/mativallej_/"
+        },
+        {
+          "id": "mativallej_ig",
+          "network": "instagram",
+          "handle": "mativallej_",
+          "url_contains": "instagram.com/"
+        },
+        {
+          "id": "mativallej_li",
+          "network": "linkedin",
+          "handle": "mativallej",
+          "url_contains": "linkedin.com/"
+        }
+      ],
+      "notify": {
+        "discord_webhook_env": "DISCORD_WEBHOOK_MATIVALLEJ",
+        "channel": "growth-mativallej"
+      },
+      "notion": {
+        "marca": "Personal Brand",
+        "docs": [],
+        "ads": [],
+        "operational_days": 60
+      }
+    },
+    {
+      "id": "tegu",
+      "label": "Tegu",
+      "vault": "~/vaults/tegu-growth",
+      "content": [
+        "Brand/Content/Create",
+        "Create"
+      ],
+      "data": "Analytics",
+      "accounts": [
+        {
+          "id": "tegu_x",
+          "network": "x",
+          "handle": "tegu_app",
+          "url_contains": "x.com/tegu_app/"
+        },
+        {
+          "id": "tegu_ig",
+          "network": "instagram",
+          "handle": "tegu_app",
+          "url_contains": "instagram.com/"
+        },
+        {
+          "id": "tegu_li",
+          "network": "linkedin",
+          "handle": "tegu",
+          "url_contains": "linkedin.com/"
+        }
+      ],
+      "notify": {
+        "discord_webhook_env": "DISCORD_WEBHOOK_TEGU",
+        "channel": "growth-tegu"
+      },
+      "notion": {
+        "marca": "Tegu",
+        "docs": [
+          "Foundations",
+          "Learn",
+          "Marketing",
+          "Analytics",
+          "Brand/Identity",
+          "Brand/Foundations",
+          "Brand/UI & UX",
+          "Brand/Writing"
+        ],
+        "ads": [
+          "Create/Ads"
+        ],
+        "operational_days": 60
+      }
+    }
+  ],
+  "channels": {
+    "ideas": {
+      "_doc": "Canal por TIPO DE EVENTO, no por marca: las ideas de las dos marcas caen acá.",
+      "discord_webhook_env": "DISCORD_WEBHOOK_IDEAS",
+      "channel": "ideas",
+      "watch": [
+        {
+          "brand": "mativallej",
+          "path": "Personal Brand/Content/Ideas"
+        },
+        {
+          "brand": "tegu",
+          "path": "Brand/Content/Ideas"
+        },
+        {
+          "brand": "tegu",
+          "path": "Create/Ideas"
+        }
+      ]
+    }
+  }
+}

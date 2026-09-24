@@ -1,0 +1,388 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Sincroniza un vault con los tableros de Notion bajo la página Growth.
+
+Tres cosas distintas, tres destinos distintos. No se mezclan:
+
+    posts   →  Content Creator   piezas de contenido orgánico
+    ads     →  Ads Creator       creativos de campañas (otro ciclo, otras métricas)
+    docu    →  Docs — <marca>    estrategia, guías, research (páginas, no filas)
+
+Si no pasás --scope, pregunta cuál querés. Es a propósito: sincronizar todo el
+vault de Tegu son ~190 archivos y rara vez es lo que uno quiere.
+
+Cada campo tiene UN dueño. Nunca los dos lados escriben lo mismo:
+
+    vault  → Notion   pieza, marca, canal, fórmula, archivo, url, fecha,
+                      último corte y el estado inicial
+    Notion → vault    estado (el carril del kanban) → `- status:` del footer
+
+El estado es el único campo que viaja en los dos sentidos, y por eso tiene una
+regla escrita (ver `estado_post`): el vault decide con qué estado NACE la fila,
+Notion manda de ahí en adelante. Sin esa regla es justo donde se inventa
+información.
+
+    export NOTION_TOKEN=secret_...
+    python3 sync-notion.py --brand tegu                      # pregunta y hace dry-run
+    python3 sync-notion.py --brand tegu --scope posts --apply
+    python3 sync-notion.py --brand tegu --scope all --apply
+"""
+import argparse, io, json, os, re, subprocess, sys, urllib.error, urllib.request
+from datetime import date, datetime
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+API = "https://api.notion.com/v1"
+VERSION = "2022-06-28"
+CONTENT_DS = "f74f3fb7-4fe5-4e52-b683-c7d8eeefff0d"   # Content Creator
+ADS_DS = "d4b673e1-a79d-4b6f-b2f1-7de8e3e08e94"       # Ads Creator
+ISO = re.compile(r"(20\d\d-\d\d-\d\d)")
+CANAL = {"x": "X", "twitter": "X", "instagram": "Instagram", "linkedin": "LinkedIn",
+         "blog": "Blog", "tiktok": "TikTok"}
+SCOPES = ["posts", "ads", "docs", "all"]
+
+
+def load_env():
+    p = os.path.join(ROOT, ".env.local")
+    if os.path.isfile(p):
+        for line in io.open(p, encoding="utf-8"):
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+
+
+def api(path, method="GET", body=None):
+    tok = os.environ.get("NOTION_TOKEN")
+    if not tok:
+        sys.exit("Falta NOTION_TOKEN.\nEs un token de integración de Notion (no el OAuth del MCP):\n"
+                 "  notion.so/my-integrations → New integration → copiar el secret\n"
+                 "  y compartir la página Growth con esa integración.\n"
+                 "Después: agregalo a growth-loop-obsidian/.env.local")
+    req = urllib.request.Request(API + path, method=method,
+        data=json.dumps(body).encode("utf-8") if body else None,
+        headers={"Authorization": "Bearer " + tok, "Notion-Version": VERSION,
+                 "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        sys.exit("Notion devolvió %s en %s: %s" % (e.code, path, e.read().decode("utf-8")[:300]))
+
+
+# ── leer el vault ─────────────────────────────────────────────────────────────
+
+# Los dos vaults escriben el mismo metadato con dos gramáticas distintas, y las
+# dos son legítimas. Brain usa un bullet por clave al final del archivo:
+#     - status: publicado
+#     - url: https://...
+# Tegu las pone en una línea separada por " · ":
+#     canal: Twitter · formato: tweet suelto · fórmula: X4 · Builder-número
+# Un lector que entienda solo una de las dos ve 14 piezas donde hay 125, así que
+# entiende las dos. La lista de claves conocidas es el filtro: sin ella, una
+# línea de prosa como "Detrás de todo esto: +150 builds" entraría como metadato.
+CLAVES = {"status": "status", "estado": "status", "url": "url", "link": "url",
+          "date": "date", "fecha": "date", "canal": "platform", "platform": "platform",
+          "red": "platform", "formato": "formato", "fórmula": "formula",
+          "formula": "formula", "cuenta": "account", "account": "account",
+          "notas": "notas", "tags": "tags", "analytics": "analytics"}
+PAR = re.compile(r"^\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]{0,24}?)\s*:\s*(.*)$")
+
+
+def read_piece(path):
+    t = io.open(path, encoding="utf-8").read()
+    f = {}
+    for raw in t.split("\n"):
+        ln = raw.strip()
+        if not ln:
+            continue
+        ln = re.sub(r"^[-*]\s+", "", ln)
+        # una línea inline puede traer varias claves; una de bullet trae una
+        for seg in (ln.split(" · ") if " · " in ln else [ln]):
+            m = PAR.match(seg.strip())
+            if m:
+                k = CLAVES.get(m.group(1).strip().lower())
+                if k:
+                    f.setdefault(k, m.group(2).strip())
+    cortes = re.findall(r"^-\s+snapshot\s+(.+)$", t, re.M)
+    return t, f, (cortes[-1] if cortes else "")
+
+
+def estado_post(f):
+    """El carril del kanban, derivado del vault. La regla importa más que el código:
+
+    Sin señal explícita una pieza va a Backlog, NO a "En producción". Una pieza
+    que el vault no marca como en vuelo no está en vuelo, y llenar el tablero de
+    trabajo-en-curso que nadie está haciendo es peor que dejarlo vacío: hace
+    ilegible la única columna que importa.
+
+    Una `url` es evidencia dura de publicación. `pendiente grabar`, `listo`,
+    `falta X` son evidencia de que alguien la está trabajando. Todo lo demás es
+    una idea guardada.
+    """
+    s = (f.get("status") or "").lower()
+    if (f.get("url") or "").startswith("http") or re.search(r"publicad", s):
+        return "Publicado"
+    if re.search(r"listo|pendiente|grabar|falta", s) \
+            and not re.search(r"no publicar|sin auditar|variante|esperando", s):
+        return "En producción"
+    return "Backlog"
+
+
+def estado_ad(f):
+    """Un ad no se publica: se activa y se pausa. Mismo criterio de prudencia."""
+    s = (f.get("status") or "").lower()
+    if re.search(r"pausad|apagad", s):
+        return "Pausado"
+    if re.search(r"activ|corriendo|publicad", s) or (f.get("url") or "").startswith("http"):
+        return "Activo"
+    if re.search(r"listo|pendiente|grabar|falta", s) and not re.search(r"no publicar", s):
+        return "En producción"
+    return "Backlog"
+
+
+AD_FORMATO = [("carrusel", "carrusel"), ("ugc", "ugc"), ("video", "video"),
+              ("reel", "video"), ("imagen", "imagen")]
+
+
+def txt(v):
+    return {"rich_text": [{"text": {"content": (v or "")[:1900]}}]} if v else {"rich_text": []}
+
+
+def ad_fields(rel):
+    """Público, Persona y Dolor salen del path, que ES el brief:
+    Create/Ads/<Público>/<Persona>/<Dolor N - ...>/<creativo>/<archivo>.md"""
+    parts = rel.split(os.sep)
+    out = {}
+    if len(parts) > 2 and parts[2] in ("Cliente", "Profesional"):
+        out["Público"] = {"select": {"name": parts[2]}}
+    if len(parts) > 3:
+        out["Persona"] = {"select": {"name": parts[3]}}
+    if len(parts) > 4 and parts[4].lower().startswith("dolor"):
+        out["Dolor"] = txt(parts[4])
+    low = os.path.basename(rel).lower()
+    for needle, fmt in AD_FORMATO:
+        if needle in low:
+            out["Formato"] = {"select": {"name": fmt}}
+            break
+    out["Plataforma"] = {"select": {"name": "Meta"}}
+    return out
+
+
+def operativa(f, days):
+    """El tablero es para lo que se mueve. Una pieza publicada hace meses no es
+    trabajo en curso: es archivo, y el archivo vive en el vault. Sin este corte,
+    el primer --apply sube 100 piezas viejas y el kanban deja de servir para
+    mirar la semana, que es para lo único que sirve un kanban."""
+    if not days:
+        return True
+    if estado_post(f) != "Publicado":
+        return True
+    m = ISO.search((f.get("date") or "") + " " + (f.get("status") or ""))
+    if not m:
+        return True          # publicada sin fecha: no la escondemos, es deuda visible
+    pub = datetime.strptime(m.group(1), "%Y-%m-%d").date()
+    return (date.today() - pub).days <= days
+
+
+def walk(root, vault, skip_prefixes=()):
+    """Recolecta `.md` con footer. Recaudo: nunca sale del root configurado, y
+    saltea carpetas ocultas y READMEs."""
+    out = {}
+    for dp, dn, fn in os.walk(root):
+        dn[:] = [d for d in dn if not d.startswith(".")]
+        for f in fn:
+            if not f.endswith(".md") or f.lower() == "readme.md":
+                continue
+            p = os.path.join(dp, f)
+            rel = os.path.relpath(p, vault)
+            if any(rel.startswith(x) for x in skip_prefixes):
+                continue
+            _, fields, corte = read_piece(p)
+            if not fields:
+                continue
+            out[rel] = {"name": f[:-3], "f": fields, "corte": corte}
+    return out
+
+
+def remote_rows(ds):
+    rows, cursor = {}, None
+    while True:
+        body = {"page_size": 100}
+        if cursor:
+            body["start_cursor"] = cursor
+        r = api("/data_sources/%s/query" % ds, "POST", body)
+        for pg in r["results"]:
+            props = pg["properties"]
+            arch = "".join(x["plain_text"] for x in props.get("Archivo", {}).get("rich_text", []))
+            if arch:
+                est = (props.get("Estado") or {}).get("select") or {}
+                rows[arch] = {"id": pg["id"], "estado": est.get("name", "")}
+        if not r.get("has_more"):
+            return rows
+        cursor = r["next_cursor"]
+
+
+# ── un pase (posts o ads) ─────────────────────────────────────────────────────
+
+def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion):
+    ds = ADS_DS if kind == "ads" else CONTENT_DS
+    titulo = "Creativo" if kind == "ads" else "Pieza"
+    estado = estado_ad if kind == "ads" else estado_post
+    remote = remote_rows(ds)
+
+    nuevas = [k for k in sorted(local) if k not in remote]
+    existentes = [k for k in sorted(local) if k in remote]
+    print("\n%s · marca %s (Notion: %s)" % (kind.upper(), brand, marca))
+    print("  en el vault: %d · filas en Notion: %d" % (len(local), len(remote)))
+    print("  a crear: %d · ya existen: %d" % (len(nuevas), len(existentes)))
+
+    devuelta = []
+    if not only_to_notion:
+        for k in existentes:
+            est = remote[k]["estado"]
+            cur = local[k]["f"].get("status") or ""
+            if est and not cur.lower().startswith(est.lower()):
+                devuelta.append((k, est, cur))
+        print("  estado a escribir de vuelta al vault: %d" % len(devuelta))
+        for k, nuevo, viejo in devuelta[:10]:
+            print("     %s: %s → %s" % (os.path.basename(k)[:46], viejo or "(vacío)", nuevo))
+
+    if not apply_:
+        return
+
+    for k in nuevas:
+        d = local[k]; f = d["f"]
+        props = {
+            titulo: {"title": [{"text": {"content": d["name"][:200]}}]},
+            "Marca": {"select": {"name": marca}},
+            "Estado": {"select": {"name": estado(f)}},
+            "Archivo": txt(k), "Último corte": txt(d["corte"]),
+        }
+        if f.get("url", "").startswith("http"):
+            props["URL"] = {"url": f["url"]}
+        if kind == "ads":
+            props.update(ad_fields(k))
+            props["Notas"] = txt(f.get("notas"))
+        else:
+            props["Fórmula"] = txt(f.get("formula"))
+            crudo = (f.get("platform") or f.get("canal") or "").strip().lower()
+            canal = CANAL.get(crudo.split()[0]) if crudo else None
+            if canal:
+                props["Canal"] = {"select": {"name": canal}}
+            m = ISO.search(f.get("date", ""))
+            if m:
+                props["Fecha"] = {"date": {"start": m.group(1)}}
+        api("/pages", "POST", {"parent": {"type": "data_source_id", "data_source_id": ds},
+                               "properties": props})
+    if nuevas:
+        print("  ✓ %d filas creadas." % len(nuevas))
+
+    for k, nuevo, _ in devuelta:
+        p = os.path.join(vault, k)
+        t = io.open(p, encoding="utf-8").read()
+        if re.search(r"^-\s+status:.*$", t, re.M):
+            t = re.sub(r"^-\s+status:.*$", "- status: %s" % nuevo.lower(), t, count=1, flags=re.M)
+        else:
+            t = t.rstrip("\n") + "\n- status: %s\n" % nuevo.lower()
+        io.open(p, "w", encoding="utf-8").write(t)
+    if devuelta:
+        print("  ✓ %d estados escritos de vuelta al vault." % len(devuelta))
+
+
+def ask_scope(brand, counts):
+    print("¿Qué querés sincronizar de %s?\n" % brand)
+    labels = [("posts", "solo contenido orgánico → Content Creator"),
+              ("ads",   "solo creativos de campañas → Ads Creator"),
+              ("docs",  "solo documentación → páginas Docs"),
+              ("all",   "todo el vault")]
+    for i, (k, desc) in enumerate(labels, 1):
+        print("  %d) %-6s %-44s %s" % (i, k, desc, counts.get(k, "")))
+    try:
+        raw = input("\nOpción [1]: ").strip() or "1"
+    except EOFError:
+        sys.exit("\nSin terminal interactiva: pasá --scope %s." % "|".join(SCOPES))
+    if raw in SCOPES:
+        return raw
+    if raw.isdigit() and 1 <= int(raw) <= len(labels):
+        return labels[int(raw) - 1][0]
+    sys.exit("Opción inválida: %s" % raw)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--brand", required=True)
+    ap.add_argument("--scope", choices=SCOPES, help="si se omite, pregunta")
+    ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--only-to-notion", action="store_true",
+                    help="no escribe el estado de vuelta al vault")
+    ap.add_argument("--all-history", action="store_true",
+                    help="ignora el corte operativo y sube también el archivo publicado")
+    a = ap.parse_args()
+    load_env()
+
+    cfg = json.load(io.open(os.path.join(ROOT, "config/sources.json"), encoding="utf-8"))
+    brands = {b["id"]: b for b in cfg["brands"]}
+    if a.brand not in brands:
+        sys.exit("Marca desconocida: %s. Configuradas: %s" % (a.brand, ", ".join(brands)))
+    brand = brands[a.brand]
+    notion = brand.get("notion") or {}
+    marca = notion.get("marca")
+    if not marca:
+        sys.exit("La marca '%s' no tiene notion.marca en config/sources.json.\n"
+                 "Es la etiqueta exacta de la opción del select Marca en Notion." % a.brand)
+
+    vault = os.path.expanduser(brand["vault"])
+    roots = brand["content"]
+    roots = [roots] if isinstance(roots, str) else roots
+    faltan = [r for r in roots if not os.path.isdir(os.path.join(vault, r))]
+    if faltan:
+        sys.exit("No existe el contenido de la marca: %s" % ", ".join(faltan))
+    ads_prefixes = [os.path.normpath(x) for x in (notion.get("ads") or [])]
+
+    posts = {}
+    for r in roots:
+        posts.update(walk(os.path.join(vault, r), vault, skip_prefixes=ads_prefixes))
+    dias = 0 if a.all_history else notion.get("operational_days") or 0
+    if dias:
+        antes = len(posts)
+        posts = {k: v for k, v in posts.items() if operativa(v["f"], dias)}
+        archivo = antes - len(posts)
+        if archivo:
+            print("Corte operativo: %d piezas publicadas hace más de %d días quedan fuera "
+                  "del tablero (--all-history para incluirlas)." % (archivo, dias))
+    ads = {}
+    for pre in ads_prefixes:
+        base = os.path.join(vault, pre)
+        if os.path.isdir(base):
+            ads.update(walk(base, vault))
+
+    scope = a.scope or ask_scope(a.brand, {
+        "posts": "(%d archivos)" % len(posts),
+        "ads": "(%d archivos)" % len(ads),
+        "docs": "(%d carpetas)" % len(notion.get("docs") or []),
+        "all": "(%d archivos + docu)" % (len(posts) + len(ads))})
+
+    if scope in ("posts", "all"):
+        sync_rows("posts", a.brand, marca, vault, posts, a.apply, a.only_to_notion)
+    if scope in ("ads", "all"):
+        if not ads:
+            print("\nADS · la marca %s no tiene creativos configurados (notion.ads vacío)." % a.brand)
+        else:
+            sync_rows("ads", a.brand, marca, vault, ads, a.apply, a.only_to_notion)
+    if scope in ("docs", "all"):
+        if not (notion.get("docs") or []):
+            print("\nDOCU · la marca %s no publica documentación (notion.docs vacío)." % a.brand)
+        else:
+            cmd = [sys.executable, os.path.join(HERE, "sync-notion-docs.py"), "--brand", a.brand]
+            if a.apply:
+                cmd.append("--apply")
+            print()
+            subprocess.call(cmd)
+
+    if not a.apply:
+        print("\nDRY-RUN. Nada se escribió. Agregá --apply para aplicar.")
+
+
+if __name__ == "__main__":
+    main()
