@@ -27,7 +27,19 @@ const SNAP_KEYS: Record<string, keyof Snapshot> = {
   nonfoll: 'nonFollowers',
 };
 
-// "t=+1h imp=686 eng=227 ..." -> Snapshot
+// Formato del contrato: "snapshot 2026-03-12 (+2d): imp=121691 eng=28179 ..."
+// Ver growth-loop-obsidian/docs/footer-contract.md
+const SNAPSHOT_RE = /^snapshot\s+(\d{4}-\d{2}-\d{2})\s*\(([+-][^)]+)\)\s*:\s*(.*)$/;
+
+function parseSnapshotLine(line: string): Snapshot | null {
+  const m = line.trim().match(SNAPSHOT_RE);
+  if (!m) return null;
+  const snap = parseSnapshot(`t=${m[2]} ${m[3]}`);
+  if (snap) snap.date = m[1];
+  return snap;
+}
+
+// Formato viejo: "t=+1h imp=686 eng=227 ..." -> Snapshot
 function parseSnapshot(line: string): Snapshot | null {
   const snap: Snapshot = { t: '' };
   for (const tok of line.trim().split(/\s+/)) {
@@ -103,8 +115,18 @@ function parseFooter(footer: string[]): Omit<Piece, 'title' | 'path' | 'relPath'
       i++;
       continue;
     }
-    // Varias keys por línea, separadas por ` · `
-    for (const seg of line.split('·')) {
+    // Línea de corte del contrato, suelta en el footer (sin bloque `analytics:`)
+    const bare = line.replace(/^-\s+/, '');
+    if (bare.startsWith('snapshot ')) {
+      const s = parseSnapshotLine(bare);
+      if (s) meta.snapshots.push(s);
+      i++;
+      continue;
+    }
+
+    // Varias keys por línea, separadas por ` · ` (formato viejo),
+    // o un dato por línea con `- ` adelante (contrato).
+    for (const seg of bare.split('·')) {
       const m = seg.trim().match(/^([A-Za-zÁÉÍÓÚáéíóúñ. -]+?):\s*(.+)$/);
       if (!m) continue;
       const key = m[1].trim().toLowerCase();
@@ -115,6 +137,12 @@ function parseFooter(footer: string[]): Omit<Piece, 'title' | 'path' | 'relPath'
       else if (key === 'fórmula' || key === 'formula') meta.formula = val;
       else if (key === 'estado') meta.estado = val;
       else if (key === 'tags') meta.tags = val;
+      // Claves del contrato (conviven con las viejas durante la migración)
+      else if (key === 'platform') meta.canal = meta.canal ?? val;
+      else if (key === 'account') meta.cuenta = meta.cuenta ?? val;
+      else if (key === 'status') meta.estado = meta.estado ?? val;
+      else if (key === 'date') meta.date = val;
+      else if (key === 'url') meta.url = val;
     }
     i++;
   }
