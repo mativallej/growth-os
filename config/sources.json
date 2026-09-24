@@ -2,7 +2,7 @@
   "_doc": "Marcas y sus cuentas. Tres dimensiones independientes: n marcas × n redes (config/networks.json) × n cuentas por marca. Agregar cualquiera de las tres es agregar un objeto acá o allá; el script no se toca. Las rutas van por ~/vaults/, nunca la ruta real.",
   "_campos": {
     "vault": "raíz del repo, vía ~/vaults/",
-    "content": "subcarpeta(s) con las piezas, relativas al vault. Puede ser una lista: tegu-growth tiene dos pipelines conviviendo (Brand/Content/Create y Create/), pendiente de converger.",
+    "content": "subcarpeta(s) con las piezas, relativas al vault. Puede ser una lista.",
     "accounts[].id": "lo que va en el campo 'account' del footer de cada pieza",
     "accounts[].url_contains": "cómo se reconoce una pieza de ESTA cuenta cuando dos cuentas comparten red y vault",
     "notion.marca": "etiqueta EXACTA de la opción del select 'Marca' en Notion. Ojo: Notion guarda el valor del select como texto, así que si se renombra la opción hay que renombrarla acá y migrar las filas.",
@@ -53,8 +53,7 @@
       "label": "Tegu",
       "vault": "~/vaults/tegu-growth",
       "content": [
-        "Brand/Content/Create",
-        "Create"
+        "Create/Organic"
       ],
       "data": "Analytics",
       "accounts": [
@@ -87,11 +86,7 @@
           "Foundations",
           "Learn",
           "Marketing",
-          "Analytics",
-          "Brand/Identity",
-          "Brand/Foundations",
-          "Brand/UI & UX",
-          "Brand/Writing"
+          "Analytics"
         ],
         "ads": [
           "Create/Ads"

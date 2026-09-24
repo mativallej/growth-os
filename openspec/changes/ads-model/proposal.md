@@ -25,21 +25,28 @@ Tres errores concretos de lo hecho el 2026-09-24, que este change corrige:
 
 1. **El tablero de campañas tiene 2 personas de 6.** Se cargaron Sofía y Diego; en el vault hay **Sofía, Marcos, Valentina, Diego, Emmanuel y Nati**. Y no tiene ronda ni ángulo, cuando la ronda es la unidad de iteración y el ángulo una de las cuatro dimensiones de organización.
 2. **La sincronización deriva persona y dolor de la ruta del archivo**, cuando el creativo los declara explícitamente: `buyer persona: Sofía (Cliente) · dolor: Dolor 3 - … · ronda: Ronda 1 - Jul 2026 · ángulo: Testimonial · CTA: …`. Leer la ruta es estrictamente peor: se rompe si el archivo se mueve, y no puede capturar ronda, ángulo ni CTA.
-3. **Hay una referencia colgada.** `Analytics/Meta/Data/README.md` remite a `../../Contrato de Footer.md` sección `meta-ads`. **Ese archivo no existe**, y el contrato que sí existe (`docs/footer-contract.md`) no tiene sección de campañas.
+3. **Hay dos contratos de footer y solo uno sabe de campañas.** *(Corregido el 2026-09-24: yo había dado por inexistente el contrato de ads. Existe.)* `tegu-growth/Analytics/Contrato de Footer.md` tiene una sección `[extensión Tegu] Ads — platform: meta-ads` que define `imp`, `reach`, `clicks`, `results`, `spend`, `currency`, `hook_3s`, `plays`, y decide bien lo difícil: **CTR, hook-rate y costo por resultado no se escriben porque son derivadas** — *"el que decide qué es caro o barato es Matías, no la fórmula"*. El canónico de este repo, `docs/footer-contract.md`, **no tiene esa sección**, y la copia dice de su propia mano "sincronizar con el canónico cuando alguno cambie", que es un proceso manual que va a derivar. Está marcado `status: draft`.
 
 ## What Changes
 
 - **Los creativos dejan de ser piezas.** Entidad propia, con sus dimensiones: buyer persona, dolor, formato, ángulo, ronda, CTA.
 - **La unidad de registro es el creativo**: una entrada por creativo. *(Decisión del 2026-09-24. La alternativa —creativo × público— se descarta por ahora porque el framework sostiene que el creativo ES el targeting; si un mismo creativo llega a correr en varios públicos a la vez, este modelo se queda corto y hay que revisarlo.)*
-- **Las dimensiones se leen de lo declarado en el creativo**, no de su ubicación.
+- **Las dimensiones se leen de lo declarado en el creativo**, y solo se derivan de la ubicación cuando el creativo no las declara — registrando la procedencia. *(Medido el 2026-09-24: de 13 creativos, **6 declaran buyer persona en el footer y 7 no**. Negarse a derivar dejaría la mitad de las filas vacías, que es peor que derivar y decirlo.)*
+- **Las evaluaciones no son creativos.** Junto a cada creativo puede haber un documento de evaluación; son 13 archivos que no deben generar entrada propia.
 - **Vista de cobertura**: qué combinaciones de persona × dolor × ángulo tienen creativo y **cuáles no**. El hueco es el hallazgo, igual que las fórmulas sin estrenar en el lado orgánico.
 - Se completan las personas faltantes y se agregan ronda y ángulo en el destino de colaboración.
 
 **No incluye, deliberadamente: ninguna métrica de campañas.** Al 2026-09-24 **ningún
-creativo tiene un solo número cargado**: los 28 son briefs. Escribir ahora la sección
-`meta-ads` del contrato de footer sería diseñar contra un export de Meta que todavía
-no vimos, y fijar KPIs y umbrales que no son míos de decidir. Se escribe cuando
-cierre la primera ronda con data real.
+creativo tiene un solo número cargado**: los 13 son briefs. El contrato ya define las
+claves, así que no hay nada que inventar — pero sí queda una pregunta abierta que un
+export real responde y una especulación no: **si `spend` es acumulado o de la ventana
+del corte.** Meta entrega las dos cosas según cómo se exporte, y el contrato general
+("el valor vigente es el último corte") supone acumulado, que para gasto funciona solo
+si siempre se exporta de por vida. Se resuelve con la primera ronda medida.
+
+**Tarea que sí entra:** plegar la extensión `meta-ads` al contrato canónico de este
+repo, para que deje de haber dos documentos que alguien tiene que acordarse de
+sincronizar a mano.
 
 ## Capabilities
 

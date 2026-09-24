@@ -38,8 +38,9 @@ representarse como varias entradas ni agruparse con otros bajo una sola.
 ### Requirement: Las dimensiones se leen de lo declarado
 
 Las dimensiones de un creativo —buyer persona, dolor, formato, ángulo, ronda y
-llamado a la acción— SHALL leerse de lo que el creativo declara. La ubicación del
-archivo MUST NOT ser la fuente de estas dimensiones.
+llamado a la acción— SHALL leerse de lo que el creativo declara. Cuando una dimensión
+no esté declarada y la ubicación la identifique, SHALL derivarse de la ubicación
+registrando su procedencia. La ubicación MUST NOT prevalecer sobre lo declarado.
 
 #### Scenario: Creativo que declara sus dimensiones
 
@@ -53,9 +54,26 @@ archivo MUST NOT ser la fuente de estas dimensiones.
 
 #### Scenario: Dimensión no declarada
 
-- **WHEN** un creativo no declara una dimensión
+- **WHEN** un creativo no declara una dimensión pero su ubicación la identifica
+- **THEN** la dimensión se deriva de la ubicación
+- **AND** queda registrado que se derivó, para poder distinguirla de una declarada
+
+#### Scenario: Dimensión que no se puede determinar
+
+- **WHEN** un creativo no declara una dimensión y su ubicación no la identifica
 - **THEN** esa dimensión queda vacía
-- **AND** no se deduce de la ubicación
+- **AND** no se completa con un valor por defecto
+
+### Requirement: Solo los creativos son creativos
+
+Los documentos que acompañan a un creativo —evaluaciones, notas de revisión— MUST NOT
+registrarse como creativos.
+
+#### Scenario: Evaluación de un creativo
+
+- **WHEN** existe un documento de evaluación junto a un creativo
+- **THEN** no genera una entrada propia
+- **AND** el creativo evaluado sigue teniendo exactamente una
 
 ### Requirement: El conjunto de personas y dolores no está fijado en el código
 

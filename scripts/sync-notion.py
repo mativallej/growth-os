@@ -101,7 +101,8 @@ def read_piece(path):
         for seg in (ln.split(" · ") if " · " in ln else [ln]):
             m = PAR.match(seg.strip())
             if m:
-                k = CLAVES.get(m.group(1).strip().lower())
+                bruto = m.group(1).strip().lower()
+                k = CLAVES.get(bruto) or AD_CLAVES.get(bruto)
                 if k:
                     f.setdefault(k, m.group(2).strip())
     cortes = re.findall(r"^-\s+snapshot\s+(.+)$", t, re.M)
@@ -143,30 +144,97 @@ def estado_ad(f):
 
 AD_FORMATO = [("carrusel", "carrusel"), ("ugc", "ugc"), ("video", "video"),
               ("reel", "video"), ("imagen", "imagen")]
+AD_CLAVES = {"buyer persona": "persona", "persona": "persona", "público": "publico",
+             "publico": "publico", "dolor": "dolor", "ángulo": "angulo",
+             "angulo": "angulo", "ronda": "ronda", "cta": "cta"}
 
 
 def txt(v):
     return {"rich_text": [{"text": {"content": (v or "")[:1900]}}]} if v else {"rich_text": []}
 
 
-def ad_fields(rel):
-    """Público, Persona y Dolor salen del path, que ES el brief:
-    Create/Ads/<Público>/<Persona>/<Dolor N - ...>/<creativo>/<archivo>.md"""
+def _limpio(v):
+    """Saca el paréntesis aclaratorio: "Educativo (pregunta)" → "Educativo".
+    Es normalización de formato, no inferencia de contenido: el valor sigue siendo
+    el que el creativo declaró, sin el matiz que lo volvía único."""
+    return re.sub(r"\s*\(.*$", "", (v or "")).strip()
+
+
+def _ronda(v, vault, ads_root):
+    """Los creativos escriben la ronda de tres formas: "Ronda 1 - Jul 2026", "1", y
+    "2 (pendiente de abrir formalmente)". Se normaliza al nombre canónico, que es el
+    del archivo en Rondas/ — la fuente, no una lista en el código."""
+    m = re.search(r"(\d+)", v or "")
+    if not m:
+        return None
+    n = m.group(1)
+    d = os.path.join(vault, ads_root, "Rondas")
+    if os.path.isdir(d):
+        for f in sorted(os.listdir(d)):
+            if f.endswith(".md") and re.match(r"Ronda\s+%s\b" % n, f):
+                return f[:-3]
+    return "Ronda %s" % n
+
+
+def no_es_creativo(rel):
+    """Dentro de Create/Ads hay tres cosas que no son creativos y que generarían una
+    fila cada una: las evaluaciones que acompañan a cada creativo (13 archivos), el
+    framework, y los documentos de ronda."""
+    base = os.path.basename(rel).lower()
+    if "evaluacion" in base or "evaluación" in base:
+        return True
+    if base.startswith("framework"):
+        return True
+    return os.sep + "Rondas" + os.sep in rel
+
+
+def ad_fields(rel, f, vault, ads_root):
+    """Las dimensiones salen de lo que el creativo DECLARA. La ruta es respaldo, no
+    fuente: solo se usa cuando el footer no dice nada, y se reporta cuál se derivó.
+
+    Medido el 2026-09-24: de 13 creativos, 6 declaran buyer persona y 7 no. Negarse a
+    derivar dejaría la mitad de las filas vacías; derivar en silencio escondería qué
+    creativos tienen el footer incompleto. Por eso: se deriva y se avisa."""
     parts = rel.split(os.sep)
+    derivados = []
     out = {}
-    if len(parts) > 2 and parts[2] in ("Cliente", "Profesional"):
-        out["Público"] = {"select": {"name": parts[2]}}
-    if len(parts) > 3:
-        out["Persona"] = {"select": {"name": parts[3]}}
-    if len(parts) > 4 and parts[4].lower().startswith("dolor"):
-        out["Dolor"] = txt(parts[4])
-    low = os.path.basename(rel).lower()
-    for needle, fmt in AD_FORMATO:
-        if needle in low:
-            out["Formato"] = {"select": {"name": fmt}}
+
+    publico = _limpio(f.get("publico"))
+    if not publico and len(parts) > 2 and parts[2] in ("Cliente", "Profesional"):
+        publico, _ = parts[2], derivados.append("público")
+    if publico in ("Cliente", "Profesional"):
+        out["Público"] = {"select": {"name": publico}}
+
+    persona = _limpio(f.get("persona"))
+    if not persona and len(parts) > 3:
+        persona, _ = parts[3], derivados.append("persona")
+    if persona:
+        out["Persona"] = {"select": {"name": persona}}
+
+    dolor = f.get("dolor") or ""
+    if not dolor and len(parts) > 4 and parts[4].lower().startswith("dolor"):
+        dolor, _ = parts[4], derivados.append("dolor")
+    if dolor:
+        out["Dolor"] = txt(_limpio(dolor))
+
+    angulo = _limpio(f.get("angulo"))
+    if angulo:
+        out["Ángulo"] = {"select": {"name": angulo}}
+
+    ronda = _ronda(f.get("ronda"), vault, ads_root)
+    if ronda:
+        out["Ronda"] = {"select": {"name": ronda}}
+
+    fmt = _limpio(f.get("formato")).lower()
+    if not fmt:
+        fmt, _ = os.path.basename(rel).lower(), derivados.append("formato")
+    for needle, val in AD_FORMATO:
+        if needle in fmt:
+            out["Formato"] = {"select": {"name": val}}
             break
+
     out["Plataforma"] = {"select": {"name": "Meta"}}
-    return out
+    return out, derivados
 
 
 def operativa(f, days):
@@ -225,7 +293,7 @@ def remote_rows(ds):
 
 # ── un pase (posts o ads) ─────────────────────────────────────────────────────
 
-def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion):
+def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion, ads_root=""):
     ds = ADS_DS if kind == "ads" else CONTENT_DS
     titulo = "Creativo" if kind == "ads" else "Pieza"
     estado = estado_ad if kind == "ads" else estado_post
@@ -262,8 +330,12 @@ def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion):
         if f.get("url", "").startswith("http"):
             props["URL"] = {"url": f["url"]}
         if kind == "ads":
-            props.update(ad_fields(k))
+            campos, derivados = ad_fields(k, f, vault, ads_root)
+            props.update(campos)
             props["Notas"] = txt(f.get("notas"))
+            if derivados:
+                print("     %s — derivado de la ruta: %s"
+                      % (os.path.basename(k)[:50], ", ".join(derivados)))
         else:
             props["Fórmula"] = txt(f.get("formula"))
             crudo = (f.get("platform") or f.get("canal") or "").strip().lower()
@@ -356,6 +428,12 @@ def main():
         base = os.path.join(vault, pre)
         if os.path.isdir(base):
             ads.update(walk(base, vault))
+    no_creativos = [k for k in ads if no_es_creativo(k)]
+    for k in no_creativos:
+        del ads[k]
+    if no_creativos:
+        print("Ads: %d archivos excluidos por no ser creativos (evaluaciones, "
+              "framework, rondas)." % len(no_creativos))
 
     scope = a.scope or ask_scope(a.brand, {
         "posts": "(%d archivos)" % len(posts),
@@ -369,7 +447,8 @@ def main():
         if not ads:
             print("\nADS · la marca %s no tiene creativos configurados (notion.ads vacío)." % a.brand)
         else:
-            sync_rows("ads", a.brand, marca, vault, ads, a.apply, a.only_to_notion)
+            sync_rows("ads", a.brand, marca, vault, ads, a.apply, a.only_to_notion,
+                      ads_root=ads_prefixes[0] if ads_prefixes else "")
     if scope in ("docs", "all"):
         if not (notion.get("docs") or []):
             print("\nDOCU · la marca %s no publica documentación (notion.docs vacío)." % a.brand)

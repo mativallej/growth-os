@@ -22,10 +22,12 @@
 - [ ] 3.2 Vista de cobertura bajo la ruta de marca, con el aviso explícito de que el rendimiento no se mide.
 - [ ] 3.3 Revisar la vista con los datos reales: 6 personas contra 28 creativos concentrados. **Si con datos reales parece rota, reescribir cómo se presenta antes de cerrar.**
 
-## 4. El contrato que falta
+## 4. Los dos contratos
 
-- [ ] 4.1 Anotar en `docs/footer-contract.md` que la sección de campañas no existe todavía y por qué, para que la referencia colgada de `Analytics/Meta/Data/README.md` deje de apuntar al vacío.
-- [ ] 4.2 Dejar escrito qué hace falta para escribirla: una ronda cerrada con export real de Meta.
+- [ ] 4.1 Plegar la extensión `[extensión Tegu] Ads — platform: meta-ads` de `tegu-growth/Analytics/Contrato de Footer.md` al canónico `docs/footer-contract.md`. Mismas claves, misma regla de que las derivadas no se escriben.
+- [ ] 4.2 Plegar también las otras dos extensiones que la copia marca: resolución de `nonfoll` y normalización de `imp` en Instagram. **`nonfoll` tiene una decisión abierta del humano** anotada en la copia: es derivada y el contrato prohíbe escribir derivadas, pero el código la usa. No resolverla por cuenta propia.
+- [ ] 4.3 Dejar la copia de tegu-growth apuntando al canónico en vez de duplicarlo, o documentar por qué se mantienen dos.
+- [ ] 4.4 Anotar la pregunta abierta de `spend`: acumulado o ventana. Se responde con el primer export real, no antes.
 
 ## 5. Cerrar
 
