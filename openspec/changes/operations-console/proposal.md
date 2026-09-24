@@ -44,6 +44,11 @@ idea, se sube un lote de creativos, se sincroniza un post, se exporta, se ingest
 **Acá no se escribe ni se edita una pieza.** Una idea es materia prima de intake, no
 trabajo creativo; en el momento en que se convierte en pieza, se va a Obsidian.
 
+**En dos etapas.** Los botones que disparan operaciones no dependen del parser ni del
+routing: los scripts leen el vault por su cuenta y no hay datos de piezas en pantalla.
+Las **exportaciones** sí dependen de los dos, porque un export lee piezas y no puede
+contener filas de la otra marca. Detalle en `tasks.md`.
+
 **No incluye:** las operaciones de ads con métricas (no hay contrato todavía, ver `ads-model`), ni la pestaña del mapa del sistema (`system-map-page`).
 
 ## Capabilities

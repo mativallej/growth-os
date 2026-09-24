@@ -1,7 +1,23 @@
 # Tasks
 
-> Requiere `account-scoped-routes` cerrado (la consola vive bajo la ruta de marca) y
-> `unschedule-everything` (la marca de última corrida que la consola lee).
+> **Se puede hacer en dos etapas, y la primera se puede empezar ya.** Verificado el
+> 2026-09-24: los scripts de `scripts/` funcionan solos, sin la app —leen el vault por
+> su cuenta, en Python— y la app ya buildea contra las fuentes reales desde que cerró
+> `fail-loud-sources`.
+>
+> **Etapa 1 — los botones (bloques 1, 3, 4, 6, 7).** No depende de los changes 2 a 4.
+> El catálogo, los disparadores, la captura de ideas y la antigüedad no tocan datos de
+> piezas, así que no tienen exposición de privacidad ni necesitan el parser. Lo único
+> que necesita de otro change es la marca de última corrida
+> (`unschedule-everything`, tarea 4.1), que es una línea.
+>
+> **Etapa 2 — las exportaciones (bloque 2).** Sí requiere `footer-contract-parser` (un
+> export de piezas necesita leerlas bien) y `account-scoped-routes` (**un export no
+> puede contener filas de la otra marca**, y esa garantía es estructural, no un
+> filtro). No adelantar este bloque.
+>
+> Mientras la etapa 2 no esté, la consola vive en su propia ruta y **no muestra ni
+> exporta contenido de piezas**. Cuando entre el routing por marca, se mueve bajo él.
 
 ## 1. El catálogo
 
