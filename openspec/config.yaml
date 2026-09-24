@@ -1,0 +1,102 @@
+schema: spec-driven
+
+context: |
+  Idioma: español. La prosa de los artefactos va en español neutro-AR. La
+  estructura del documento y las palabras normativas (SHALL, MUST, WHEN, THEN)
+  quedan en inglés, y los slugs de change y de capability también.
+
+  Producto: growth-loop. La capa de operación y medición del growth de DOS marcas
+  que no se fusionan — `mativallej` (marca personal) y `tegu` (la empresa). No es
+  un producto para terceros: es la herramienta con la que Matías opera su
+  distribución, más la CM que se sumó en septiembre 2026.
+
+  LA FUENTE DE VERDAD SON LOS `.md` DE LOS VAULTS. No hay base de datos y no la va
+  a haber. Los vaults son repos de Obsidian en disco, referenciados SIEMPRE por
+  `~/vaults/<nombre>` (symlink), nunca por la ruta real — el vault personal se
+  renombró de `Brain` a `brain-mativallej` el 2026-09-23 y toda ruta absoluta
+  hardcodeada se rompió en silencio. Los cuatro: `~/vaults/brain`,
+  `~/vaults/tegu-growth`, `~/vaults/tegu-docs`, `~/vaults/growth-loop`.
+
+  Stack: Next.js 16.2 App Router, React 19.2, TypeScript 5.9, Tailwind 3, CVA,
+  Radix. Lectura de los `.md` con fast-glob en RSC. Sin API, sin DB. Los scripts
+  operativos son Python 3 de librería estándar, sin dependencias: `scripts/`.
+
+  REGLA DURA 1 — FALLAR RUIDOSO, NUNCA VACÍO. El pecado fundacional de este repo
+  es `src/lib/parse.ts:9`, que resuelve el vault relativo a `process.cwd()` hacia
+  `../tegu-docs/Brand/Content` — un directorio que hoy no existe por dos motivos
+  acumulados (el path es relativo, y `Brand/` se mudó a tegu-growth). `fg.sync`
+  sobre un directorio inexistente devuelve `[]` sin error, así que el dashboard
+  buildea vacío y no se queja. Un artefacto que muestra cero cuando no encontró
+  nada es peor que uno roto: parece información. Todo lector de una fuente SHALL
+  fallar si la fuente falta.
+
+  REGLA DURA 2 — SIN SEÑAL EXPLÍCITA NO SE INFIERE. El 2026-09-23 se cargó el
+  tablero de Notion poniendo "En producción" en 51 piezas que en el vault no
+  tienen `status` — solo `analytics: pendiente`. La columna que más importa quedó
+  ilegible. Derivar un campo de coordinación desde datos que no lo contienen SHALL
+  usar el valor conservador y SHALL reportar cuántos cayeron ahí por falta de
+  señal. La regla vive en `scripts/sync-notion.py:estado_post`, en el docstring,
+  no solo en el código.
+
+  REGLA DURA 3 — UN DUEÑO POR CAMPO. Entre el vault y Notion nunca escriben los
+  dos lo mismo. El `.md` manda en el cuerpo, la fórmula, la url, la fecha y los
+  cortes de métricas. Notion manda en el estado del kanban, una vez creada la
+  fila. El estado con el que la fila NACE lo decide el vault. Ver
+  `docs/footer-contract.md` y las skills `brain-notion-sync` / `growth-notion-sync`.
+
+  REGLA DURA 4 — LAS DOS CUENTAS NO SE MEZCLAN. No es estética, es privacidad: el
+  contenido personal incluye la historia del despido, y no puede viajar dentro del
+  payload de una vista de Tegu. La separación SHALL ser estructural (segmento de
+  ruta, deploys distintos), nunca un filtro en el cliente.
+
+  REGLA DURA 5 — NÚMEROS REALES O NADA. Ninguna métrica se muestra si no sale de
+  un corte medido. Si no hay dato, no se dibuja el tile: no se pone 0, no se
+  estima. Una pieza publicada sin números es deuda visible, no un cero.
+
+  DOS GRAMÁTICAS DE FOOTER, LAS DOS LEGÍTIMAS. Brain escribe un bullet por clave
+  al final (`- status: publicado`). Tegu escribe una línea con varias claves
+  separadas por ` · ` (`canal: Twitter · formato: tweet · fórmula: X4`). Un lector
+  que entienda solo una ve 14 piezas donde hay 95 — pasó el 2026-09-24 en
+  `sync-notion.py` y está arreglado ahí. El parser de TypeScript todavía no.
+
+  NO TOCAR `slugify`. 16 archivos de Tegu tienen acentos en el path y hoy son
+  `atenci-n-c-rdoba-capital`. Normalizar con NFD rompería esas 16 URLs vivas. El
+  slug feo es el precio de la estabilidad.
+
+  NO REESCRIBIR LOS `.md` PARA NORMALIZARLOS. El dashboard se adapta al vault, no
+  al revés. Hay skills que escriben ahí (`brain-post`, `brain-analytics`,
+  `growth-post`) y el vault es de un humano, no de esta app.
+
+  ESTADO DEL REPO al 2026-09-24: `npm install` nunca se corrió, no hay runner de
+  tests, `package.json` todavía se llama "tegu-growth", y las rutas son
+  `/`, `/piezas`, `/piezas/[slug]`, `/inventario` — sin noción de marca.
+
+rules:
+  proposal:
+    - Toda afirmación numérica lleva su evidencia al lado - archivo:línea, o el comando que la mide con su fecha.
+    - Nunca inventar un número. Si no se midió, escribir "no medido".
+    - Declarar qué pasa si la fuente falta - un change que pueda terminar mostrando vacío sin avisar no se aprueba.
+    - Declarar si el change toca contenido personal, contenido de Tegu, o los dos.
+  specs:
+    - Un SHALL por requirement. Escenarios en WHEN/THEN.
+    - Todo requirement tiene que ser chequeable por un test del runner del repo, por `npm run audit`, o por un dry-run de un script de scripts/. Si no se puede chequear, no es un requirement.
+    - Los casos de vault ausente, vault vacío y footer ilegible son obligatorios en cualquier capability que lea el vault.
+    - Citar el helper existente que se reusa antes de proponer uno nuevo.
+  design:
+    - Si el change agrega una fuente de datos, declarar su dueño de campo contra las otras dos (vault, Notion).
+    - Si el change mueve trabajo fuera de la Mac, declarar cómo ve el vault - la copia de GitHub va atrás del disco y puede tener commits sin pushear.
+  tasks:
+    - Cada tarea nombra el archivo que toca y el comando que la verifica.
+    - Antes de tocar el parser, guardar el baseline de slugs y diffearlo al cerrar.
+
+operations:
+  apply:
+    guidance:
+      - UNO POR VEZ, NUNCA EN PARALELO. Se implementa un solo change, se cierra, se limpia el contexto, y recién ahí arranca el siguiente.
+      - Antes de arrancar - leer solo el change que se va a aplicar.
+      - Antes de cerrar - npx tsc --noEmit, npm run lint, npm test y npm run build.
+      - Verificar el aislamiento de cuentas con el grep de privacidad antes de dar por cerrado cualquier change que toque rutas o datos.
+      - Los scripts de scripts/ se verifican con su propio dry-run, que es el default de todos.
+  archive:
+    guidance:
+      - Dejar escrito en tasks.md qué quedó hecho y qué no, con fecha, antes de limpiar el contexto.
