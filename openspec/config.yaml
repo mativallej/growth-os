@@ -53,6 +53,16 @@ context: |
   un corte medido. Si no hay dato, no se dibuja el tile: no se pone 0, no se
   estima. Una pieza publicada sin números es deuda visible, no un cero.
 
+  REGLA DURA 6 — NADA CORRE SOLO. Ninguna operación que escriba se ejecuta de
+  forma agendada, periódica ni diferida: toda ejecución la dispara una persona, que
+  ve el resultado en el momento. Se decidió el 2026-09-24, después de que los dos
+  únicos trabajos agendados fallaran mudos —uno nunca corrió, el otro corrió una vez
+  en 23 horas— y de constatar que las operaciones que importan piden criterio que un
+  cron no puede tener. La consecuencia buscada: la app prepara, una sesión local
+  ejecuta, una persona aprueba. La consecuencia aceptada: si nadie aprieta el botón,
+  no pasa nada, y la mitigación es que la antigüedad de cada operación esté a la
+  vista.
+
   DOS GRAMÁTICAS DE FOOTER, LAS DOS LEGÍTIMAS. Brain escribe un bullet por clave
   al final (`- status: publicado`). Tegu escribe una línea con varias claves
   separadas por ` · ` (`canal: Twitter · formato: tweet · fórmula: X4`). Un lector
