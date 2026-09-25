@@ -44,6 +44,7 @@ Y dos independientes de la app, que se pueden tomar en cualquier momento:
 |---|---|---|
 | 8 | `notion-bridge-contract` | El puente existe y funciona a mano. Faltan los tests |
 | 9 | `unschedule-everything` | Apagar los dos trabajos agendados. **Aplicado el 2026-09-24** |
+| 0 | `stable-piece-id` | **Desbloquea a 10 y a D-15.** La identidad de una pieza es su ruta, y la ruta cambia: una reorganización dejó 57 filas apuntando al vacío |
 | 10 | `move-resilient-keys` | **Urgente.** Una reorganización del vault dejó 57 filas con la llave rota. Hasta que cierre, no correr el sync de Tegu con `--apply` |
 | 11 | `attribution-loop` | Lo único que el research señala y no tenemos: nada conecta una pieza con un lead |
 | 12 | `public-release` | El repo pasa a ser abierto. Sanear sin vaciar, sacar el espacio de trabajo del código, y lo formal |
