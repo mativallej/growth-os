@@ -38,13 +38,7 @@
       Verifica: dos corridas seguidas, diff vacío en la segunda.
 - [ ] Un commit por vault, reversible.
 
-## 4 · Skills que crean piezas
-
-- [ ] `growth-post` y `brain-post` asignan el id al crear la pieza.
-      **Son skills del vault, no de este repo** — coordinar el cambio allá.
-      Verifica: crear una pieza de prueba y confirmar que nace con id.
-
-## 5 · Puente con Notion
+## 4 · Puente con Notion
 
 - [ ] `scripts/sync-notion.py` — llavear por id, ruta como dato informativo.
       Hoy la llave es la ruta relativa (columna `Archivo`).
@@ -52,6 +46,15 @@
 - [ ] Reportar las filas anteriores al cambio como pendientes de re-llavear, sin caer
       a emparejar por ruta en silencio.
       Verifica: dry-run contra las 57 filas de `move-resilient-keys`.
+
+## Fuera de alcance — dependencia externa
+
+La asignación **al crear** una pieza la hacen `growth-post` y `brain-post`, que son
+skills de los vaults. Este repo no las toca: su backfill cubre lo existente, y las
+piezas nuevas nacerán sin id hasta que ese cambio se haga allá.
+
+Consecuencia aceptada: entre el backfill y ese cambio, el reporte de piezas sin id va
+a crecer con cada pieza nueva. Es visible, que es lo que pide la REGLA DURA 1.
 
 ## Cierre
 

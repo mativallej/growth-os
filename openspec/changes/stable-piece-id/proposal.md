@@ -40,7 +40,9 @@ reabierta el 2026-09-24.
 - **Un backfill de una sola vez** sobre las piezas existentes: al 2026-09-24 son ~265
   entre los dos vaults (114 en `tegu-growth`, 151 en `brain`, contadas con `find` sobre
   las carpetas de contenido).
-- Las skills que **crean** piezas asignan el id al nacer. Ninguna otra cosa lo escribe.
+- El backfill de este repo cubre lo existente. **Que las piezas nuevas nazcan con id es
+  un cambio en las skills de los vaults** (`growth-post`, `brain-post`), fuera del
+  alcance de este change y de este repo.
 - El puente con Notion pasa a llavear por id. La ruta queda como dato informativo, no
   como llave.
 
