@@ -298,11 +298,6 @@ export default function DeudaClient({
             )}
           </div>
 
-          <p className="mt-3 max-w-[74ch] text-[11px] leading-relaxed text-muted-foreground/70">
-            <strong>pendiente</strong> = el footer declara que se va a medir y todavía no
-            se midió. Sin ese marcador, la pieza directamente no tiene footer de métricas.
-            Las dos son deuda; la primera es deuda reconocida.
-          </p>
         </>
       )}
     </>

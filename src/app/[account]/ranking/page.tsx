@@ -44,7 +44,6 @@ export default async function RankingPage({ params }: { params: Promise<{ accoun
     <>
       <PageHeader
         title="Ranking"
-        subtitle={`${source.label} · en absoluto y en tasa sobre el alcance`}
       />
       <RankingClient
         filas={filas}

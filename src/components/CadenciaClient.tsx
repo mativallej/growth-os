@@ -163,7 +163,7 @@ export default function CadenciaClient({
             ))}
           </SelectContent>
         </Select>
-        <RangoFechas valor={rango} onChange={setRango} />
+        <RangoFechas valor={rango} onChange={setRango} conCalendario />
         <MultiSelect titulo="Red" opciones={faceta(todas, (p) => p.canal)} valor={canales} onChange={setCanales} />
         <MultiSelect titulo="Fórmula" opciones={faceta(todas, (p) => p.formulaCode)} valor={formulas} onChange={setFormulas} buscable />
         {(filtrado || conRango || granularidad !== "mes") && (

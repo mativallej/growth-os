@@ -129,7 +129,6 @@ export default function FormulasClient({ filas }: { filas: FilaFormula[] }) {
     }
   }, [filas, q, canales, estados, orden]);
 
-  const sinEstrenar = visibles.filter((f) => f.estado === "sin-estrenar").length;
 
   return (
     <>
@@ -170,17 +169,6 @@ export default function FormulasClient({ filas }: { filas: FilaFormula[] }) {
           </Button>
         )}
       </div>
-
-      <p className="mb-2 text-[11px] text-muted-foreground/70">
-        <span className="tabular-nums">{visibles.length}</span> de{" "}
-        <span className="tabular-nums">{filas.length}</span> fórmulas
-        {sinEstrenar > 0 && (
-          <>
-            {" · "}
-            <span className="tabular-nums">{sinEstrenar}</span> sin una sola pieza
-          </>
-        )}
-      </p>
 
       <div className="overflow-hidden rounded-lg border border-border">
         <div className="hidden items-center gap-3 border-b border-border px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground/70 sm:flex">

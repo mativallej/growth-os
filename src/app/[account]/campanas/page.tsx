@@ -7,14 +7,16 @@ import CampanasClient, {
 } from "@/components/CampanasClient";
 import { findSource } from "@/lib/sources";
 import { adCoverage, adUniverse, loadAdsBySource } from "@/lib/ads";
-import { num } from "@/lib/metrics";
 
 export default async function CampanasPage({ params }: { params: Promise<{ account: string }> }) {
   const { account } = await params;
   const source = findSource(account);
   if (!source) notFound();
 
-  const { creatives, excluidos } = loadAdsBySource([source]);
+  // `excluidos` se descarta: el conteo se mostraba al pie y esa nota se quitó.
+  // El filtrado sigue pasando adentro de `loadAdsBySource` — framework, rondas y
+  // evaluaciones no son creativos.
+  const { creatives } = loadAdsBySource([source]);
   const universo = adUniverse([source]).personas;
   const cov = adCoverage(creatives, universo);
 
@@ -78,32 +80,10 @@ export default async function CampanasPage({ params }: { params: Promise<{ accou
 
   return (
     <>
-      <PageHeader
-        title="Campañas"
-        subtitle={`${source.label} · ${num(creatives.length)} creativos · persona × dolor × ángulo`}
-      />
+      <PageHeader title="Campañas" />
 
       <CampanasClient eje={eje} angulos={cov.angulos} creativos={creativos} />
 
-      <div className="mt-4 space-y-1.5 text-[11px] leading-relaxed text-muted-foreground/70">
-        <p>
-          {num(cov.celdas.filter((c) => c.count === 0).length)} de{" "}
-          {num(cov.celdas.length)} combinaciones persona × dolor × ángulo sin un creativo.
-        </p>
-        {Object.keys(cov.derivadas).length > 0 && (
-          <p>
-            Dimensiones deducidas de la ubicación en vez de declaradas:{" "}
-            {Object.entries(cov.derivadas)
-              .map(([d, n]) => `${d} (${n})`)
-              .join(" · ")}
-            . Una deducida se rompe si el archivo se mueve.
-          </p>
-        )}
-        <p>
-          {num(excluidos.length)} archivos excluidos a propósito:{" "}
-          {[...new Set(excluidos.map((e) => e.motivo))].join(" · ")}.
-        </p>
-      </div>
     </>
   );
 }

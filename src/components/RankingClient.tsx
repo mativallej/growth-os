@@ -213,13 +213,6 @@ export default function RankingClient({
           </div>
         </div>
       )}
-
-      <p className="mt-4 max-w-[70ch] text-[11px] leading-relaxed text-muted-foreground/70">
-        Las dos columnas porque cada una sola miente: el absoluto premia a la pieza que
-        tuvo alcance y no movió a nadie, y la tasa premia a la que movió a los pocos que
-        la vieron. Una pieza de utilidad gana en guardados con alcance mediocre, y eso
-        solo se ve mirando las dos juntas.
-      </p>
     </>
   );
 }

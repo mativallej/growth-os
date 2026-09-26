@@ -11,11 +11,14 @@
 
 export type Granularidad = 'semana' | 'mes' | 'trimestre' | 'año';
 
+// "Por trimestre" se leía como "mostrame UN trimestre", y esto AGRUPA: parte
+// todo el historial en trimestres y dibuja uno por barra. Elegir cuál es el rango
+// de fechas, que tiene su propio atajo de calendario.
 export const GRANULARIDADES: { value: Granularidad; label: string }[] = [
-  { value: 'semana', label: 'Por semana' },
-  { value: 'mes', label: 'Por mes' },
-  { value: 'trimestre', label: 'Por trimestre' },
-  { value: 'año', label: 'Por año' },
+  { value: 'semana', label: 'Agrupar: semana' },
+  { value: 'mes', label: 'Agrupar: mes' },
+  { value: 'trimestre', label: 'Agrupar: trimestre' },
+  { value: 'año', label: 'Agrupar: año' },
 ];
 
 /**
