@@ -11,6 +11,9 @@ import { lineChart } from "@/lib/charts";
 import { findSource } from "@/lib/sources";
 import { compararVariantes, variantesDe } from "@/lib/variantes";
 import { enlaceDePieza, leerCorrespondencia } from "@/lib/notion-links";
+import { cargarUmbrales } from "@/lib/viralidad-server";
+import { nivelDe } from "@/lib/viralidad";
+import { accesosDe } from "@/lib/accesos";
 
 /**
  * Anidado: Next ejecuta esto UNA VEZ POR CADA `account` que emitió el layout
@@ -36,6 +39,22 @@ export function generateStaticParams({ params }: { params: { account: string } }
   const source = findSource(params.account);
   if (!source) return [];
   return loadPieces([source]).map((p) => ({ slug: p.slug }));
+}
+
+/** Un acceso directo. Todos iguales: son destinos, no acciones de distinto peso. */
+function Acceso({ href, label, title }: { href: string; label: string; title?: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      title={title}
+      className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[12px] transition-colors hover:border-foreground/25 hover:bg-muted"
+    >
+      {label}
+      <span aria-hidden="true" className="text-muted-foreground/40">↗</span>
+    </a>
+  );
 }
 
 const verdictVariant = (v?: string): "success" | "destructive" | "secondary" => {
@@ -76,6 +95,41 @@ export default async function PiezaPage({
     ? lineChart(snaps.map((s) => ({ label: s.t, value: s.impressions ?? s.views ?? s.reach ?? 0 })))
     : null;
 
+  // EN QUÉ NIVEL CAE, contra el umbral declarado de SU canal. `sin-medir` y
+  // `sin-umbral` no son juicios sobre la pieza: son que no se puede decir nada.
+  const alcance = primaryReach(p);
+  const umbrales = cargarUmbrales();
+  const nivel = nivelDe(alcance, p.channel, umbrales);
+  const umbral = umbrales[p.channel];
+
+  // El perfil de la cuenta que publicó. Sale de los accesos de la marca, que ya
+  // derivan la URL del handle declarado — no hay una segunda fuente de verdad.
+  const perfil = p.cuenta
+    ? accesosDe(source.brand).lista.find((a) => a.id === `cuenta:${p.cuenta}`)
+    : undefined;
+
+  // Abrir el .md donde se edita. El nombre del vault de Obsidian es el de su
+  // carpeta, que es lo que Obsidian usa por defecto; si alguien lo renombró
+  // adentro de Obsidian, el enlace no abre y no rompe nada más.
+  const obsidian = `obsidian://open?vault=${encodeURIComponent(
+    source.vault.split("/").filter(Boolean).pop() ?? "",
+  )}&file=${encodeURIComponent(p.relPath.replace(/\.md$/, ""))}`;
+
+  // Las columnas de la tabla de cortes que TIENEN dato en esta pieza. Un tweet no
+  // tiene `views` ni `reach`, y un reel no tiene `imp` ni `rt`: diez columnas de
+  // las cuales siete son rayas hacen ilegibles las tres que importan.
+  const COLUMNAS = [
+    { k: "views", get: (x: (typeof snaps)[number]) => x.views },
+    { k: "reach", get: (x: (typeof snaps)[number]) => x.reach },
+    { k: "imp", get: (x: (typeof snaps)[number]) => x.impressions },
+    { k: "eng", get: (x: (typeof snaps)[number]) => x.engagements },
+    { k: "detail", get: (x: (typeof snaps)[number]) => x.detailExpands },
+    { k: "pv", get: (x: (typeof snaps)[number]) => x.profileVisits },
+    { k: "likes", get: (x: (typeof snaps)[number]) => x.likes },
+    { k: "rt", get: (x: (typeof snaps)[number]) => x.reposts },
+    { k: "bmk", get: (x: (typeof snaps)[number]) => x.bookmarks },
+  ].filter((c) => snaps.some((x) => c.get(x) !== null && c.get(x) !== undefined));
+
   const derived = l
     ? [
         { k: "Alcance", v: num(primaryReach(p)) },
@@ -84,65 +138,78 @@ export default async function PiezaPage({
         { k: "Save / like", v: pct(saveLike(l)), good: true },
         { k: "Follows", v: num(l.follows), good: true },
         { k: "Shares", v: num(l.shares) },
-      ]
+      ].filter((d) => d.v !== "—" && !d.v.startsWith("— ·"))
     : [];
 
   return (
     <>
       <PageHeader title={p.title} subtitle={[p.canal, p.cuenta, p.formato].filter(Boolean).join(" · ")} />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href={`/${account}/inventario`} className="text-xs text-muted-foreground transition-colors hover:text-foreground">
-          ← Inventario
-        </Link>
-        {enlaceTablero ? (
-          <a
-            href={enlaceTablero}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs text-primary hover:underline"
-            title={diasEnlaces !== null ? `correspondencia de hace ${diasEnlaces} día(s)` : undefined}
-          >
-            Abrir en el tablero ↗
-          </a>
-        ) : (
-          <span className="text-xs text-muted-foreground/70">
-            {correspondencia
-              ? "Sin fila conocida en el tablero"
-              : "La correspondencia con el tablero todavía no se generó"}
-          </span>
+      <Link
+        href={`/${account}/inventario`}
+        className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+      >
+        ← Inventario
+      </Link>
+
+      {/* LOS ACCESOS, TODOS JUNTOS Y EN UN SOLO LUGAR.
+          Estaban en tres bloques distintos —el tablero arriba a la derecha, la
+          url y Drive más abajo— y ninguno decía qué era cada uno. Son cuatro
+          destinos y cada uno responde otra pregunta:
+
+            publicada   dónde la ve la gente; es la llave del ingest
+            Drive       dónde está el archivo con el que se publicó
+            tablero     dónde se coordina su estado
+            Obsidian    dónde se EDITA, que es lo único que esta app no hace
+
+          Los dos primeros salen del .md y se validan: un `javascript:` en un
+          href ejecuta al hacer click. Los dos últimos los arma esta app. */}
+      <div className="mt-4 flex flex-wrap items-center gap-1.5">
+        {esHttp(p.url) && (
+          <Acceso href={p.url!} label={`Ver en ${hostDe(p.url!)}`} />
         )}
+        {esHttp(p.driveUrl) && <Acceso href={p.driveUrl!} label="Video en Drive" />}
+        {enlaceTablero && (
+          <Acceso
+            href={enlaceTablero}
+            label="Tablero"
+            title={diasEnlaces !== null ? `correspondencia de hace ${diasEnlaces} día(s)` : undefined}
+          />
+        )}
+        {perfil && <Acceso href={perfil.url} label={perfil.detalle ?? perfil.label} />}
+        {/* No es http, así que no pasa por `esHttp`: este enlace lo construye la
+            app, no sale de ningún archivo. */}
+        <a
+          href={obsidian}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[12px] transition-colors hover:border-foreground/25 hover:bg-muted"
+          title="Abrir el .md en Obsidian, que es donde se edita"
+        >
+          Editar en Obsidian
+        </a>
       </div>
 
-      {/* LOS DOS ENLACES DE LA PIEZA, y son distintos a propósito:
-          `url` es DÓNDE SE PUBLICÓ —la llave del ingest y de la atribución— y
-          `drive_url` es DÓNDE ESTÁ EL ARCHIVO con el que se publicó. Una pieza
-          puede tener el video listo y no estar publicada, y una publicada puede
-          no tener master (un tweet no tiene archivo).
-
-          Se linkean SOLO si son http(s): el valor sale de un .md que escribe una
-          persona, y un `javascript:` en un href ejecuta al hacer click. */}
-      {(esHttp(p.url) || esHttp(p.driveUrl)) && (
-        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
-          {esHttp(p.url) && (
-            <a href={p.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-              Ver publicada en {hostDe(p.url!)} ↗
-            </a>
+      {/* Lo que NO se puede abrir se dice, en vez de desaparecer. */}
+      {(!esHttp(p.url) || !enlaceTablero || (p.driveUrl && !esHttp(p.driveUrl))) && (
+        <p className="mt-2 max-w-[74ch] text-[11px] leading-relaxed text-muted-foreground/70">
+          {!esHttp(p.url) && (
+            <>
+              Sin <code>url</code> declarada — <strong>sin eso la pieza no se puede
+              medir</strong>: es la llave del ingest y de cualquier atribución.{" "}
+            </>
           )}
-          {esHttp(p.driveUrl) && (
-            <a href={p.driveUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-              Video en Drive ↗
-            </a>
+          {p.driveUrl && !esHttp(p.driveUrl) && (
+            <>
+              El <code>drive_url</code> no es un enlace http(s):{" "}
+              <code>{p.driveUrl.slice(0, 50)}</code>.{" "}
+            </>
           )}
-        </div>
-      )}
-
-      {/* Un valor que NO es http no se esconde: se dice que está y que no se
-          puede abrir. Esconderlo haría pensar que el campo está vacío. */}
-      {p.driveUrl && !esHttp(p.driveUrl) && (
-        <p className="mt-2 text-[11px] text-muted-foreground/70">
-          El campo <code>drive_url</code> tiene un valor que no es un enlace
-          http(s), así que no se ofrece: <code>{p.driveUrl.slice(0, 60)}</code>
+          {!enlaceTablero && (
+            <>
+              {correspondencia
+                ? "Esta app no conoce su fila del tablero — que no es lo mismo que no estar allá."
+                : "La correspondencia con el tablero todavía no se generó."}
+            </>
+          )}
         </p>
       )}
 
@@ -152,7 +219,46 @@ export default async function PiezaPage({
           <Badge variant={p.status === "published" ? "success" : "secondary"}>{p.estado}</Badge>
         )}
         {p.verdict && <Badge variant={verdictVariant(p.verdict)}>{p.verdict}</Badge>}
+        {/* El nivel solo se muestra cuando ES un juicio. "sin medir" y "sin
+            umbral" ya se leen en que el alcance es una raya. */}
+        {(nivel === "viral" || nivel === "destacado") && umbral && (
+          <Badge
+            variant={nivel === "viral" ? "success" : "secondary"}
+            title={`${nivel === "viral" ? "Viral" : "Destacada"} en ${p.channel}: desde ${num(
+              nivel === "viral" ? umbral.viral : umbral.destacado ?? umbral.viral,
+            )} de alcance`}
+          >
+            {nivel === "viral" ? "viral" : "destacada"}
+          </Badge>
+        )}
       </div>
+
+      {/* LA FICHA. Son los campos del footer, que hasta ahora no se veían en
+          ningún lado: había que abrir el .md para saber si una pieza tenía id,
+          fecha o tags. Solo se listan los que EXISTEN — una ficha con ocho
+          "—" no informa, y el vacío de un campo se ve mejor en la vista de
+          deuda, que existe para eso. */}
+      <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 border-y border-border py-3 text-[12px] sm:grid-cols-3 md:grid-cols-4">
+        {[
+          { k: "id", v: p.id, mono: true },
+          { k: "canal", v: p.canal ?? (p.channelDerived ? `${p.channel} (de la ruta)` : p.channel) },
+          { k: "cuenta", v: p.cuenta },
+          { k: "formato", v: p.formato },
+          { k: "publicada", v: p.publishedAt },
+          { k: "cobertura", v: p.coverage === "tracked" ? "medida" : p.coverage === "pending" ? "pendiente" : "sin trackear" },
+          { k: "cortes", v: snaps.length ? String(snaps.length) : undefined },
+          { k: "tags", v: p.tags },
+        ]
+          .filter((c) => c.v)
+          .map((c) => (
+            <div key={c.k}>
+              <dt className="text-[10px] uppercase tracking-wide text-muted-foreground/60">{c.k}</dt>
+              <dd className={`mt-0.5 truncate ${c.mono ? "font-mono" : ""}`} title={c.v!}>
+                {c.v}
+              </dd>
+            </div>
+          ))}
+      </dl>
 
       {p.tldr && <p className="mt-4 max-w-[74ch] text-[13px] leading-relaxed text-muted-foreground">{p.tldr}</p>}
 
@@ -189,39 +295,72 @@ export default async function PiezaPage({
             ))}
           </div>
 
+          {/* Solo las columnas CON DATOS de esta pieza. Un tweet no tiene
+              `views` ni `reach`, y un reel no tiene `imp` ni `rt`: diez columnas
+              de las cuales siete son rayas hacen ilegibles las tres que importan. */}
           <Table className="font-mono text-xs">
             <TableHeader>
               <TableRow>
                 <TableHead>corte</TableHead>
-                <TableHead className="text-right">views</TableHead>
-                <TableHead className="text-right">reach</TableHead>
-                <TableHead className="text-right">imp</TableHead>
-                <TableHead className="text-right">eng</TableHead>
-                <TableHead className="text-right">detail</TableHead>
-                <TableHead className="text-right">pv</TableHead>
-                <TableHead className="text-right">likes</TableHead>
-                <TableHead className="text-right">rt</TableHead>
-                <TableHead className="text-right">bmk</TableHead>
+                {COLUMNAS.map((c) => (
+                  <TableHead key={c.k} className="text-right">{c.k}</TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {snaps.map((s, i) => (
+              {snaps.map((x, i) => (
                 <TableRow key={i}>
-                  <TableCell className="text-primary">{s.t}</TableCell>
-                  <TableCell className="text-right">{num(s.views)}</TableCell>
-                  <TableCell className="text-right">{num(s.reach)}</TableCell>
-                  <TableCell className="text-right">{num(s.impressions)}</TableCell>
-                  <TableCell className="text-right">{num(s.engagements)}</TableCell>
-                  <TableCell className="text-right">{num(s.detailExpands)}</TableCell>
-                  <TableCell className="text-right">{num(s.profileVisits)}</TableCell>
-                  <TableCell className="text-right">{num(s.likes)}</TableCell>
-                  <TableCell className="text-right">{num(s.reposts)}</TableCell>
-                  <TableCell className="text-right">{num(s.bookmarks)}</TableCell>
+                  <TableCell className="text-primary">{x.t}</TableCell>
+                  {COLUMNAS.map((c) => (
+                    <TableCell key={c.k} className="text-right">{num(c.get(x))}</TableCell>
+                  ))}
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </>
+      )}
+
+      {/* SIN UN SOLO CORTE, LA PÁGINA TERMINABA ACÁ. Eran 87 de 129 piezas: la
+          mayoría de las páginas de este dashboard eran un título, un cuerpo y una
+          ruta. Que no haya números no es "no hay nada que decir" — es lo que hay
+          que decir, y con qué falta para que deje de pasar. */}
+      {!l && (
+        <div className="mt-6 rounded-lg border border-border p-5">
+          <p className="text-sm">
+            Esta pieza <strong>no tiene ningún corte medido</strong>.
+          </p>
+          <ul className="mt-2.5 max-w-[74ch] space-y-1.5 text-[13px] leading-relaxed text-muted-foreground">
+            {!esHttp(p.url) && (
+              <li>
+                · Le falta la <code>url</code>, y es lo primero: es la llave con la que la
+                ingesta empareja un export con esta pieza. Sin eso no hay nada que cruzar.
+              </li>
+            )}
+            {esHttp(p.url) && (
+              <li>
+                · Tiene <code>url</code>, así que solo falta correr la ingesta con un export
+                de {p.channel}. Los cortes se escriben en el <code>.md</code>, no acá.
+              </li>
+            )}
+            {p.status !== "published" && (
+              <li>
+                · Su estado es <strong>{p.estado ?? p.status}</strong>. Una pieza que no se
+                publicó no tiene qué medir todavía, y eso no es deuda.
+              </li>
+            )}
+            {p.status === "published" && (
+              <li>
+                · Está publicada{p.publishedAt ? ` desde ${p.publishedAt}` : ""}, así que sí
+                cuenta como deuda de medición.
+              </li>
+            )}
+          </ul>
+          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
+            El nivel de viralidad tampoco se puede decir: es{" "}
+            <strong>sin medir</strong>, que no es lo mismo que no ser viral.
+          </p>
+        </div>
       )}
 
       {(p.verdict || p.why || (p.drivers && p.drivers.length > 0)) && (
