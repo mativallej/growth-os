@@ -2,6 +2,10 @@ import { notFound } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import PageHeader from "@/components/PageHeader";
+import CampanasClient, {
+  type CreativoRow,
+  type PersonaFila,
+} from "@/components/CampanasClient";
 import { findSource } from "@/lib/sources";
 import { adCoverage, adUniverse, loadAdsBySource } from "@/lib/ads";
 import { num } from "@/lib/metrics";
@@ -34,7 +38,8 @@ export default async function CampanasPage({ params }: { params: Promise<{ accou
 
   // La matriz se arma por persona × ángulo: persona × dolor × ángulo da 72
   // celdas con 62 en cero, y una grilla casi vacía se lee como un error de la
-  // app en vez de como el hueco que es.
+  // app en vez de como el hueco que es. El dolor no se pierde — es una columna
+  // del detalle, que ahora existe.
   const porPersonaAngulo = new Map<string, number>();
   const porPersona = new Map<string, number>();
   for (const c of creatives) {
@@ -46,10 +51,48 @@ export default async function CampanasPage({ params }: { params: Promise<{ accou
     }
   }
   const sinCreativos = cov.personas.filter((p) => !porPersona.get(p));
-  const doloresDe = (persona: string) =>
-    universo.find((u) => u.persona === persona)?.dolores ?? [];
-  const doloresCubiertos = (persona: string) =>
-    new Set(creatives.filter((c) => c.persona === persona && c.dolor).map((c) => c.dolor!));
+
+  const filas: PersonaFila[] = cov.personas.map((persona) => {
+    const dolores = universo.find((u) => u.persona === persona)?.dolores ?? [];
+    const cubiertos = new Set(
+      creatives.filter((c) => c.persona === persona && c.dolor).map((c) => c.dolor!),
+    );
+    return {
+      persona,
+      publico: universo.find((u) => u.persona === persona)?.publico,
+      dolores: dolores.length,
+      cubiertos: cubiertos.size,
+      porAngulo: Object.fromEntries(
+        cov.angulos.map((a) => [a, porPersonaAngulo.get(`${persona}\u0000${a}`) ?? 0]),
+      ),
+      total: porPersona.get(persona) ?? 0,
+    };
+  });
+
+  // Solo los campos que la tabla muestra. Un `Creative` entero lleva `path`
+  // absoluto, y eso es la ruta del disco de alguien: no tiene por qué viajar al
+  // navegador.
+  const creativos: CreativoRow[] = creatives
+    .map((c) => ({
+      slug: c.slug,
+      title: c.title,
+      relPath: c.relPath,
+      persona: c.persona,
+      publico: c.publico,
+      dolor: c.dolor,
+      formato: c.formato,
+      angulo: c.angulo,
+      anguloRaw: c.anguloRaw,
+      ronda: c.ronda,
+      estado: c.estado,
+      derivadas: c.derivadas,
+    }))
+    .sort(
+      (a, b) =>
+        (a.persona ?? "").localeCompare(b.persona ?? "") ||
+        (a.ronda ?? "").localeCompare(b.ronda ?? "") ||
+        a.title.localeCompare(b.title),
+    );
 
   return (
     <>
@@ -92,59 +135,7 @@ export default async function CampanasPage({ params }: { params: Promise<{ accou
         </Card>
       )}
 
-      <div className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
-        Cobertura por persona × ángulo
-      </div>
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[30rem] text-[13px]">
-          <thead>
-            <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted-foreground/70">
-              <th className="px-3 py-2 text-left font-normal">persona</th>
-              {cov.angulos.map((a) => (
-                <th key={a} className="px-2 py-2 text-center font-normal">{a}</th>
-              ))}
-              <th className="px-3 py-2 text-right font-normal">dolores</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {cov.personas.map((persona) => {
-              const dolores = doloresDe(persona);
-              const cubiertos = doloresCubiertos(persona);
-              return (
-                <tr key={persona}>
-                  <td className="whitespace-nowrap px-3 py-2">
-                    {persona}
-                    <span className="ml-1.5 text-[11px] text-muted-foreground">
-                      {universo.find((u) => u.persona === persona)?.publico}
-                    </span>
-                  </td>
-                  {cov.angulos.map((a) => {
-                    const n = porPersonaAngulo.get(`${persona}\u0000${a}`) ?? 0;
-                    return (
-                      <td key={a} className="px-2 py-2 text-center tabular-nums">
-                        {/* El cero se dibuja como raya: no es "cero medido", es
-                            "no se produjo". */}
-                        {n > 0 ? (
-                          <span className="inline-flex min-w-6 justify-center rounded bg-primary/10 px-1.5 py-0.5 font-medium">
-                            {n}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground/25">—</span>
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td className="whitespace-nowrap px-3 py-2 text-right text-[11px] text-muted-foreground">
-                    {dolores.length === 0
-                      ? "sin dolores declarados"
-                      : `${cubiertos.size}/${dolores.length}`}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <CampanasClient filas={filas} angulos={cov.angulos} creativos={creativos} />
 
       <div className="mt-4 space-y-1.5 text-[11px] leading-relaxed text-muted-foreground/70">
         <p>
