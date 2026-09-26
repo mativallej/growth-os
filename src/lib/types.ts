@@ -43,6 +43,15 @@ export type Piece = {
   tldr: string;
   body: string; // cuerpo de la pieza (sin TL;DR ni footer)
 
+  /**
+   * Identidad estable de la pieza, del campo `id` del footer (D-9).
+   *
+   * Sobrevive a mover, renombrar y reorganizar — que es lo que la ruta no hace,
+   * y lo que costó 57 filas del tablero apuntando al vacío. `undefined` cuando
+   * la pieza todavía no pasó por el backfill: NUNCA se genera uno al leer.
+   */
+  id?: string;
+
   // --- Crudos del vault. Se conservan tal cual se escribieron. ---
   canal?: string;
   cuenta?: string;

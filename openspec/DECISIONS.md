@@ -14,13 +14,14 @@ reconstruir el razonamiento desde cero.
 | D-6 | La unidad de medición de ads es el creativo | **decidida** | 2026-09-24 |
 | D-7 | `spend` de ads: acumulado o por ventana | **abierta** | — |
 | D-8 | `nonfoll`: derivada prohibida o excepción documentada | **abierta — la decide Matías** | — |
-| D-9 | Identificador propio dentro de cada `.md` | **reabierta** | 2026-09-24 |
+| D-9 | Identificador propio dentro de cada `.md` | **decidida** | 2026-09-26 |
 | D-10 | Adapter de LinkedIn | **abierta — bloqueada** | — |
 | D-11 | Convergencia de los dos pipelines de contenido de Tegu | **resuelta** | 2026-09-24 |
 | D-12 | Deploy compartido con el socio | **abierta** | — |
 | D-13 | El proyecto pasa a ser open source | **decidida** | 2026-09-24 |
 | D-14 | Nombre definitivo, remote y licencia | **abierta** | — |
 | D-15 | Supabase como índice derivado del vault | **decidida — con condiciones** | 2026-09-24 |
+| D-16 | Un proyecto de Supabase por marca | **decidida** | 2026-09-26 |
 
 ---
 
@@ -107,7 +108,7 @@ contrato prohíbe escribir derivadas, pero `growth-analytics` y `src/lib/types.t
 usan hoy. Opciones: guardar los crudos y calcularla, o aceptarla como excepción
 documentada. **Hasta que se decida, no se escribe.**
 
-## D-9 · Identificador propio dentro de cada `.md` — reabierta
+## D-9 · Identificador propio dentro de cada `.md` — decidida
 
 Resolvería de raíz el problema de llave de `move-resilient-keys`. Se descartó el
 2026-09-24 porque implica escribir en más de 200 archivos del vault para resolver un
@@ -133,6 +134,31 @@ del vault pueda referirse a una pieza sin romperse.
 
 **Bloquea a D-15.** Un índice derivado construido sobre la ruta hereda exactamente el
 mismo problema, una capa más abajo.
+
+### La forma que se eligió — 2026-09-26
+
+La decidió Matías. **Ocho caracteres de un alfabeto de 31**, sin los que se
+confunden al transcribir a mano o al dictar: sin `0`/`O`, sin `1`/`l`/`i`.
+
+```
+alfabeto: 23456789abcdefghjkmnpqrstuvwxyz   (8 dígitos + 23 letras = 31)
+ejemplo:  - id: k7m2p9qx
+```
+
+31⁸ ≈ 8,5 × 10¹¹ combinaciones. Con las ~265 piezas de hoy la probabilidad de
+colisión por azar es del orden de 10⁻⁸: el riesgo real no es el azar, es que
+alguien duplique un archivo para partir de él, y eso se resuelve abajo.
+
+**Por qué opaco y no algo legible.** Un id que codifique red, fecha o fórmula
+vuelve a envejecer en cuanto la pieza cambia de red o se re-fechea — que es el
+mismo defecto que la ruta, disfrazado. El id no dice nada de la pieza a propósito.
+
+**Qué pasa con los repetidos: se reportan y se corta.** No se renumera solo. Si
+dos piezas declaran el mismo id, la app nombra las dos rutas y no resuelve
+ninguna referencia externa hacia ellas. Elegir una en silencio es exactamente la
+clase de decisión que dejó 57 filas apuntando al vault equivocado; y renumerar
+automáticamente haría que la app decida sobre la identidad de una pieza, que es
+criterio del humano. Coherente con la REGLA DURA 1.
 
 ## D-10 · Adapter de LinkedIn — abierta, bloqueada
 
@@ -246,3 +272,29 @@ debuggeando en dos lugares en vez de uno.
 - **Dónde corre la skill.** REGLA DURA 6 dice que nada corre solo: la dispara una
   persona. Falta decidir si vive en `scripts/` o en la consola de operaciones
   (`operations-console`).
+
+## D-16 · Un proyecto de Supabase por marca — decidida
+
+**Qué se decidió.** El índice derivado de D-15 vive en **dos** proyectos, uno por
+marca, en organizaciones distintas:
+
+| proyecto | org | indexa |
+|---|---|---|
+| `tegu-growth` | `tegu` | las piezas de Tegu |
+| `growth-loop-mativallej` | `matiasvallejos` | las piezas de la marca personal |
+
+**Por qué no uno solo.** La REGLA DURA 4 pide que la separación entre marcas sea
+estructural, no un filtro. Un solo proyecto en la org de Tegu con las dos marcas
+adentro deja el contenido personal —que incluye la historia del despido— al
+alcance de cualquiera con acceso a esa organización: hoy el socio, mañana quien
+se sume. Y a diferencia del build, donde `GROWTH_SOURCES` recorta, una API no
+tiene ese corte: la única frontera sería un `where` que alguien puede olvidar.
+
+Con dos proyectos la frontera son las credenciales y las orgs. Un leak expone una
+marca, no las dos.
+
+**Costo aceptado.** Dos connection strings y dos juegos de claves en `.env.local`.
+
+**Sigue bloqueada por D-9** hasta que el backfill de ids corra: un índice
+llaveado por ruta reproduce el problema de `move-resilient-keys` una capa más
+abajo. Con D-9 decidida, el desbloqueo es cuestión de correr el backfill.

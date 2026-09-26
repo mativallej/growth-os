@@ -19,6 +19,7 @@ Sin campo base no hay ambigüedad: **el valor vigente es el último corte.** Nad
 
 ---
 
+- id: k7m2p9qx
 - platform: X
 - account: personal
 - date: 2026-03-10
@@ -36,6 +37,7 @@ Estos no envejecen, así que sí van como campos.
 
 | clave | valores | regla |
 |---|---|---|
+| `id` | 8 caracteres de `23456789abcdefghjkmnpqrstuvwxyz` | **la identidad de la pieza.** Se asigna una vez y no se reasigna nunca, ni al mover el archivo ni al renombrarlo. Es opaco: no codifica red, fecha ni fórmula. Ver D-9 |
 | `platform` | `X` · `LinkedIn` · `Instagram` · `Blog` · `TikTok` | uno solo; los cross-post llevan un archivo por red |
 | `account` | id de `config/sources.json` (`mativallej_x`, `tegu_ig`…) | **qué cuenta publicó**, no de qué habla. Una marca puede tener varias cuentas en la misma red |
 | `date` | `AAAA-MM-DD` | la fecha sola, sin texto al lado |

@@ -110,6 +110,7 @@ function parseFile(path: string, source: ContentSource, root: string): Piece {
     source: source.id,
     tldr,
     body,
+    id: fields.id || undefined,
     canal,
     cuenta: fields.account || undefined,
     formato: fields.formato || undefined,
@@ -138,7 +139,31 @@ export type SourceLoad = {
   pieces: Piece[];
   /** Archivos que no se pudieron leer, con el motivo. Nunca se tragan en silencio. */
   unreadable: { path: string; reason: string }[];
+  /** Piezas sin identificador propio (D-9). A la vista, nunca inventado. */
+  withoutId: Piece[];
+  /** Identificadores declarados por más de una pieza, con TODAS sus rutas. */
+  duplicateIds: { id: string; paths: string[] }[];
 };
+
+/**
+ * Agrupa las piezas por identificador y devuelve las colisiones.
+ *
+ * Un id repetido NO se resuelve eligiendo una de las dos: elegir en silencio es
+ * la clase de decisión que dejó 57 filas del tablero apuntando al archivo
+ * equivocado. Se reportan las dos rutas y ninguna referencia externa resuelve
+ * hacia ellas (D-9).
+ */
+export function findDuplicateIds(pieces: Piece[]): { id: string; paths: string[] }[] {
+  const porId = new Map<string, string[]>();
+  for (const p of pieces) {
+    if (!p.id) continue;
+    porId.set(p.id, [...(porId.get(p.id) ?? []), p.relPath]);
+  }
+  return [...porId.entries()]
+    .filter(([, paths]) => paths.length > 1)
+    .map(([id, paths]) => ({ id, paths: paths.sort() }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
 
 /**
  * Lee cada fuente por separado y devuelve su conteo aparte. Que una fuente
@@ -181,7 +206,17 @@ function loadUncached(sources: ContentSource[]): SourceLoad[] {
           'Las raíces existen; o están vacías o ningún archivo se pudo leer.',
       );
     }
-    return { source, pieces, unreadable };
+
+    const withoutId = pieces.filter((p) => !p.id);
+    const duplicateIds = findDuplicateIds(pieces);
+    if (duplicateIds.length > 0) {
+      console.warn(
+        `[sources] ${source.id}: ${duplicateIds.length} identificador(es) repetido(s). ` +
+          'Ninguna referencia externa se resuelve hacia estas piezas:\n' +
+          duplicateIds.map((d) => `  ${d.id}\n${d.paths.map((p) => `    ${p}`).join('\n')}`).join('\n'),
+      );
+    }
+    return { source, pieces, unreadable, withoutId, duplicateIds };
   });
 }
 

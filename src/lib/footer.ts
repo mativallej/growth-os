@@ -10,6 +10,9 @@
 
 /** Claves conocidas -> nombre canónico. Espejo de `CLAVES` en scripts/sync-notion.py. */
 export const KNOWN_KEYS: Record<string, string> = {
+  // La identidad de la pieza (D-9). Se lee, nunca se genera al leer: un id
+  // inventado en lectura sería distinto en cada build y peor que no tenerlo.
+  id: 'id',
   status: 'status',
   estado: 'status',
   url: 'url',

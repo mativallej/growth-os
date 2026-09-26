@@ -81,7 +81,7 @@ def api(path, method="GET", body=None):
 # Un lector que entienda solo una de las dos ve 14 piezas donde hay 125, así que
 # entiende las dos. La lista de claves conocidas es el filtro: sin ella, una
 # línea de prosa como "Detrás de todo esto: +150 builds" entraría como metadato.
-CLAVES = {"status": "status", "estado": "status", "url": "url", "link": "url",
+CLAVES = {"id": "id", "status": "status", "estado": "status", "url": "url", "link": "url",
           "date": "date", "fecha": "date", "canal": "platform", "platform": "platform",
           "red": "platform", "formato": "formato", "fórmula": "formula",
           "formula": "formula", "cuenta": "account", "account": "account",
@@ -273,8 +273,23 @@ def walk(root, vault, skip_prefixes=()):
     return out
 
 
+def _rich(props, name):
+    return "".join(x["plain_text"] for x in props.get(name, {}).get("rich_text", []))
+
+
 def remote_rows(ds):
-    rows, cursor = {}, None
+    """Filas del tablero, LLAVEADAS POR `ID` (D-9).
+
+    Devuelve (por_id, sin_llave). La columna `Archivo` queda como dato
+    informativo: se sigue escribiendo y actualizando, pero ya no empareja.
+
+    Una fila sin `ID` —toda fila anterior al backfill— NO se empareja por ruta
+    como respaldo. Ese respaldo silencioso es exactamente lo que dejó 57 filas
+    apuntando al archivo equivocado cuando el vault se reorganizó: el
+    emparejamiento parecía funcionar y estaba mintiendo. Se reportan aparte,
+    como pendientes de re-llavear.
+    """
+    por_id, sin_llave, cursor = {}, [], None
     while True:
         body = {"page_size": 100}
         if cursor:
@@ -282,12 +297,16 @@ def remote_rows(ds):
         r = api("/data_sources/%s/query" % ds, "POST", body)
         for pg in r["results"]:
             props = pg["properties"]
-            arch = "".join(x["plain_text"] for x in props.get("Archivo", {}).get("rich_text", []))
-            if arch:
-                est = (props.get("Estado") or {}).get("select") or {}
-                rows[arch] = {"id": pg["id"], "estado": est.get("name", "")}
+            est = (props.get("Estado") or {}).get("select") or {}
+            fila = {"id": pg["id"], "estado": est.get("name", ""),
+                    "archivo": _rich(props, "Archivo")}
+            pid = _rich(props, "ID").strip().lower()
+            if pid:
+                por_id[pid] = fila
+            else:
+                sin_llave.append(fila)
         if not r.get("has_more"):
-            return rows
+            return por_id, sin_llave
         cursor = r["next_cursor"]
 
 
@@ -297,18 +316,54 @@ def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion, ads_root
     ds = ADS_DS if kind == "ads" else CONTENT_DS
     titulo = "Creativo" if kind == "ads" else "Pieza"
     estado = estado_ad if kind == "ads" else estado_post
-    remote = remote_rows(ds)
+    remote, sin_llave = remote_rows(ds)
 
-    nuevas = [k for k in sorted(local) if k not in remote]
-    existentes = [k for k in sorted(local) if k in remote]
+    # El vault se re-indexa por id. Una pieza sin id no se puede emparejar con
+    # nada de forma estable, así que no entra al pase: se cuenta y se nombra.
+    por_id = {}
+    sin_id = []
+    for k in sorted(local):
+        pid = (local[k]["f"].get("id") or "").strip().lower()
+        if pid:
+            por_id.setdefault(pid, k)
+        else:
+            sin_id.append(k)
+
+    nuevas = [pid for pid in sorted(por_id) if pid not in remote]
+    existentes = [pid for pid in sorted(por_id) if pid in remote]
     print("\n%s · marca %s (Notion: %s)" % (kind.upper(), brand, marca))
-    print("  en el vault: %d · filas en Notion: %d" % (len(local), len(remote)))
+    print("  en el vault: %d (%d con id) · filas en Notion: %d (%d con ID)"
+          % (len(local), len(por_id), len(remote) + len(sin_llave), len(remote)))
     print("  a crear: %d · ya existen: %d" % (len(nuevas), len(existentes)))
+
+    if sin_id:
+        print("  %d pieza(s) del vault SIN id: no se sincronizan." % len(sin_id))
+        print("     Correr scripts/backfill-piece-id.py. Ejemplos:")
+        for k in sin_id[:5]:
+            print("       %s" % k)
+    if sin_llave:
+        print("  %d fila(s) de Notion SIN ID — pendientes de re-llavear." % len(sin_llave))
+        print("     NO se emparejan por ruta: el respaldo silencioso es lo que")
+        print("     dejó 57 filas apuntando al archivo equivocado. Ejemplos:")
+        for f in sin_llave[:5]:
+            print("       %s" % (f["archivo"] or "(sin Archivo)"))
+
+    # La pieza se movió: la fila ya empareja por id, y lo que hay que corregir es
+    # el dato informativo. Antes esto era la llave y por eso una mudanza
+    # rompía el emparejamiento; ahora es una actualización de rutina.
+    mudadas = [(pid, por_id[pid]) for pid in existentes
+               if remote[pid]["archivo"] != por_id[pid]]
+    if mudadas:
+        print("  %d pieza(s) cambiaron de ruta — la fila empareja igual, se actualiza `Archivo`:"
+              % len(mudadas))
+        for pid, k in mudadas[:5]:
+            print("     %s  %s → %s" % (pid, remote[pid]["archivo"] or "(vacío)", k))
 
     devuelta = []
     if not only_to_notion:
-        for k in existentes:
-            est = remote[k]["estado"]
+        for pid in existentes:
+            k = por_id[pid]
+            est = remote[pid]["estado"]
             cur = local[k]["f"].get("status") or ""
             if est and not cur.lower().startswith(est.lower()):
                 devuelta.append((k, est, cur))
@@ -319,12 +374,15 @@ def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion, ads_root
     if not apply_:
         return
 
-    for k in nuevas:
+    for pid in nuevas:
+        k = por_id[pid]
         d = local[k]; f = d["f"]
         props = {
             titulo: {"title": [{"text": {"content": d["name"][:200]}}]},
             "Marca": {"select": {"name": marca}},
             "Estado": {"select": {"name": estado(f)}},
+            # `ID` es la llave; `Archivo` es dato informativo y se actualiza solo.
+            "ID": txt(pid),
             "Archivo": txt(k), "Último corte": txt(d["corte"]),
         }
         if f.get("url", "").startswith("http"):
@@ -349,6 +407,11 @@ def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion, ads_root
                                "properties": props})
     if nuevas:
         print("  ✓ %d filas creadas." % len(nuevas))
+
+    for pid, k in mudadas:
+        api("/pages/%s" % remote[pid]["id"], "PATCH", {"properties": {"Archivo": txt(k)}})
+    if mudadas:
+        print("  ✓ %d rutas informativas actualizadas." % len(mudadas))
 
     for k, nuevo, _ in devuelta:
         p = os.path.join(vault, k)

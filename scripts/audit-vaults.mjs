@@ -31,7 +31,7 @@ const REGISTRY = [
 // viejas que todavía conviven, y las de los creativos de ads. Lo que no está acá
 // se reporta como desconocido — que es una señal, no un error.
 const KNOWN = new Set([
-  'platform', 'account', 'date', 'url', 'formula', 'status', 'snapshot',
+  'id', 'platform', 'account', 'date', 'url', 'formula', 'status', 'snapshot',
   'notas', 'lectura', 'veredicto', 'hook', 'refs', 'tags', 'analytics',
   'verdict', 'drivers', 'why', 'lesson', 'note', 'analysis',
   'canal', 'cuenta', 'formato', 'fórmula', 'estado', 'link', 'fecha', 'red',
@@ -180,6 +180,7 @@ export function inspect(path) {
   return {
     tieneSeparador: sep !== -1,
     claves,
+    valores,
     conFooter: claves.size > 0,
     // Ninguna pieza se descarta ya por falta de metadatos: se marca su cobertura.
     cobertura: snapshots > 0 || conBullets ? 'tracked' : pendiente ? 'pending' : 'untracked',
@@ -213,7 +214,8 @@ function main() {
 
   for (const s of srcs) {
     const stats = { total: 0, sinSeparador: 0, conFooter: 0, metricas: 0, fecha: 0, sinMetadata: 0,
-                    tracked: 0, pending: 0, untracked: 0 };
+                    tracked: 0, pending: 0, untracked: 0, sinId: 0 };
+    const porId = new Map(); // id -> [rutas]
 
     for (const root of s.roots) {
       for (const file of walk(root)) {
@@ -224,6 +226,9 @@ function main() {
         if (i.conFooter) stats.conFooter++;
         else stats.sinMetadata++;
         stats[i.cobertura]++;
+        const id = i.valores.get('id');
+        if (id) porId.set(id, [...(porId.get(id) ?? []), relative(s.vault, file)]);
+        else stats.sinId++;
         if (i.conMetricas) stats.metricas++;
         if (i.conFecha) stats.fecha++;
 
@@ -255,6 +260,20 @@ function main() {
     console.log(`    ${pad('medidas', 20)}${stats.tracked}`);
     console.log(`    ${pad('pendientes', 20)}${stats.pending}`);
     console.log(`    ${pad('sin trackear', 20)}${stats.untracked}   ← deuda visible, no cero`);
+    // D-9: una pieza sin id no se puede referenciar desde afuera sin que la
+    // referencia muera en la próxima reorganización del vault. Se cuenta, nunca
+    // se inventa uno al leer.
+    console.log(`  ${pad('sin identificador', 22)}${stats.sinId}${
+      stats.sinId ? '   ← correr scripts/backfill-piece-id.py' : ''
+    }`);
+    const dupes = [...porId.entries()].filter(([, v]) => v.length > 1);
+    if (dupes.length) {
+      console.log(`  ${pad('ids repetidos', 22)}${dupes.length}   ← NINGUNA referencia externa resuelve hacia estos`);
+      for (const [id, rutas] of dupes.slice(0, 5)) {
+        console.log(`    ${id}`);
+        for (const r of rutas) console.log(`      ${r}`);
+      }
+    }
     console.log('');
   }
 
