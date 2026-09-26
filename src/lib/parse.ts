@@ -132,6 +132,7 @@ function parseFile(path: string, source: ContentSource, root: string): Piece {
     estado,
     date: fields.date || undefined,
     url: fields.url || undefined,
+    driveUrl: fields.drive_url || undefined,
     tags: fields.tags || undefined,
     note: fields.note || fields.notas || undefined,
     channel,

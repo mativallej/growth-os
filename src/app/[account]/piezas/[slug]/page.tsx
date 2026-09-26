@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { esHttp, hostDe } from "@/lib/enlaces";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -91,8 +92,8 @@ export default async function PiezaPage({
       <PageHeader title={p.title} subtitle={[p.canal, p.cuenta, p.formato].filter(Boolean).join(" · ")} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href={`/${account}/piezas`} className="text-xs text-muted-foreground transition-colors hover:text-foreground">
-          ← Piezas
+        <Link href={`/${account}/inventario`} className="text-xs text-muted-foreground transition-colors hover:text-foreground">
+          ← Inventario
         </Link>
         {enlaceTablero ? (
           <a
@@ -112,6 +113,38 @@ export default async function PiezaPage({
           </span>
         )}
       </div>
+
+      {/* LOS DOS ENLACES DE LA PIEZA, y son distintos a propósito:
+          `url` es DÓNDE SE PUBLICÓ —la llave del ingest y de la atribución— y
+          `drive_url` es DÓNDE ESTÁ EL ARCHIVO con el que se publicó. Una pieza
+          puede tener el video listo y no estar publicada, y una publicada puede
+          no tener master (un tweet no tiene archivo).
+
+          Se linkean SOLO si son http(s): el valor sale de un .md que escribe una
+          persona, y un `javascript:` en un href ejecuta al hacer click. */}
+      {(esHttp(p.url) || esHttp(p.driveUrl)) && (
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+          {esHttp(p.url) && (
+            <a href={p.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+              Ver publicada en {hostDe(p.url!)} ↗
+            </a>
+          )}
+          {esHttp(p.driveUrl) && (
+            <a href={p.driveUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+              Video en Drive ↗
+            </a>
+          )}
+        </div>
+      )}
+
+      {/* Un valor que NO es http no se esconde: se dice que está y que no se
+          puede abrir. Esconderlo haría pensar que el campo está vacío. */}
+      {p.driveUrl && !esHttp(p.driveUrl) && (
+        <p className="mt-2 text-[11px] text-muted-foreground/70">
+          El campo <code>drive_url</code> tiene un valor que no es un enlace
+          http(s), así que no se ofrece: <code>{p.driveUrl.slice(0, 60)}</code>
+        </p>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {p.formula && <Badge variant="outline">{p.formula}</Badge>}

@@ -67,6 +67,16 @@ export type Unidad = {
   saveLike: string;
   followsFmt: string;
 
+  /**
+   * Los enlaces EXTERNOS de la fila, y son dos cosas distintas.
+   *
+   * `url` es dónde se publicó —la llave del ingest y de la atribución— y
+   * `driveUrl` dónde está el archivo con el que se publicó. Vacíos cuando el
+   * .md no los declara: la vista no dibuja un enlace que no lleva a ningún lado.
+   */
+  url: string;
+  driveUrl: string;
+
   // --- Solo ads. Una pieza no tiene ninguno de estos. ---
   persona: string;
   publico: string;

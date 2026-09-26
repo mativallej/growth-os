@@ -23,7 +23,9 @@
       "tipo": "data_source",
       "ref": "d4b673e1-a79d-4b6f-b2f1-7de8e3e08e94",
       "url": "https://www.notion.so/68e1958490de4ad3ac49cfd1a6e1c21b",
-      "marcas": ["tegu"]
+      "marcas": [
+        "tegu"
+      ]
     },
     {
       "id": "ideas",
@@ -42,6 +44,18 @@
       "ref": "3e42cc30-dd28-8110-b80c-faa4316c7f57",
       "url": "https://www.notion.so/3e42cc30dd288110b80cfaa4316c7f57",
       "marcas": null
+    }
+  ],
+  "_enlaces_doc": "Accesos directos que NO son tableros de Notion ni cuentas de red: la carpeta de Drive con los masters, un sitio, lo que sea. Se ofrecen en la home. `marcas: null` = todas. Una entrada SIN url no se dibuja — un acceso muerto es peor que ninguno.",
+  "enlaces": [
+    {
+      "id": "drive",
+      "nombre": "Drive",
+      "descripcion": "Los masters de video, y de donde sale `drive_url` de cada pieza",
+      "url": "",
+      "marcas": [
+        "tegu"
+      ]
     }
   ]
 }

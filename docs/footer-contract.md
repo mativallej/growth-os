@@ -41,7 +41,8 @@ Estos no envejecen, así que sí van como campos.
 | `platform` | `X` · `LinkedIn` · `Instagram` · `Blog` · `TikTok` | uno solo; los cross-post llevan un archivo por red |
 | `account` | id de `config/sources.json` (`mativallej_x`, `tegu_ig`…) | **qué cuenta publicó**, no de qué habla. Una marca puede tener varias cuentas en la misma red |
 | `date` | `AAAA-MM-DD` | la fecha sola, sin texto al lado |
-| `url` | link al post | **sin esto la pieza no se puede medir**: es la llave del ingest |
+| `url` | link al post publicado | **sin esto la pieza no se puede medir**: es la llave del ingest |
+| `drive_url` | link al master en Drive (alias: `drive`) | **dónde está el archivo**, no dónde se publicó. Opcional y no reemplaza a `url` |
 | `formula` | código del catálogo + nombre | `X1 · storytelling-de-tercero` · `E · origin story` |
 | `status` | `idea` · `draft` · `publicado` | enum cerrado, minúscula |
 
@@ -192,3 +193,25 @@ Se migra todo lo existente, no solo lo nuevo: si no, el parser tolerante sigue h
 4. Un commit por vault, reversible.
 
 Orden: **contrato → skills que escriben → archivos.**
+
+## `url` y `drive_url` no son lo mismo
+
+Se confunden porque las dos son links, y colapsarlas rompe las dos cosas.
+
+| | `url` | `drive_url` |
+|---|---|---|
+| qué es | dónde se **publicó** la pieza | dónde está el **archivo** con el que se publicó |
+| para qué | la llave del ingest de métricas y de la atribución | abrir el master sin buscarlo en Drive |
+| cuándo existe | después de publicar | antes de publicar, si es video |
+
+Una pieza puede tener el video listo y no estar publicada —ahí hay `drive_url` y
+no hay `url`— y una publicada puede no tener master: un tweet no tiene archivo.
+
+**`drive_url` no se usa para medir nada.** No es una llave, no empareja filas y
+no entra en ninguna cobertura: es un atajo para no buscar el archivo a mano. Si
+falta, no hay deuda de medición — hay un click de más.
+
+La app lo muestra como enlace **solo si es `http(s)`**. El valor sale de un `.md`
+que escribe una persona y termina en un `href`, y un `javascript:` ahí ejecuta al
+hacer click. Un valor que no es un enlace no se esconde: se dice que está y que
+no se puede abrir, para que no parezca que el campo está vacío.

@@ -40,6 +40,8 @@ const VACIO = {
   engRate: '—',
   saveLike: '—',
   followsFmt: '—',
+  url: '',
+  driveUrl: '',
 };
 
 export function dePieza(
@@ -84,6 +86,8 @@ export function dePieza(
     engRate: l ? pct(engRate(l)) : '—',
     saveLike: l ? pct(saveLike(l)) : '—',
     followsFmt: l ? num(l.follows) : '—',
+    url: p.url ?? '',
+    driveUrl: p.driveUrl ?? '',
   };
 }
 

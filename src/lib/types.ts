@@ -60,6 +60,13 @@ export type Piece = {
   estado?: string;
   date?: string; // fecha declarada en el campo `date`/`fecha`
   url?: string; // llave del ingest (contrato)
+  /**
+   * El master del video en Drive. NO es `url`: `url` es dónde se publicó la
+   * pieza, esto es dónde vive el archivo con el que se publicó. Se guardan las
+   * dos porque responden preguntas distintas — una pieza puede tener el video
+   * listo y no estar publicada, y una publicada puede no tener master (un tweet).
+   */
+  driveUrl?: string;
   tags?: string;
   note?: string;
 

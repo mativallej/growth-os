@@ -123,6 +123,9 @@ def api(path, method="GET", body=None):
 # entiende las dos. La lista de claves conocidas es el filtro: sin ella, una
 # línea de prosa como "Detrás de todo esto: +150 builds" entraría como metadato.
 CLAVES = {"id": "id", "status": "status", "estado": "status", "url": "url", "link": "url",
+          # El master del video en Drive. NO es `url`: `url` es dónde se publicó,
+          # esto es dónde está el archivo. Espejo de KNOWN_KEYS en src/lib/footer.ts.
+          "drive_url": "drive_url", "drive": "drive_url",
           "date": "date", "fecha": "date", "canal": "platform", "platform": "platform",
           "red": "platform", "formato": "formato", "fórmula": "formula",
           "formula": "formula", "cuenta": "account", "account": "account",
@@ -328,6 +331,26 @@ def walk(root, vault, skip_prefixes=()):
 
 def _rich(props, name):
     return "".join(x["plain_text"] for x in props.get(name, {}).get("rich_text", []))
+
+
+_PROPS = {}
+
+
+def propiedades(ds):
+    """Los nombres de propiedad que la base DECLARA, cacheados por data source.
+
+    Notion devuelve 400 si se manda una propiedad que no existe, y eso voltea el
+    sync entero por un campo opcional. Consultar el esquema una vez permite
+    mandar `Drive` solo donde ya está creada, y seguir andando donde todavía no
+    — que es el estado normal mientras el tablero se actualiza.
+    """
+    if ds not in _PROPS:
+        try:
+            _PROPS[ds] = set((api("/data_sources/%s" % ds).get("properties") or {}).keys())
+        except Exception:
+            # Sin esquema no se arriesga: se mandan solo las de siempre.
+            _PROPS[ds] = set()
+    return _PROPS[ds]
 
 
 def remote_rows(ds):
@@ -550,6 +573,8 @@ def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion, ads_root
         }
         if f.get("url", "").startswith("http"):
             props["URL"] = {"url": f["url"]}
+        if f.get("drive_url", "").startswith("http") and "Drive" in propiedades(ds):
+            props["Drive"] = {"url": f["drive_url"]}
         if kind == "ads":
             campos, derivados = ad_fields(k, f, vault, ads_root)
             props.update(campos)

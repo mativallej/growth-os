@@ -5,6 +5,7 @@ import { loadPieces } from "@/lib/parse";
 import { num } from "@/lib/metrics";
 import Logo from "@/components/Logo";
 import Saludo from "@/components/Saludo";
+import { accesosDe, type Acceso } from "@/lib/accesos";
 
 /**
  * LA RAÍZ. Saluda, y muestra la marca que tiene este build.
@@ -22,10 +23,18 @@ import Saludo from "@/components/Saludo";
  * puede devolver más de una si alguien buildea sin `GROWTH_SOURCES`. En ese caso
  * el encabezado lo dice, en vez de mostrar la primera y esconder el resto.
  */
+const GRUPOS: Acceso["grupo"][] = ["Coordinación", "Cuentas", "Archivos"];
+
 export default function Home() {
   const sources = listSources();
   const piezas = loadPieces(sources);
   const una = sources.length === 1;
+
+  // Los accesos directos de cada marca. Salen de lo que ya estaba declarado: las
+  // cuentas de config/sources.json con el patrón de su red, los tableros de
+  // config/destinos.json, y el bloque `enlaces` para lo que no es ninguna de las
+  // dos cosas. Un acceso sin url NO se dibuja — un link muerto promete y falla.
+  const accesos = sources.map((s) => ({ source: s, ...accesosDe(s.id) }));
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center px-4 py-12 text-center">
@@ -71,6 +80,62 @@ export default function Home() {
           })}
         </div>
       </div>
+
+      {accesos.some((a) => a.lista.length > 0 || a.sinDeclarar.length > 0) && (
+        <div className="mt-8 w-full text-left">
+          <div className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+            Accesos directos
+          </div>
+
+          {accesos.map(({ source, lista, sinDeclarar }) => (
+            <div key={source.id} className="mb-4 last:mb-0">
+              {!una && (
+                <div className="mb-1.5 text-[11px] text-muted-foreground">{source.label}</div>
+              )}
+
+              {GRUPOS.map((grupo) => {
+                const del = lista.filter((a) => a.grupo === grupo);
+                if (del.length === 0) return null;
+                return (
+                  <div key={grupo} className="mb-2 last:mb-0">
+                    <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground/50">
+                      {grupo}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {del.map((a) => (
+                        <a
+                          key={a.id}
+                          href={a.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={a.detalle}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[12px] transition-colors hover:border-foreground/25 hover:bg-muted"
+                        >
+                          <span>{a.label}</span>
+                          {a.detalle?.startsWith("@") && (
+                            <span className="text-muted-foreground/70">{a.detalle}</span>
+                          )}
+                          <span aria-hidden="true" className="text-muted-foreground/40">↗</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Los declarados SIN url se DICEN en vez de desaparecer: así se
+                  sabe que el acceso existe y que falta completarlo, en vez de
+                  pensar que nadie lo configuró nunca. */}
+              {sinDeclarar.length > 0 && (
+                <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground/60">
+                  Sin dirección declarada: {sinDeclarar.join(" · ")} — se completan en{" "}
+                  <code>config/destinos.json</code> y <code>config/sources.json</code>.
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Al final y no arriba: quien entra viene a mirar su marca, no a leer
           para qué existe esto. La cita cierra, no recibe. */}

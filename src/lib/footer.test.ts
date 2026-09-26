@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { splitInline, tokenizeFooter } from './footer';
+import { canonicalKey, splitInline, tokenizeFooter } from './footer';
 
 describe('splitInline — el delimitador que a veces es contenido', () => {
   it('parte donde lo que sigue abre una clave conocida', () => {
@@ -119,5 +119,34 @@ describe('tokenizeFooter — las dos gramáticas', () => {
     const { fields } = tokenizeFooter(['- impressions:', '- likes:']);
     expect(fields.impressions).toBe('');
     expect(fields.likes).toBe('');
+  });
+});
+
+describe('drive_url', () => {
+  it('se reconoce como clave del contrato, con su alias corto', () => {
+    expect(canonicalKey('drive_url')).toBe('drive_url');
+    expect(canonicalKey('drive')).toBe('drive_url');
+    expect(canonicalKey('Drive_URL')).toBe('drive_url');
+  });
+
+  it('se tokeniza en las dos gramáticas, como cualquier otra clave', () => {
+    // El proyecto convive con bullets (vault personal) e inline (Tegu), y una
+    // clave nueva tiene que entrar por las dos o se pierde la mitad.
+    const bullet = tokenizeFooter(['- drive_url: https://drive.google.com/file/d/x/view']);
+    expect(bullet.fields.drive_url).toBe('https://drive.google.com/file/d/x/view');
+
+    const inline = tokenizeFooter(['canal: Instagram · drive: https://drive.google.com/d/y']);
+    expect(inline.fields.drive_url).toBe('https://drive.google.com/d/y');
+    // Y no se comió el canal al partir por ` · `.
+    expect(inline.fields.platform).toBe('Instagram');
+  });
+
+  it('NO colapsa con `url`: son dos campos que responden cosas distintas', () => {
+    // `url` es dónde se publicó —la llave del ingest y de la atribución—, y
+    // `drive_url` es dónde está el archivo con el que se publicó. Una pieza
+    // puede tener el video listo sin estar publicada.
+    expect(canonicalKey('url')).toBe('url');
+    expect(canonicalKey('link')).toBe('url');
+    expect(canonicalKey('drive_url')).not.toBe(canonicalKey('url'));
   });
 });

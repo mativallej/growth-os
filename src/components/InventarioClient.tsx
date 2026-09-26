@@ -29,6 +29,7 @@ import MateriaToggle from "@/components/MateriaToggle";
 import { useFavoritos } from "@/components/useFavoritos";
 import { facetas, type Materia, type Unidad } from "@/lib/unidades";
 import { NIVELES, describir, type Umbrales } from "@/lib/viralidad";
+import { esHttp } from "@/lib/enlaces";
 
 /**
  * El inventario: TODAS las piezas, incluidas las que no tienen footer ni
@@ -84,6 +85,54 @@ const variantePorVeredicto = (v: string): "success" | "destructive" | "secondary
   if (["weak", "flop"].includes(s)) return "destructive";
   return "secondary";
 };
+
+/**
+ * Los accesos rápidos de una fila: el post publicado y el master en Drive.
+ *
+ * Solo se dibuja el que EXISTE y es http(s). El valor sale de un .md que escribe
+ * una persona y termina en un `href` — un `javascript:` ahí ejecuta al hacer
+ * click— y un ícono que no lleva a ningún lado es peor que su ausencia: promete
+ * y falla.
+ *
+ * `stopPropagation` porque la fila entera navega al detalle: sin eso, abrir el
+ * post también cambiaría la página de atrás.
+ */
+function Enlaces({ url, driveUrl }: { url: string; driveUrl: string }) {
+  const hay = esHttp(url) || esHttp(driveUrl);
+  if (!hay) return null;
+  const base =
+    "rounded px-1 text-[12px] leading-none text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground";
+  return (
+    <span className="flex shrink-0 items-center gap-0.5">
+      {esHttp(url) && (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          title="Ver la pieza publicada"
+          aria-label="Ver la pieza publicada"
+          className={base}
+        >
+          <span aria-hidden="true">↗</span>
+        </a>
+      )}
+      {esHttp(driveUrl) && (
+        <a
+          href={driveUrl}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          title="Abrir el video en Drive"
+          aria-label="Abrir el video en Drive"
+          className={base}
+        >
+          <span aria-hidden="true">▶</span>
+        </a>
+      )}
+    </span>
+  );
+}
 
 /** La estrella de favorito. Es un botón y no un Link: la fila entera ya navega. */
 function Estrella({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -343,6 +392,7 @@ export default function InventarioClient({
                         <Link href={r.href} className="min-w-0 flex-1 truncate text-[13px] hover:underline">
                           {r.title}
                         </Link>
+                        <Enlaces url={r.url} driveUrl={r.driveUrl} />
                       </div>
                       {r.estado && (
                         <span className="block truncate text-[11px] text-muted-foreground">
@@ -417,9 +467,12 @@ export default function InventarioClient({
                 <div className="flex min-w-0 flex-1 items-start gap-1.5">
                   <Estrella on={favoritos.has(r.llave)} onClick={() => alternar(r.llave)} />
                   <div className="min-w-0 flex-1">
-                    <Link href={r.href} className="block truncate text-[13px] font-medium hover:underline">
-                      {r.title}
-                    </Link>
+                    <div className="flex items-center gap-1.5">
+                      <Link href={r.href} className="min-w-0 truncate text-[13px] font-medium hover:underline">
+                        {r.title}
+                      </Link>
+                      <Enlaces url={r.url} driveUrl={r.driveUrl} />
+                    </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
                       <span>{r.canal}</span>
                       {r.formulaCode && (
@@ -498,6 +551,7 @@ export default function InventarioClient({
                       <Link href={r.href} className="line-clamp-2 min-w-0 flex-1 text-[13px] leading-snug hover:underline">
                         {r.title}
                       </Link>
+                      <Enlaces url={r.url} driveUrl={r.driveUrl} />
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
                       <span>{r.canal}</span>

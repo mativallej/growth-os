@@ -17,6 +17,11 @@ export const KNOWN_KEYS: Record<string, string> = {
   estado: 'status',
   url: 'url',
   link: 'url',
+  // El MASTER del video en Drive, que no es lo mismo que `url`: `url` es dónde se
+  // publicó y es la llave del ingest; esto es dónde está el archivo con el que se
+  // publicó. Una pieza puede tener el archivo y no estar publicada todavía.
+  drive_url: 'drive_url',
+  drive: 'drive_url',
   date: 'date',
   fecha: 'date',
   canal: 'platform',

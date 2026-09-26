@@ -3,6 +3,7 @@
   "networks": {
     "x": {
       "label": "X",
+      "perfil_url": "https://x.com/{handle}",
       "status": "completo",
       "detect": [
         "Post id",
@@ -34,6 +35,7 @@
     },
     "instagram": {
       "label": "Instagram",
+      "perfil_url": "https://instagram.com/{handle}",
       "status": "completo",
       "detect": [
         "Permalink",
@@ -62,10 +64,14 @@
     },
     "linkedin": {
       "label": "LinkedIn",
+      "perfil_url": "https://www.linkedin.com/company/{handle}",
       "status": "pendiente — falta un export real de LinkedIn Analytics",
       "detect": [],
       "id_from_link": "(?:ugcPost|activity)[-:](\\d+)",
       "metrics": {}
     }
+  },
+  "_campos": {
+    "perfil_url": "Cómo se abre el perfil de una cuenta de esta red. `{handle}` se reemplaza por el handle declarado en config/sources.json. Es propiedad DE LA RED, no de la marca. Una cuenta que no siga el patrón —una persona en LinkedIn, por ejemplo— lo pisa con `perfil_url` en su propia entrada de accounts[]."
   }
 }
