@@ -59,9 +59,13 @@ def raices(brand):
 
 
 def vault_quieto(vault):
-    """(quieto, detalle). Es el requirement, no una precaución: ver el docstring."""
+    """(quieto, detalle). Es el requirement, no una precaución: ver el docstring.
+
+    El `-- .` acota el estado a la carpeta del vault: puede ser un subdirectorio
+    de un repo más grande, y un cambio en otra carpeta del mismo repo no tiene
+    por qué bloquear esto."""
     try:
-        r = subprocess.run(["git", "-C", vault, "status", "--porcelain"],
+        r = subprocess.run(["git", "-C", vault, "status", "--porcelain", "--", "."],
                            capture_output=True, text=True, timeout=30)
     except (OSError, subprocess.SubprocessError) as e:
         return False, "no se pudo consultar git: %s" % e

@@ -91,10 +91,16 @@ def piezas(roots, ignorar):
 
 def vault_limpio(vault):
     """(limpio, detalle). Un vault que no es repo de git se considera NO limpio:
+
+    El `-- .` acota el estado A LA CARPETA DEL VAULT. Un vault puede ser un
+    subdirectorio de un repo más grande —`~/vaults/brain` lo es: su raíz de git
+    está un nivel arriba— y sin acotar, un cambio en cualquier otra carpeta del
+    mismo repo bloquearía un backfill que no tiene nada que ver con ella.
+
     sin historia no hay forma de revertir el backfill, y escribir 265 archivos
     sin vuelta atrás no es algo que este script deba hacer solo."""
     try:
-        r = subprocess.run(["git", "-C", vault, "status", "--porcelain"],
+        r = subprocess.run(["git", "-C", vault, "status", "--porcelain", "--", "."],
                            capture_output=True, text=True, timeout=30)
     except (OSError, subprocess.SubprocessError) as e:
         return False, "no se pudo consultar git: %s" % e
@@ -243,8 +249,15 @@ def main():
                 lineas += ["---", ""]
                 sep = len(lineas) - 2
             nuevas = insertar(lineas, sep, nuevo_id(usados))
+            # Conservar el salto final EXACTAMENTE como estaba. Escribir sin él
+            # ensucia el diff de todo archivo que sí lo tenía, y con él ensucia
+            # el de los que no — en los dos casos por una razón que no tiene
+            # nada que ver con lo que este script vino a hacer.
+            salida = "\n".join(nuevas)
+            if texto.endswith("\n") and not salida.endswith("\n"):
+                salida += "\n"
             with io.open(p, "w", encoding="utf-8") as f:
-                f.write("\n".join(nuevas))
+                f.write(salida)
             escritos += 1
         print("  Escritos %d archivos." % escritos)
         total_escritos += escritos
