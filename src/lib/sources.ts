@@ -72,7 +72,6 @@ export function brandsConfig(): BrandConfig[] {
  */
 const ALIAS_HISTORICOS: Record<string, string> = {
   tegu: 'VAULT_TEGU_DIR',
-  mativallej: 'VAULT_PERSONAL_DIR',
 };
 
 export function envVarDe(brand: string): string {

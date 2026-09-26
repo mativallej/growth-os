@@ -1,5 +1,5 @@
 {
-  "_doc": "Marcas y sus cuentas. Tres dimensiones independientes: n marcas × n redes (config/networks.json) × n cuentas por marca. Agregar cualquiera de las tres es agregar un objeto acá o allá; el script no se toca. Las rutas van por ~/vaults/, nunca la ruta real.",
+  "_doc": "Marcas y sus cuentas. Tres dimensiones independientes: n marcas × n redes (config/networks.json) × n cuentas por marca. Agregar cualquiera de las tres es agregar un objeto acá o allá; el script no se toca. Las rutas van por ~/vaults/, nunca la ruta real. UN DEPLOY POR MARCA: este repo publica Tegu. Una marca que no está acá no tiene rutas emitidas ni credenciales presentes — no está escondida, no existe en este deploy. La marca personal salió en esta decisión y su config sigue en el historial de git si hace falta levantarla en su propio repo.",
   "_campos": {
     "vault": "raíz del repo, vía ~/vaults/",
     "content": "subcarpeta(s) con las piezas, relativas al vault. Puede ser una lista.",
@@ -12,58 +12,10 @@
     "notion.operational_days": "el tablero es lo que se mueve, no un archivo. Una pieza publicada hace más de N días no sube. 0 = sin corte.",
     "growth.cadencia": "Dieta de publicación de esta marca: piso y techo de piezas por mes. Es criterio del humano, no un default de la app — por eso se declara acá y no se infiere de la historia. Se puede reapuntar sin tocar el repo con CADENCIA_<ID_DE_MARCA>_PISO y _TECHO.",
     "growth.catalogo": "Carpeta del catálogo de fórmulas, relativa al vault. Es DOCTRINA compartida: una marca puede apuntar al catálogo de otra. Vacío = esta marca no tiene catálogo y se usan los códigos de reserva.",
-    "growth.digest": "true si esta marca tiene un digest de growth. Es una capacidad DECLARADA y no inferida: el digest lo arma una skill del vault, así que tener webhook de avisos no alcanza — las dos marcas lo tienen."
+    "growth.digest": "true si esta marca tiene un digest de growth. Es una capacidad DECLARADA y no inferida: el digest lo arma una skill del vault, así que tener webhook de avisos no alcanza — las dos marcas lo tienen.",
+    "vault_repo": "De dónde se clona el vault en CI: `repo` (owner/name) y `ref` (rama). Solo para el build de publicación; en local el vault se lee de `vault`. Es lo que hace que agregar una marca siga siendo agregar un objeto acá: la matriz del workflow se deriva de esta lista, no se escribe a mano. Sin este campo la marca no se puede publicar, y el workflow lo dice."
   },
   "brands": [
-    {
-      "id": "mativallej",
-      "label": "Marca personal",
-      "vault": "~/vaults/brain",
-      "content": "Personal Brand/Content/Create",
-      "data": "Personal Brand/Analytics",
-      "accounts": [
-        {
-          "id": "mativallej_x",
-          "network": "x",
-          "handle": "mativallej_",
-          "url_contains": "x.com/mativallej_/"
-        },
-        {
-          "id": "mativallej_ig",
-          "network": "instagram",
-          "handle": "mativallej_",
-          "url_contains": "instagram.com/"
-        },
-        {
-          "id": "mativallej_li",
-          "network": "linkedin",
-          "handle": "mativallej",
-          "url_contains": "linkedin.com/"
-        }
-      ],
-      "notify": {
-        "discord_webhook_env": "DISCORD_WEBHOOK_MATIVALLEJ",
-        "channel": "growth-mativallej"
-      },
-      "notion": {
-        "marca": "Personal Brand",
-        "docs": [],
-        "ads": [],
-        "operational_days": 60
-      },
-      "supabase": {
-        "ref": "ndrpszddzbqhyfzxnpor",
-        "url": "https://ndrpszddzbqhyfzxnpor.supabase.co"
-      },
-      "growth": {
-        "cadencia": {
-          "piso": 10,
-          "techo": 14
-        },
-        "catalogo": "Personal Brand/Brand Identity/Catalog",
-        "digest": true
-      }
-    },
     {
       "id": "tegu",
       "label": "Tegu",
@@ -71,6 +23,10 @@
       "content": [
         "Create/Organic"
       ],
+      "vault_repo": {
+        "repo": "tegu-labs/tegu-growth",
+        "ref": "content/fusion-brand-content"
+      },
       "data": "Analytics",
       "accounts": [
         {
@@ -118,7 +74,7 @@
           "piso": 10,
           "techo": 14
         },
-        "catalogo_de": "mativallej",
+        "catalogo": "Brand Identity/Catalog",
         "digest": false
       }
     }
@@ -129,10 +85,6 @@
       "discord_webhook_env": "DISCORD_WEBHOOK_IDEAS",
       "channel": "ideas",
       "watch": [
-        {
-          "brand": "mativallej",
-          "path": "Personal Brand/Content/Ideas"
-        },
         {
           "brand": "tegu",
           "path": "Brand/Content/Ideas"

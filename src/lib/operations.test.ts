@@ -11,6 +11,7 @@ import {
   operacionesDeMarca,
   validarParams,
 } from './operations';
+import { brandsConfig } from './sources';
 
 function opDePrueba(extra: Partial<Operation> = {}): Operation {
   return {
@@ -41,7 +42,6 @@ describe('el catálogo', () => {
     expect(ids).toContain('ingest-analytics');
     expect(ids).toContain('sync-contenido');
     expect(ids).toContain('sync-documentacion');
-    expect(ids).toContain('digest');
     expect(ids).toContain('export-piezas');
   });
 
@@ -59,13 +59,32 @@ describe('el catálogo', () => {
     expect(() => getOperation('no-existe')).toThrow(/sync-contenido/);
   });
 
-  it('una operación declarada para una marca no se ofrece desde las otras', () => {
-    const deTegu = operacionesDeMarca('tegu').map((o) => o.id);
-    const dePersonal = operacionesDeMarca('mativallej').map((o) => o.id);
-    expect(deTegu).toContain('sync-documentacion');
-    expect(dePersonal).not.toContain('sync-documentacion');
-    expect(dePersonal).toContain('digest');
-    expect(deTegu).not.toContain('digest');
+  it('una operación solo se ofrece a las marcas que declara', () => {
+    for (const marca of MARCAS) {
+      for (const op of operacionesDeMarca(marca)) {
+        // `null` = toda marca. Una lista = solo esas, y ninguna otra.
+        expect(op.marcas === null || op.marcas.includes(marca)).toBe(true);
+      }
+      // Lo inverso: nada que la marca declare queda afuera de su lista.
+      const ofrecidas = new Set(operacionesDeMarca(marca).map((o) => o.id));
+      for (const op of OPERACIONES) {
+        if (op.marcas === null || op.marcas.includes(marca)) {
+          expect(ofrecidas.has(op.id), `${op.id} para ${marca}`).toBe(true);
+        } else {
+          expect(ofrecidas.has(op.id), `${op.id} NO para ${marca}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('una operación declarada para cero marcas es un botón que nadie puede apretar', () => {
+    // No es un detalle: `digest` quedó así cuando la marca personal salió de la
+    // config —su skill vivía en ese vault— y se quitó del catálogo por eso. Una
+    // operación con `marcas: []` no la ofrece nadie y no hay forma de notarlo
+    // desde la UI.
+    for (const op of OPERACIONES) {
+      expect(op.marcas === null || op.marcas.length > 0, op.id).toBe(true);
+    }
   });
 
   it('ads/orgánico es una dimensión propia y no un canal', () => {
@@ -76,7 +95,10 @@ describe('el catálogo', () => {
   });
 
   it('las marcas salen de config/sources.json', () => {
-    expect(MARCAS).toEqual(['mativallej', 'tegu']);
+    // Contra la config, no contra una lista escrita acá: agregar o quitar una
+    // marca no puede obligar a tocar un test.
+    expect(MARCAS).toEqual(brandsConfig().map((b) => b.id));
+    expect(MARCAS.length).toBeGreaterThan(0);
   });
 });
 
@@ -86,7 +108,7 @@ describe('validarParams', () => {
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.errores[0].param).toBe('marca');
-    expect(r.errores[0].motivo).toMatch(/mativallej, tegu/);
+    expect(r.errores[0].motivo).toMatch(new RegExp(MARCAS.join(', ')));
   });
 
   it('rechaza un parámetro que la operación no declara', () => {
@@ -130,10 +152,13 @@ describe('validarParams', () => {
   });
 
   it('una operación de una sola marca se rechaza desde otra', () => {
-    const r = validarParams(getOperation('digest'), { marca: 'tegu' });
+    // Con una operación sintética y no una real: qué operaciones son de una sola
+    // marca depende de la config, y este test prueba el RECHAZO, no el catálogo.
+    const soloOtra = opDePrueba({ marcas: ['otra-marca'] });
+    const r = validarParams(soloOtra, { marca: MARCAS[0] });
     expect(r.ok).toBe(false);
     if (r.ok) return;
-    expect(r.errores.some((e) => e.motivo.includes('mativallej'))).toBe(true);
+    expect(r.errores.some((e) => e.motivo.includes('otra-marca'))).toBe(true);
   });
 });
 

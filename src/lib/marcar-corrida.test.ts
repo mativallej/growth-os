@@ -17,7 +17,12 @@ const dir = () => {
   return d;
 };
 
-const op = OPERACIONES.find((o) => o.id === 'digest')!;
+// Cualquier operación con período declarado: el test prueba el registro de
+// corridas, no una operación en particular. Antes era `'digest'` con un `!` al
+// final, y cuando esa operación salió del catálogo el `!` convirtió un fixture
+// ausente en `undefined` que explotó seis tests más abajo en vez de acá.
+const op = OPERACIONES.find((o) => o.periodoDias !== null);
+if (!op) throw new Error('El catálogo no declara ninguna operación con período.');
 
 describe('la marca de última corrida', () => {
   it('lo que se escribe es lo que después lee la consola', () => {

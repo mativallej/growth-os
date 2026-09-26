@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import type { NextConfig } from "next";
 
 // El dashboard lee los .md de los vaults con fs en build/RSC. Sin API ni DB.
@@ -14,21 +15,19 @@ import type { NextConfig } from "next";
 // rutas: no hay ruta, no hay manejador, y nada de lo que importan entra al bundle.
 const consolaLocal = process.env.GROWTH_CONSOLE === '1';
 
-// La marca a la que van a parar las rutas viejas. Es la primera fuente que
-// entró al build, con el mismo orden y la misma variable que usa
-// src/lib/sources.ts — si el build se recorta a una marca, las rutas viejas
-// apuntan a esa y no a una que no existe.
+// POR QUÉ ESTE REPO NO SE PUBLICA COMO EXPORT ESTÁTICO.
 //
-// Duplicado a propósito: next.config.ts se evalúa antes del pipeline de
-// TypeScript del proyecto y no puede importar `@/lib/sources`. Lo que se repite
-// es el ORDEN del registro, no las rutas.
-const ORDEN_FUENTES = ['tegu', 'personal'];
-const enBuild = (process.env.GROWTH_SOURCES ?? '')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
-const cuentaPorDefecto =
-  ORDEN_FUENTES.find((id) => enBuild.length === 0 || enBuild.includes(id)) ?? ORDEN_FUENTES[0];
+// Estuvo a un paso: todas las rutas prerenderizan, no hay Server Actions fuera de
+// la consola, ni cookies, ni route handlers. Pero `output: 'export'` NO SOPORTA
+// Proxy, y el gate de autenticación vive en `src/proxy.ts` — sin Proxy no hay
+// dónde ponerlo.
+//
+// Y el gate no puede ser del lado del cliente: como las páginas prerenderizan, el
+// contenido de los .md ya está dentro del HTML. Esconder la UI serviría los bytes
+// igual. Un export estático de este repo es el vault publicado.
+//
+// Lo que sí se conserva del intento: `/` es una página de verdad y no un redirect
+// de next.config (ver src/app/page.tsx).
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -40,19 +39,37 @@ const nextConfig: NextConfig = {
   // `/[account]/...`. Estos redirects son para los links ya compartidos.
   // `permanent: false` (307) y no 308: la cuenta por defecto depende de cómo se
   // buildeó, y un 308 lo cachearía para siempre en el navegador de alguien.
+  //
   async redirects() {
+    const cuenta = cuentaPorDefecto();
     return [
-      { source: '/', destination: `/${cuentaPorDefecto}`, permanent: false },
-      { source: '/piezas', destination: `/${cuentaPorDefecto}/piezas`, permanent: false },
-      { source: '/piezas/:slug', destination: `/${cuentaPorDefecto}/piezas/:slug`, permanent: false },
-      { source: '/inventario', destination: `/${cuentaPorDefecto}/inventario`, permanent: false },
-      // `personal` era el id de la marca cuando el registro estaba escrito en
-      // el código. Al derivarlo de config/sources.json el id pasó a ser el de
-      // la marca (`mativallej`), y estas rutas alcanzaron a existir.
-      { source: '/personal', destination: '/mativallej', permanent: false },
-      { source: '/personal/:resto*', destination: '/mativallej/:resto*', permanent: false },
+      { source: '/piezas', destination: `/${cuenta}/piezas`, permanent: false },
+      { source: '/piezas/:slug', destination: `/${cuenta}/piezas/:slug`, permanent: false },
+      { source: '/inventario', destination: `/${cuenta}/inventario`, permanent: false },
     ];
   },
 };
+
+/**
+ * La marca a la que van a parar las rutas viejas: la primera del registro que
+ * haya entrado al build, con el mismo orden que usa src/lib/sources.ts.
+ *
+ * Lee config/sources.json con `fs` en vez de importarlo: next.config.ts se evalúa
+ * antes del pipeline de TypeScript del proyecto y no puede usar `@/lib/sources`,
+ * pero el JSON sí se puede leer. Antes acá había una lista de ids repetida a mano
+ * —`['tegu', 'personal']`— que ya estaba desactualizada: decía `personal` cuando
+ * el id de la marca pasó a ser `mativallej`.
+ */
+function cuentaPorDefecto(): string {
+  const { brands } = JSON.parse(
+    readFileSync(new URL('./config/sources.json', import.meta.url), 'utf8'),
+  ) as { brands: { id: string }[] };
+  const orden = brands.map((b) => b.id);
+  const enBuild = (process.env.GROWTH_SOURCES ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return orden.find((id) => enBuild.length === 0 || enBuild.includes(id)) ?? orden[0];
+}
 
 export default nextConfig;

@@ -4,7 +4,15 @@ import { isAbsolute, join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { loadPieces, loadPiecesBySource } from './parse';
 import type { ContentSource } from './sources';
-import { allSourceIds, assertRoots, brandsConfig, getSource, listSources } from './sources';
+import { allSourceIds, assertRoots, brandsConfig, envVarDe, getSource, listSources } from './sources';
+
+// La primera marca declarada, y SU env var por convención. Los tests de
+// mecanismo se escriben contra esto y no contra un id literal: cuando la marca
+// personal salió de la config, cuatro tests se cayeron sin que el mecanismo que
+// probaban hubiera cambiado. Un test de `listSources` no debería depender de
+// cuántas marcas hay.
+const MARCA = allSourceIds()[0];
+const ENV_VAR = envVarDe(MARCA);
 
 const temps: string[] = [];
 
@@ -40,7 +48,8 @@ describe('listSources', () => {
 
   it('recorta el build a las fuentes nombradas', () => {
     expect(listSources('tegu').map((s) => s.id)).toEqual(['tegu']);
-    expect(listSources(' mativallej , mativallej ').map((s) => s.id)).toEqual(['mativallej']);
+    // Repetida y con espacios alrededor: se normaliza y se deduplica.
+    expect(listSources(` ${MARCA} , ${MARCA} `).map((s) => s.id)).toEqual([MARCA]);
   });
 
   it('una fuente inexistente rompe listando las válidas', () => {
@@ -59,13 +68,20 @@ describe('listSources', () => {
   });
 
   it('por defecto los vaults cuelgan de ~/vaults', () => {
-    const vaults = listSources(undefined, {}).map((s) => s.vault);
-    expect(vaults).toContain(join(homedir(), 'vaults/tegu-growth'));
-    expect(vaults).toContain(join(homedir(), 'vaults/brain'));
+    // TODAS, no una lista escrita a mano: la regla es que ninguna marca declare
+    // una ruta real, porque una ruta real se rompe en silencio al renombrar la
+    // carpeta y ya pasó una vez.
+    const raiz = join(homedir(), 'vaults');
+    for (const s of listSources(undefined, {})) {
+      expect(s.vault.startsWith(raiz)).toBe(true);
+    }
+    expect(listSources(undefined, {}).map((s) => s.vault)).toContain(
+      join(homedir(), 'vaults/tegu-growth'),
+    );
   });
 
   it('una raíz relativa por env rompe en vez de resolverla contra el cwd', () => {
-    expect(() => listSources('mativallej', { VAULT_PERSONAL_DIR: '../brain' })).toThrow(/relativa/);
+    expect(() => listSources(MARCA, { [ENV_VAR]: '../otro-vault' })).toThrow(/relativa/);
   });
 
   it('VAULT_CONTENT_DIR sigue siendo el alias del content root de Tegu', () => {
@@ -79,10 +95,11 @@ describe('assertRoots', () => {
     expect(() => assertRoots(listSources(undefined))).not.toThrow();
   });
 
-  it('una raíz ausente rompe nombrándola', () => {
-    const roto = listSources('mativallej', { VAULT_PERSONAL_DIR: '/no/existe' });
+  it('una raíz ausente rompe nombrándola, y nombra la env var que la reapunta', () => {
+    const roto = listSources(MARCA, { [ENV_VAR]: '/no/existe' });
     expect(() => assertRoots(roto)).toThrow(/\/no\/existe/);
-    expect(() => assertRoots(roto)).toThrow(/VAULT_PERSONAL_DIR/);
+    // El mensaje tiene que decir CÓMO arreglarlo, no solo que está roto.
+    expect(() => assertRoots(roto)).toThrow(new RegExp(ENV_VAR));
   });
 
   it('getSource tipa una fuente sola y también se valida', () => {

@@ -162,15 +162,6 @@ export const PRE_PYTHON: Precondicion = {
   cumple: () => existsSync('/usr/bin/python3') || existsSync('/opt/homebrew/bin/python3'),
 };
 
-function preWebhook(envVar: string): Precondicion {
-  return {
-    id: `webhook:${envVar}`,
-    falta: `No hay ${envVar}.`,
-    comoObtenerlo: `Discord → canal → Integraciones → Webhooks, y la URL va a .env.local como ${envVar}.`,
-    cumple: () => hayEnv(envVar),
-  };
-}
-
 // ── la operación ──────────────────────────────────────────────────────────────
 
 export type Alcance = 'lote' | 'elemento';
@@ -367,22 +358,6 @@ export const OPERACIONES: Operation[] = [
       'Que las dimensiones derivadas de la ruta sean las que el creativo declara.',
       'Que no entren evaluaciones, framework ni documentos de ronda: no son creativos.',
     ],
-    etapa: 1,
-  },
-  {
-    id: 'digest',
-    nombre: 'Digest de growth',
-    descripcion: 'Arma el resumen del estado de growth y lo postea al canal de la marca.',
-    forma: 'sesion',
-    // Capacidad DECLARADA, no inferida: el digest lo arma una skill del vault,
-    // así que tener webhook no alcanza — las dos marcas lo tienen.
-    marcas: marcasQue((b) => b.growth?.digest === true),
-    alcances: ['lote'],
-    params: [PARAM_MARCA],
-    precondiciones: [PRE_PYTHON, preWebhook('DISCORD_WEBHOOK_MATIVALLEJ')],
-    periodoDias: 7,
-    implementacion: { comando: 'bash', args: ['scripts/digest.sh'] },
-    queRevisar: ['El texto del digest antes de que salga: va a un canal, no a un archivo.'],
     etapa: 1,
   },
   {
