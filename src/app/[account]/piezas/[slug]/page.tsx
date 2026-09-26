@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
-import { esHttp, hostDe } from "@/lib/enlaces";
+import { esHttp, redDeUrl } from "@/lib/enlaces";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import PageHeader from "@/components/PageHeader";
+import Cuerpo from "@/components/Cuerpo";
 import { loadPieces } from "@/lib/parse";
 import { sortedSnaps, latest, engRate, pvRate, saveLike, primaryReach, num, pct } from "@/lib/metrics";
 import { lineChart } from "@/lib/charts";
@@ -104,6 +105,13 @@ export default async function PiezaPage({
 
   // El perfil de la cuenta que publicó. Sale de los accesos de la marca, que ya
   // derivan la URL del handle declarado — no hay una segunda fuente de verdad.
+  // Dónde se publicó, separando lo que se puede abrir de lo que no. Una entrada
+  // sin `url=` NO es un error: significa "se publicó acá y todavía no se
+  // registró dónde", que es distinto de no estar en la lista.
+  const distribucion = p.distribucion ?? [];
+  const publicados = distribucion.filter((d) => esHttp(d.url));
+  const sinDireccion = distribucion.filter((d) => !esHttp(d.url));
+
   const perfil = p.cuenta
     ? accesosDe(source.brand).lista.find((a) => a.id === `cuenta:${p.cuenta}`)
     : undefined;
@@ -145,12 +153,28 @@ export default async function PiezaPage({
     <>
       <PageHeader title={p.title} subtitle={[p.canal, p.cuenta, p.formato].filter(Boolean).join(" · ")} />
 
-      <Link
-        href={`/${account}/inventario`}
-        className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-      >
-        ← Inventario
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link
+          href={`/${account}/inventario`}
+          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          ← Inventario
+        </Link>
+        {/* Editar va ARRIBA A LA DERECHA y separado de los accesos: los otros
+            llevan a mirar la pieza en algún lado, este lleva a CAMBIARLA. Es la
+            única acción de la pantalla, y la única que esta app no hace por sí
+            misma — el vault es donde se escribe.
+
+            No es http, así que no pasa por `esHttp`: lo construye la app, no sale
+            de ningún archivo. */}
+        <a
+          href={obsidian}
+          className="shrink-0 rounded-md border border-border px-2.5 py-1 text-xs transition-colors hover:border-foreground/25 hover:bg-muted"
+          title="Abrir el .md en Obsidian, que es donde se edita"
+        >
+          Editar en Obsidian
+        </a>
+      </div>
 
       {/* LOS ACCESOS, TODOS JUNTOS Y EN UN SOLO LUGAR.
           Estaban en tres bloques distintos —el tablero arriba a la derecha, la
@@ -160,14 +184,29 @@ export default async function PiezaPage({
             publicada   dónde la ve la gente; es la llave del ingest
             Drive       dónde está el archivo con el que se publicó
             tablero     dónde se coordina su estado
-            Obsidian    dónde se EDITA, que es lo único que esta app no hace
+          Editar en Obsidian va aparte, arriba a la derecha: los de acá llevan a
+          MIRAR la pieza en algún lado, aquel lleva a cambiarla.
 
           Los dos primeros salen del .md y se validan: un `javascript:` en un
-          href ejecuta al hacer click. Los dos últimos los arma esta app. */}
+          href ejecuta al hacer click. El del tablero lo arma esta app. */}
       <div className="mt-4 flex flex-wrap items-center gap-1.5">
-        {esHttp(p.url) && (
-          <Acceso href={p.url!} label={`Ver en ${hostDe(p.url!)}`} />
-        )}
+        {/* UNA ENTRADA POR CUENTA, no un solo botón. Una pieza se publica en
+            varios lados —23 de estas piezas están en más de uno— y cada lado
+            tiene su propia dirección. Un botón único obligaba a elegir una y
+            escondía el resto.
+
+            El nombre de la red sale del HOST de la url, que es dónde está el post
+            de verdad. El canal de la pieza no alcanza: `Channel` es un conjunto
+            cerrado que no conoce TikTok ni YouTube, y una pieza puede estar
+            publicada ahí igual. */}
+        {publicados.map((d) => (
+          <Acceso
+            key={d.cuenta}
+            href={d.url!}
+            label={`Ver en ${redDeUrl(d.url!)}`}
+            title={`${d.cuenta}${d.date ? ` · ${d.date}` : ""}`}
+          />
+        ))}
         {esHttp(p.driveUrl) && <Acceso href={p.driveUrl!} label="Video en Drive" />}
         {enlaceTablero && (
           <Acceso
@@ -177,24 +216,26 @@ export default async function PiezaPage({
           />
         )}
         {perfil && <Acceso href={perfil.url} label={perfil.detalle ?? perfil.label} />}
-        {/* No es http, así que no pasa por `esHttp`: este enlace lo construye la
-            app, no sale de ningún archivo. */}
-        <a
-          href={obsidian}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[12px] transition-colors hover:border-foreground/25 hover:bg-muted"
-          title="Abrir el .md en Obsidian, que es donde se edita"
-        >
-          Editar en Obsidian
-        </a>
       </div>
 
       {/* Lo que NO se puede abrir se dice, en vez de desaparecer. */}
-      {(!esHttp(p.url) || !enlaceTablero || (p.driveUrl && !esHttp(p.driveUrl))) && (
+      {(sinDireccion.length > 0 ||
+        (distribucion.length === 0 && !esHttp(p.url)) ||
+        !enlaceTablero ||
+        (p.driveUrl && !esHttp(p.driveUrl))) && (
         <p className="mt-2 max-w-[74ch] text-[11px] leading-relaxed text-muted-foreground/70">
-          {!esHttp(p.url) && (
+          {sinDireccion.length > 0 && (
             <>
-              Sin <code>url</code> declarada — <strong>sin eso la pieza no se puede
-              medir</strong>: es la llave del ingest y de cualquier atribución.{" "}
+              Publicada en <strong>{sinDireccion.map((d) => d.cuenta).join(", ")}</strong>{" "}
+              sin dirección registrada —{" "}
+              <strong>sin la url esa publicación no se puede medir</strong>: es la llave
+              con la que la ingesta empareja un export.{" "}
+            </>
+          )}
+          {distribucion.length === 0 && !esHttp(p.url) && (
+            <>
+              No declara <code>distribucion</code> ni <code>url</code>, así que no hay
+              dónde mirarla ni con qué medirla.{" "}
             </>
           )}
           {p.driveUrl && !esHttp(p.driveUrl) && (
@@ -243,6 +284,14 @@ export default async function PiezaPage({
           { k: "id", v: p.id, mono: true },
           { k: "canal", v: p.canal ?? (p.channelDerived ? `${p.channel} (de la ruta)` : p.channel) },
           { k: "cuenta", v: p.cuenta },
+          {
+            k: "publicada en",
+            v: distribucion.length
+              ? `${distribucion.length} cuenta${distribucion.length > 1 ? "s" : ""}${
+                  sinDireccion.length ? ` · ${sinDireccion.length} sin url` : ""
+                }`
+              : undefined,
+          },
           { k: "formato", v: p.formato },
           { k: "publicada", v: p.publishedAt },
           { k: "cobertura", v: p.coverage === "tracked" ? "medida" : p.coverage === "pending" ? "pendiente" : "sin trackear" },
@@ -264,7 +313,7 @@ export default async function PiezaPage({
 
       <Card className="mt-5">
         <CardContent className="p-6">
-          <div className="whitespace-pre-wrap text-sm leading-relaxed">{p.body}</div>
+          <Cuerpo>{p.body}</Cuerpo>
         </CardContent>
       </Card>
 
@@ -331,10 +380,11 @@ export default async function PiezaPage({
             Esta pieza <strong>no tiene ningún corte medido</strong>.
           </p>
           <ul className="mt-2.5 max-w-[74ch] space-y-1.5 text-[13px] leading-relaxed text-muted-foreground">
-            {!esHttp(p.url) && (
+            {sinDireccion.length > 0 && (
               <li>
-                · Le falta la <code>url</code>, y es lo primero: es la llave con la que la
-                ingesta empareja un export con esta pieza. Sin eso no hay nada que cruzar.
+                · Le falta la <code>url</code> de{" "}
+                {sinDireccion.map((d) => d.cuenta).join(", ")}, y es lo primero: es la
+                llave con la que la ingesta empareja un export con esta pieza.
               </li>
             )}
             {esHttp(p.url) && (

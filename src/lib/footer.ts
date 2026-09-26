@@ -114,6 +114,30 @@ export function splitInline(line: string): string[] {
   return out;
 }
 
+/**
+ * UNA PUBLICACIÓN DE LA PIEZA EN UNA CUENTA.
+ *
+ * El vault escribe un bloque así, y no una clave `url:` suelta:
+ *
+ *     distribucion:
+ *       - ig_tegu    url=https://www.instagram.com/reel/DXaC/  date=2026-04-21
+ *       - blog_tegu  url=https://tegu.ar/building-in-public/x
+ *       - blog_mati  date=2026-09-10
+ *
+ * Y tiene razón en hacerlo: UNA PIEZA SE PUBLICA EN VARIOS LADOS —es lo que el
+ * vault llama cross-post— y cada lado tiene su propia dirección y su propia
+ * fecha. Una sola clave `url:` obliga a elegir una y perder el resto.
+ *
+ * Una entrada puede traer solo la cuenta: significa "se publicó acá y todavía no
+ * se registró dónde". Es distinto de no estar en la lista.
+ */
+export type Distribucion = {
+  /** id de cuenta, el mismo de `accounts[]` en config/sources.json. */
+  cuenta: string;
+  url?: string;
+  date?: string;
+};
+
 export type FooterFields = {
   /** clave canónica -> primer valor visto (gana el primero, como en el script de Python) */
   fields: Record<string, string>;
@@ -123,7 +147,37 @@ export type FooterFields = {
   snapshotLines: string[];
   /** valor crudo de `analytics:` cuando es una palabra y no un bloque (`pendiente`) */
   analyticsNote?: string;
+  /** dónde se publicó la pieza, una entrada por cuenta. Ver `Distribucion`. */
+  distribucion: Distribucion[];
 };
+
+/**
+ * Una línea del bloque: `ig_tegu  url=https://…  date=2026-04-21`.
+ *
+ * El primer token es la cuenta y el resto son pares `clave=valor`. Se parte por
+ * el PRIMER `=` de cada token y no por todos: una url lleva `=` adentro cuando
+ * tiene query string, y partir por todos la cortaría a la mitad.
+ */
+function parseDistribucion(linea: string): Distribucion | undefined {
+  const partes = linea.trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return undefined;
+  const cuenta = partes[0];
+  // Una "cuenta" con `=` adentro no es una cuenta: es una línea con otra forma,
+  // y adivinarla inventaría una publicación que nadie declaró.
+  if (!cuenta || cuenta.includes('=')) return undefined;
+
+  const out: Distribucion = { cuenta };
+  for (const t of partes.slice(1)) {
+    const i = t.indexOf('=');
+    if (i <= 0) continue;
+    const k = t.slice(0, i).toLowerCase();
+    const v = t.slice(i + 1);
+    if (!v) continue;
+    if (k === 'url') out.url = v;
+    else if (k === 'date' || k === 'fecha') out.date = v;
+  }
+  return out;
+}
 
 /**
  * Recorre las líneas de un footer y devuelve sus campos.
@@ -132,6 +186,8 @@ export type FooterFields = {
  * Claude Design en bloques ``` cuyo contenido tiene líneas con forma de
  * `clave: valor`. Sin el toggle, esas líneas entran como metadatos.
  */
+const isBulletDe = (raw: string) => /^\s*[-*]\s+/.test(raw);
+
 export function tokenizeFooter(lines: string[]): FooterFields {
   const fields: Record<string, string> = {};
   const unknownKeys: string[] = [];
@@ -139,6 +195,8 @@ export function tokenizeFooter(lines: string[]): FooterFields {
   let analyticsNote: string | undefined;
   let inFence = false;
   let inAnalytics = false;
+  let inDistribucion = false;
+  const distribucion: Distribucion[] = [];
 
   const put = (k: string, v: string) => {
     if (fields[k] === undefined) fields[k] = v;
@@ -174,6 +232,27 @@ export function tokenizeFooter(lines: string[]): FooterFields {
       continue;
     }
 
+    // `distribucion:` abre un bloque de publicaciones, una por línea.
+    //
+    // Va ANTES del parseo genérico porque sus líneas no tienen forma de
+    // `clave: valor`: son `cuenta  url=…  date=…`. Pasando por el parseo
+    // genérico, `https://…` matchearía como si `https` fuera una clave y la url
+    // se perdía entera — que es exactamente lo que estaba pasando: 128 de 141
+    // piezas tenían su dirección acá y el parser leía cero.
+    if (/^distribuci[oó]n\s*:\s*$/i.test(line)) {
+      inDistribucion = true;
+      continue;
+    }
+    if (inDistribucion) {
+      if (isBulletDe(raw)) {
+        const d = parseDistribucion(line);
+        if (d) distribucion.push(d);
+        continue;
+      }
+      // Una línea que no es un ítem cierra el bloque, y sigue su camino normal.
+      inDistribucion = false;
+    }
+
     // `analytics:` abre un bloque de cortes, o trae una nota (`pendiente`).
     const am = line.match(/^analytics\s*:\s*(.*)$/i);
     if (am) {
@@ -206,5 +285,14 @@ export function tokenizeFooter(lines: string[]): FooterFields {
     if (!matchedAny && inAnalytics && !/^\s/.test(raw)) inAnalytics = false;
   }
 
-  return { fields, unknownKeys, snapshotLines, analyticsNote };
+  // `url` sale de la distribución cuando no vino como clave suelta: el resto del
+  // sistema —el ingest, la atribución, el enlace de la vista— la busca ahí. Se
+  // toma la PRIMERA que tenga dirección, que es el orden en que el vault las
+  // escribe. Las demás no se pierden: viajan en `distribucion`.
+  if (fields.url === undefined) {
+    const con = distribucion.find((d) => d.url);
+    if (con?.url) fields.url = con.url;
+  }
+
+  return { fields, unknownKeys, snapshotLines, analyticsNote, distribucion };
 }

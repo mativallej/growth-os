@@ -2,6 +2,7 @@
 // esto es solo el shape parseado en memoria (no se persiste).
 
 import type { SourceId } from './sources';
+import type { Distribucion } from './footer';
 import type { Channel, Coverage, Status } from './normalize';
 
 export type { Channel, Coverage, Status };
@@ -67,6 +68,15 @@ export type Piece = {
    * listo y no estar publicada, y una publicada puede no tener master (un tweet).
    */
   driveUrl?: string;
+  /**
+   * DÓNDE SE PUBLICÓ, una entrada por cuenta.
+   *
+   * Una pieza se publica en varios lados —el vault lo llama cross-post— y cada
+   * uno tiene su dirección y su fecha. `url` es la PRIMERA de esta lista que
+   * tenga dirección, porque el ingest y la atribución necesitan una sola llave;
+   * las demás viven acá y se muestran todas.
+   */
+  distribucion?: Distribucion[];
   tags?: string;
   note?: string;
 

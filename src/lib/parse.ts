@@ -71,7 +71,7 @@ function parseFile(path: string, source: ContentSource, root: string): Piece {
   }
 
   const footerLines = sep === -1 ? [] : lines.slice(sep + 1);
-  const { fields, snapshotLines, analyticsNote } = tokenizeFooter(footerLines);
+  const { fields, snapshotLines, analyticsNote, distribucion } = tokenizeFooter(footerLines);
 
   const snapshots: Snapshot[] = parseSnapshots(snapshotLines);
   // Las métricas escritas como bullets sueltos se colapsan en un corte implícito,
@@ -133,6 +133,7 @@ function parseFile(path: string, source: ContentSource, root: string): Piece {
     date: fields.date || undefined,
     url: fields.url || undefined,
     driveUrl: fields.drive_url || undefined,
+    distribucion: distribucion.length ? distribucion : undefined,
     tags: fields.tags || undefined,
     note: fields.note || fields.notas || undefined,
     channel,

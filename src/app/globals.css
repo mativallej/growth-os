@@ -50,3 +50,66 @@
     font-family: -apple-system, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
 }
+
+/* EL CUERPO DE UNA PIEZA, renderizado desde Markdown.
+   Se estila acá y no con clases en el componente porque react-markdown produce
+   los elementos (`h2`, `ul`, `code`…) y no hay dónde colgarles una clase sin
+   escribir un override por cada uno. El alcance queda acotado a `.cuerpo`. */
+@layer components {
+  .cuerpo > :first-child {
+    margin-top: 0;
+  }
+  .cuerpo > :last-child {
+    margin-bottom: 0;
+  }
+  .cuerpo p {
+    /* 74ch es el ancho del resto de los textos largos de la app: una línea más
+       larga que eso obliga a buscar dónde empieza la siguiente. */
+    @apply my-3 max-w-[74ch] leading-relaxed;
+  }
+  .cuerpo h1,
+  .cuerpo h2,
+  .cuerpo h3 {
+    @apply mt-6 mb-2 font-semibold tracking-tight;
+  }
+  .cuerpo h1 { @apply text-base; }
+  .cuerpo h2 { @apply text-[15px]; }
+  .cuerpo h3 { @apply text-sm text-muted-foreground; }
+  .cuerpo ul,
+  .cuerpo ol {
+    @apply my-3 max-w-[74ch] space-y-1 pl-5;
+  }
+  .cuerpo ul { @apply list-disc; }
+  .cuerpo ol { @apply list-decimal; }
+  .cuerpo li::marker { @apply text-muted-foreground/50; }
+  .cuerpo strong { @apply font-semibold; }
+  .cuerpo em { @apply italic; }
+  .cuerpo blockquote {
+    @apply my-4 max-w-[74ch] border-l-2 border-border pl-4 text-muted-foreground;
+  }
+  .cuerpo code {
+    @apply rounded bg-secondary px-1 py-0.5 font-mono text-[12px];
+  }
+  .cuerpo pre {
+    @apply my-4 overflow-x-auto rounded-lg border border-border bg-secondary p-3;
+  }
+  /* Dentro de un bloque, el fondo lo pone el `pre`: repetirlo en cada `code`
+     dibuja un rectángulo por línea. */
+  .cuerpo pre code {
+    @apply bg-transparent p-0 text-[12px];
+  }
+  .cuerpo hr { @apply my-6 border-border; }
+  .cuerpo table {
+    @apply my-4 w-full border-collapse text-[13px];
+  }
+  .cuerpo th,
+  .cuerpo td {
+    @apply border-b border-border px-2 py-1.5 text-left;
+  }
+  .cuerpo th {
+    @apply text-[11px] font-normal uppercase tracking-wide text-muted-foreground/70;
+  }
+  .cuerpo img {
+    @apply my-4 max-w-full rounded-lg border border-border;
+  }
+}

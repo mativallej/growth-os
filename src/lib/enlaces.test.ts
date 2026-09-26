@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { esHttp, hostDe } from './enlaces';
+import { esHttp, hostDe, redDeUrl } from './enlaces';
 
 describe('esHttp', () => {
   it('acepta http y https', () => {
@@ -37,5 +37,35 @@ describe('hostDe', () => {
 
   it('devuelve vacío en vez de romper con algo que no parsea', () => {
     expect(hostDe('no es una url')).toBe('');
+  });
+});
+
+describe('redDeUrl', () => {
+  it('nombra la red por el host, incluidas las que `Channel` no conoce', () => {
+    // `Channel` es x · instagram · linkedin · blog · reddit. Una pieza publicada
+    // en TikTok o YouTube cae en `unknown` ahí, pero su url no miente.
+    expect(redDeUrl('https://www.tiktok.com/@tegu/video/123')).toBe('TikTok');
+    expect(redDeUrl('https://youtu.be/abc')).toBe('YouTube');
+    expect(redDeUrl('https://www.youtube.com/shorts/abc')).toBe('YouTube');
+  });
+
+  it('x.com y twitter.com son la misma red', () => {
+    expect(redDeUrl('https://x.com/tegu_app/status/1')).toBe('X');
+    expect(redDeUrl('https://twitter.com/tegu_app/status/1')).toBe('X');
+  });
+
+  it('un host desconocido se muestra tal cual, sin inventarle una etiqueta', () => {
+    // "Ver en substack.com" es honesto; "Ver en Blog" sería una etiqueta que
+    // nadie declaró.
+    expect(redDeUrl('https://tegu.substack.com/p/x')).toBe('tegu.substack.com');
+  });
+
+  it('no confunde un dominio que solo CONTIENE el nombre', () => {
+    expect(redDeUrl('https://notx.com/a')).toBe('notx.com');
+    expect(redDeUrl('https://tiktok.com.phishing.net/a')).toBe('tiktok.com.phishing.net');
+  });
+
+  it('sin url válida devuelve vacío en vez de romper', () => {
+    expect(redDeUrl('no es una url')).toBe('');
   });
 });

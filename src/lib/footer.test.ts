@@ -150,3 +150,81 @@ describe('drive_url', () => {
     expect(canonicalKey('drive_url')).not.toBe(canonicalKey('url'));
   });
 });
+
+describe('el bloque `distribucion:`', () => {
+  // 128 de 141 piezas del vault de Tegu declaran su dirección así, y CERO usan
+  // una clave `url:` suelta. El parser leía cero: las líneas no tienen forma de
+  // `clave: valor` —son `cuenta url=… date=…`— así que `https://…` matcheaba
+  // como si `https` fuera una clave y la dirección se perdía entera.
+  const bloque = [
+    'distribucion:',
+    '  - ig_tegu    url=https://www.instagram.com/reel/DXaC/  date=2026-04-21',
+    '  - blog_tegu  url=https://tegu.ar/building-in-public/x',
+    '  - blog_mati  date=2026-09-10',
+    '  - x_tegu',
+    'tags: #post',
+  ];
+
+  it('lee una entrada por cuenta, con lo que cada una declara', () => {
+    const { distribucion } = tokenizeFooter(bloque);
+    expect(distribucion).toEqual([
+      { cuenta: 'ig_tegu', url: 'https://www.instagram.com/reel/DXaC/', date: '2026-04-21' },
+      { cuenta: 'blog_tegu', url: 'https://tegu.ar/building-in-public/x' },
+      { cuenta: 'blog_mati', date: '2026-09-10' },
+      { cuenta: 'x_tegu' },
+    ]);
+  });
+
+  it('una entrada sin url NO se descarta', () => {
+    // "Se publicó acá y todavía no se registró dónde" es distinto de no estar en
+    // la lista: lo primero es deuda de medición y lo segundo no se publicó ahí.
+    const { distribucion } = tokenizeFooter(bloque);
+    expect(distribucion.filter((d) => !d.url).map((d) => d.cuenta)).toEqual([
+      'blog_mati',
+      'x_tegu',
+    ]);
+  });
+
+  it('`url` se deriva de la primera entrada que tenga dirección', () => {
+    // El ingest y la atribución necesitan UNA llave. Las demás no se pierden.
+    expect(tokenizeFooter(bloque).fields.url).toBe('https://www.instagram.com/reel/DXaC/');
+    const sinNinguna = tokenizeFooter(['distribucion:', '  - x_tegu']);
+    expect(sinNinguna.fields.url).toBeUndefined();
+  });
+
+  it('una `url:` declarada a mano gana sobre la derivada', () => {
+    const { fields } = tokenizeFooter([
+      'url: https://elegida.example/a',
+      'distribucion:',
+      '  - ig_tegu  url=https://derivada.example/b',
+    ]);
+    expect(fields.url).toBe('https://elegida.example/a');
+  });
+
+  it('el bloque termina donde termina, sin comerse lo que sigue', () => {
+    const { fields, distribucion } = tokenizeFooter(bloque);
+    expect(distribucion).toHaveLength(4);
+    expect(fields.tags).toBe('#post');
+  });
+
+  it('no parte la url por un `=` de query string', () => {
+    const { distribucion } = tokenizeFooter([
+      'distribucion:',
+      '  - yt_tegu  url=https://youtube.com/watch?v=abc&t=30s  date=2026-01-02',
+    ]);
+    expect(distribucion[0].url).toBe('https://youtube.com/watch?v=abc&t=30s');
+    expect(distribucion[0].date).toBe('2026-01-02');
+  });
+
+  it('los cortes que vienen después del bloque siguen siendo cortes', () => {
+    // En el vault el `- snapshot …` va pegado al bloque, y una entrada de
+    // distribución llamada "snapshot" sería una cuenta inventada.
+    const { distribucion, snapshotLines } = tokenizeFooter([
+      'distribucion:',
+      '  - ig_tegu  url=https://www.instagram.com/reel/DXaC/',
+      '- snapshot 2026-09-25 (+157d) @ig_tegu: views=178768 likes=623',
+    ]);
+    expect(distribucion.map((d) => d.cuenta)).toEqual(['ig_tegu']);
+    expect(snapshotLines).toHaveLength(1);
+  });
+});
