@@ -52,7 +52,12 @@ def destino_ref(id_):
 
 
 API = "https://api.notion.com/v1"
-VERSION = "2022-06-28"
+# La versión TIENE que coincidir con los endpoints que se usan. Este script
+# consulta `/v1/data_sources/<id>/query`, que existe desde 2025-09-03; con
+# 2022-06-28 Notion respondía `invalid_request_url`, un error que parece de ruta
+# mal armada y en realidad era de versión — y que además tapaba el problema real
+# de abajo (la integración sin acceso a la página).
+VERSION = "2025-09-03"
 # El id de la página Growth vive en config/destinos.json, no acá.
 LIMIT = 100        # bloques por request
 CHARS = 1900       # por fragmento de rich_text

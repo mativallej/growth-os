@@ -55,7 +55,12 @@ def destino_ref(id_):
 
 
 API = "https://api.notion.com/v1"
-VERSION = "2022-06-28"
+# La versión TIENE que coincidir con los endpoints que se usan. Este script
+# consulta `/v1/data_sources/<id>/query`, que existe desde 2025-09-03; con
+# 2022-06-28 Notion respondía `invalid_request_url`, un error que parece de ruta
+# mal armada y en realidad era de versión — y que además tapaba el problema real
+# de abajo (la integración sin acceso a la página).
+VERSION = "2025-09-03"
 # Los ids de los tableros viven en config/destinos.json, no acá.
 ISO = re.compile(r"(20\d\d-\d\d-\d\d)")
 CANAL = {"x": "X", "twitter": "X", "instagram": "Instagram", "linkedin": "LinkedIn",
@@ -88,7 +93,22 @@ def api(path, method="GET", body=None):
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.load(r)
     except urllib.error.HTTPError as e:
-        sys.exit("Notion devolvió %s en %s: %s" % (e.code, path, e.read().decode("utf-8")[:300]))
+        cuerpo = e.read().decode("utf-8")
+        # Un 404 acá casi nunca es "no existe": es la integración sin acceso. El
+        # mensaje crudo de Notion lo dice, pero enterrado en un JSON de 400
+        # caracteres — y el error que parece es "el id está mal", que manda a
+        # buscar en el lugar equivocado.
+        if e.code in (401, 403, 404):
+            sys.exit(
+                "Notion respondió %s: la integración no puede ver ese tablero.\n\n"
+                "Casi siempre es que falta COMPARTIRLE la página, no que el id esté mal:\n"
+                "  Notion → la página Growth → ⋯ (arriba a la derecha) → Connections\n"
+                "         → Connect to → elegí la integración\n\n"
+                "Los tableros cuelgan de Growth, así que con esa sola conexión alcanza.\n"
+                "Si ya lo hiciste, revisá que el token de .env.local sea el de ESA integración.\n\n"
+                "Respuesta de Notion: %s" % (e.code, cuerpo[:300])
+            )
+        sys.exit("Notion devolvió %s en %s: %s" % (e.code, path, cuerpo[:300]))
 
 
 # ── leer el vault ─────────────────────────────────────────────────────────────
@@ -111,7 +131,8 @@ PAR = re.compile(r"^\s*([A-Za-zÁÉÍÓÚÜÑáéíóúüñ][A-Za-zÁÉÍÓÚÜ�
 
 
 def read_piece(path):
-    t = io.open(path, encoding="utf-8").read()
+    with io.open(path, encoding="utf-8") as fh:
+        t = fh.read()
     f = {}
     for raw in t.split("\n"):
         ln = raw.strip()
