@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { abrirSesion, prepararEntrega } from '@/lib/handoff';
 import { captar, marcarPublicadas } from '@/lib/ideas-queue';
 import { getOperation } from '@/lib/operations';
+import { exportar } from '@/lib/export';
 import type { ResultadoAccion } from './tipos.local';
 
 // Los efectos viven SOLO acá, en acciones de servidor. Una acción se invoca con un
@@ -88,4 +89,48 @@ export async function marcarIdeaPublicada(
     ok: true,
     mensaje: n ? `Idea ${id} marcada como publicada.` : `La idea ${id} ya estaba publicada.`,
   };
+}
+
+export type ResultadoExport =
+  | { ok: true; nombre: string; contenido: string; filas: number }
+  | { ok: false; mensaje: string };
+
+/**
+ * Genera un export y devuelve el archivo al navegador.
+ *
+ * NO escribe en disco: el archivo se arma en memoria y se descarga. Un export
+ * que deja un CSV en una carpeta del repo crea una copia de los datos que
+ * envejece en silencio, y la regla es que la verdad son los `.md`.
+ */
+export async function generarExport(
+  _previo: ResultadoExport,
+  fd: FormData,
+): Promise<ResultadoExport> {
+  try {
+    const id = texto(fd, '__operacion');
+    const op = getOperation(id);
+    if (op.forma !== 'export') {
+      return { ok: false, mensaje: `La operación "${id}" no es una exportación.` };
+    }
+
+    // Igual que al disparar: solo se leen los parámetros DECLARADOS.
+    const entrada: Record<string, string> = {};
+    for (const p of op.params) {
+      const v = texto(fd, p.id);
+      if (v !== '') entrada[p.id] = v;
+    }
+
+    const r = exportar({
+      marca: entrada.marca ?? '',
+      materia: entrada.materia,
+      canal: entrada.canal,
+      estado: entrada.estado,
+      desde: entrada.desde,
+      hasta: entrada.hasta,
+    });
+    if (!r.ok) return { ok: false, mensaje: r.motivo };
+    return { ok: true, nombre: r.nombre, contenido: r.contenido, filas: r.filas };
+  } catch (err) {
+    return { ok: false, mensaje: err instanceof Error ? err.message : String(err) };
+  }
 }

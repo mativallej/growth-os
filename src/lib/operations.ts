@@ -359,6 +359,44 @@ export const OPERACIONES: Operation[] = [
     queRevisar: ['El texto del digest antes de que salga: va a un canal, no a un archivo.'],
     etapa: 1,
   },
+  {
+    id: 'auditar',
+    nombre: 'Auditar las fuentes',
+    descripcion: 'Cuenta qué hay en cada vault: piezas, cobertura, fechas, ids y claves desconocidas.',
+    forma: 'sesion',
+    marcas: null,
+    alcances: ['lote'],
+    params: [],
+    // Read-only de punta a punta: no escribe ni en los vaults ni en el repo.
+    // Por eso no declara precondiciones más allá de que las raíces existan — y
+    // si no existen, es justamente lo que tiene que reportar.
+    precondiciones: [],
+    periodoDias: 7,
+    implementacion: { comando: 'npm', args: ['run', 'audit'] },
+    queRevisar: ['Nada: es de solo lectura. Se corre para mirar, no para aplicar.'],
+    etapa: 1,
+  },
+  {
+    id: 'backfill-ids',
+    nombre: 'Asignar ids a las piezas',
+    descripcion: 'Le pone un identificador estable a cada pieza que no lo tiene. Dry-run por defecto.',
+    forma: 'sesion',
+    marcas: null,
+    alcances: ['lote'],
+    params: [PARAM_MARCA],
+    precondiciones: [PRE_PYTHON, PRE_VAULTS],
+    periodoDias: null,
+    implementacion: {
+      comando: 'python3',
+      args: ['scripts/backfill-piece-id.py'],
+      argsDe: (v) => ['--brand', v.marca ?? 'all'],
+    },
+    queRevisar: [
+      'Que el vault esté commiteado: el script aborta si no, y tiene razón — el 2026-09-24 se escribieron 14 rutas que estaban muertas minutos después.',
+      'El diff en el vault antes de commitearlo ahí: escribe en ~275 archivos.',
+    ],
+    etapa: 1,
+  },
   // ── etapa 2 ────────────────────────────────────────────────────────────────
   // Declaradas para que el catálogo esté completo, pero NO ofrecidas: un export
   // lee piezas, y hasta que no cierren footer-contract-parser y
@@ -390,6 +428,21 @@ export const OPERACIONES: Operation[] = [
   },
 ];
 
+/**
+ * LO QUE QUEDA AFUERA DEL CATÁLOGO, A PROPÓSITO (bloque 5 de operations-console).
+ *
+ * Barrido de `scripts/` al 2026-09-26. Todo lo ejecutable está acá o abajo:
+ *
+ * | ejecutable | por qué no es una operación |
+ * |---|---|
+ * | `scripts/notify-discord.py` | es una PRIMITIVA: la usan el digest y la cola de ideas para postear. Ofrecerla suelta sería un botón de "mandar un mensaje a un canal" sin nada que decir |
+ * | `scripts/notify-ideas.py` | **vigila dos carpetas que ya no existen** (`Personal Brand/Content/Ideas` y `Create/Ideas`): las ideas se mudaron al destino de coordinación el 2026-09-23. El script quedó huérfano y hay que borrarlo o reapuntarlo, no ofrecerlo |
+ * | `scripts/cron-digest.sh` · `scripts/cron-ideas.sh` | envoltorios de los trabajos agendados que `unschedule-everything` apagó. El digest se ofrece llamando al `.sh`, que sigue siendo el ejecutable; el de ideas lo reemplazó `ideas-publicar` |
+ *
+ * Las skills de los tres vaults (`brain-*`, `growth-*`, `tegu-*`) tampoco entran:
+ * son operación CREATIVA, y la regla dura 7 dice que eso vive en Obsidian. La
+ * plataforma capta materia prima y mide; no escribe una pieza.
+ */
 export function getOperation(id: string): Operation {
   const op = OPERACIONES.find((o) => o.id === id);
   if (!op) {

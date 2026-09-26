@@ -27,10 +27,10 @@
 
 ## 2. Las exportaciones
 
-- [ ] 2.1 Manejador de exportación que aplica los filtros del catálogo y devuelve un archivo. Verifica: exportar con un rango de fechas y contar las filas contra el mismo filtro aplicado a mano.
-- [ ] 2.2 Cabecera del archivo con los filtros usados y la fecha de generación.
-- [ ] 2.3 Caso sin resultados: mensaje, no archivo vacío.
-- [ ] 2.4 Verificar el aislamiento: una exportación pedida desde una marca no puede traer filas de la otra. **Test obligatorio.**
+- [x] 2.1 Manejador de exportación que aplica los filtros del catálogo y devuelve un archivo. Verifica: exportar con un rango de fechas y contar las filas contra el mismo filtro aplicado a mano.
+- [x] 2.2 Cabecera del archivo con los filtros usados y la fecha de generación.
+- [x] 2.3 Caso sin resultados: mensaje, no archivo vacío.
+- [x] 2.4 Verificar el aislamiento: una exportación pedida desde una marca no puede traer filas de la otra. **Test obligatorio.**
 
 ## 3. La entrega a sesión local
 
@@ -49,8 +49,8 @@
 
 ## 5. Completitud del catálogo
 
-- [ ] 5.1 Listar todo lo ejecutable del proyecto —`scripts/` y las skills operativas de los tres repos— y contrastarlo contra el catálogo. Anotar acá lo que falte.
-- [ ] 5.2 Para cada exclusión deliberada, dejar escrito el motivo.
+- [x] 5.1 Listar todo lo ejecutable del proyecto —`scripts/` y las skills operativas de los tres repos— y contrastarlo contra el catálogo. Anotar acá lo que falte.
+- [x] 5.2 Para cada exclusión deliberada, dejar escrito el motivo.
 
 ## 6. El gating local
 
@@ -65,9 +65,9 @@
 
 ## 8. Cerrar
 
-- [ ] 8.1 `npx tsc --noEmit`, `npm run lint`, `npm test`, `npm run build`.
-- [ ] 8.2 Build compartido y test de aislamiento otra vez: este change agrega superficie nueva.
-- [ ] 8.3 Anotar acá qué operaciones quedaron en el catálogo y cuáles se dejaron afuera a propósito.
+- [x] 8.1 `npx tsc --noEmit`, `npm run lint`, `npm test`, `npm run build`.
+- [x] 8.2 Build compartido y test de aislamiento otra vez: este change agrega superficie nueva.
+- [x] 8.3 Anotar acá qué operaciones quedaron en el catálogo y cuáles se dejaron afuera a propósito.
 
 ---
 
@@ -177,3 +177,78 @@ a mitad de la ejecución.
   `notify-ideas.py` vigila `Personal Brand/Content/Ideas` y `Create/Ideas`, **y ninguno
   de los dos existe ya** — las ideas se mudaron al destino de coordinación el
   2026-09-23.
+
+---
+
+# Cierre de la ETAPA 2 — 2026-09-26
+
+La etapa 2 estaba esperando a `footer-contract-parser` y `account-scoped-routes`.
+Los dos cerraron hoy, así que entró el **bloque 2 (exportaciones)** y el
+**bloque 5 (completitud del catálogo)**.
+
+`tsc` · `lint` (0 errores) · **178 tests** · build compartido y local OK.
+
+## Las exportaciones (bloque 2)
+
+`src/lib/export.ts` arma CSV en memoria y lo entrega al navegador. **No escribe
+en disco**: un export que deja un archivo en una carpeta del repo crea una copia
+que envejece en silencio, y la regla es que la verdad son los `.md`.
+
+| requisito | cómo quedó |
+|---|---|
+| filtros del catálogo | marca, materia, canal, estado, desde, hasta — solo los que la operación DECLARA llegan al manejador |
+| cabecera de procedencia | comentada con `#`: operación, fecha ISO, filtros aplicados y conteo de filas |
+| sin resultados | **mensaje, no archivo vacío.** Un CSV con solo cabecera se abre y parece "no hay nada", cuando lo que pasó es que el filtro no dejó pasar nada |
+| aislamiento | **test obligatorio, y pasa** |
+
+**El aislamiento no es un filtro, es que el otro conjunto no se carga.** El
+export llama `loadPieces([fuente])`, así que las piezas de la otra marca no se
+leen. Y si la marca pedida no entró al build, el export corta nombrando las
+disponibles — igual que su ruta no existe.
+
+Un detalle que el test fija: **una pieza sin fecha queda FUERA de un rango, no
+adentro**. No se puede afirmar que esté en el rango, y meterla la haría aparecer
+en un export "de julio" sin que nadie sepa de cuándo es.
+
+## La completitud del catálogo (bloque 5)
+
+Barrido de `scripts/` al 2026-09-26. **Faltaban dos operaciones reales** y se
+agregaron:
+
+- **`auditar`** → `npm run audit`. Read-only de punta a punta.
+- **`backfill-ids`** → `scripts/backfill-piece-id.py`. Dry-run por defecto, y
+  entre lo que hay que revisar está que el vault esté commiteado — el script
+  aborta si no, y tiene razón.
+
+**Lo que queda afuera a propósito, con su motivo** (quedó escrito en el código,
+arriba de `getOperation`):
+
+| ejecutable | por qué no |
+|---|---|
+| `notify-discord.py` | es una primitiva que usan el digest y la cola. Ofrecerla suelta sería un botón de "mandar un mensaje" sin nada que decir |
+| `notify-ideas.py` | **vigila dos carpetas que ya no existen** — las ideas se mudaron el 2026-09-23. Está huérfano: hay que borrarlo o reapuntarlo, no ofrecerlo |
+| `cron-*.sh` | envoltorios de los trabajos que `unschedule-everything` apagó |
+| las ~33 skills de los vaults | operación CREATIVA. Regla dura 7: eso vive en Obsidian |
+
+## Lo que sigue a medias, con su motivo
+
+- **3.1 — la prueba a mano del lanzador de sesión.** Sigue sin correrse: el
+  `osascript` que automatiza Terminal necesita el permiso de Automatización de
+  macOS, que se da una sola vez y con una persona presente. La consola entrega
+  igual sin él —muestra el comando exacto y la ruta del contexto—, que es la
+  garantía que fija el spec.
+- **4.4 — el botón "sincronizar este" en la fila de una pieza.** Ahora *se
+  podría*: las vistas están bajo `/[account]/` y la consola tiene su gating. No
+  se hizo en esta sesión; queda como lo más chico que falta del change.
+
+## La superficie nueva, verificada (tarea 8.2)
+
+Este change y el de configuración agregan rutas locales. El build compartido
+sigue sin ellas:
+
+| qué | resultado |
+|---|---|
+| `/operar` y `/configuracion` en el manifiesto compartido | **0** |
+| archivos de página de esas rutas | **0** |
+| `guardarConfig` · `probarConexiones` · `SERVICE_ROLE` en el bundle compartido | **0** |
+| con `GROWTH_CONSOLE=1` | aparecen `ƒ /operar` y `ƒ /configuracion` |

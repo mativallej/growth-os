@@ -25,20 +25,37 @@ function archivos(dir: string, out: string[] = []): string[] {
 
 const FUENTES = archivos(SRC).map((p) => ({ rel: relative(SRC, p), txt: readFileSync(p, 'utf8') }));
 
-// Las dos únicas cosas que la plataforma escribe: la cola local de ideas (material
-// de entrada, lo aportó la persona) y el contexto que recibe una sesión.
-const PUEDEN_ESCRIBIR = new Set(['lib/ideas-queue.ts', 'lib/handoff.ts']);
+// Las TRES únicas cosas que la plataforma escribe, y ninguna es contenido:
+//
+//   ideas-queue  la cola local de ideas — material de entrada que aportó la
+//                persona, no trabajo creativo
+//   handoff      el contexto que recibe una sesión local
+//   config-env   `.env.local`, y solo desde la pantalla de configuración, que no
+//                existe fuera del entorno local
+//
+// Ninguna escribe un `.md`, y ninguna conoce la ubicación de un vault: eso lo
+// verifican los dos tests de abajo. Sumar un cuarto escritor tiene que ser una
+// decisión, no un descuido — por eso este test compara el conjunto exacto.
+const PUEDEN_ESCRIBIR = new Set([
+  'lib/ideas-queue.ts',
+  'lib/handoff.ts',
+  'lib/config-env.ts',
+]);
+
+// `config-env` sí resuelve la raíz del REPO (para `.env.local`), que es distinto
+// de conocer la de un vault. Los otros dos no resuelven ninguna.
+const SIN_VAULTS = new Set(['lib/ideas-queue.ts', 'lib/handoff.ts', 'lib/config-env.ts']);
 
 const ESCRITURAS = /\b(writeFileSync|appendFileSync|createWriteStream|writeFile|unlinkSync|rmSync|cpSync|copyFileSync)\b/;
 
 describe('la plataforma no es donde se hace el trabajo creativo', () => {
-  it('solo dos módulos escriben en disco, y ninguno toca un vault', () => {
+  it('solo tres módulos escriben en disco, y ninguno toca un vault', () => {
     const escriben = FUENTES.filter((f) => ESCRITURAS.test(f.txt)).map((f) => f.rel);
     expect(new Set(escriben)).toEqual(PUEDEN_ESCRIBIR);
   });
 
   it('ningún módulo que escribe conoce la ubicación de los vaults', () => {
-    for (const rel of PUEDEN_ESCRIBIR) {
+    for (const rel of SIN_VAULTS) {
       const f = FUENTES.find((x) => x.rel === rel)!;
       // Si un módulo que escribe importara el registro de fuentes, tendría a mano
       // la ruta de cada vault. No la tiene: escribe en .state y nada más.
