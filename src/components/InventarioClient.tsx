@@ -26,14 +26,23 @@ import Filtros, {
   type Opcion,
 } from "@/components/Filtros";
 import MateriaToggle from "@/components/MateriaToggle";
+import { useFavoritos } from "@/components/useFavoritos";
 import { facetas, type Materia, type Unidad } from "@/lib/unidades";
+import { NIVELES, describir, type Umbrales } from "@/lib/viralidad";
 
 /**
  * El inventario: TODAS las piezas, incluidas las que no tienen footer ni
  * métricas. Esconder las no medidas es lo que hacía que el agujero real —el
  * canal casi vacío— no se viera.
  *
- * DOS VISTAS, y la de tablero NO duplica el kanban de coordinación.
+ * TRES VISTAS, y la de tablero NO duplica el kanban de coordinación.
+ *
+ * Antes esto eran dos pantallas. `/piezas` traía las mismas filas filtradas por
+ * `coverage === 'tracked'` y las dibujaba con sus números; o sea, un SUBCONJUNTO
+ * de este mismo conjunto con otra presentación. Pero la cobertura ya es un filtro
+ * de esta barra, así que la diferencia real era el renderizado — y eso es un
+ * toggle, no una entrada de nav. Tenerlas separadas obligaba además a duplicar
+ * cada filtro nuevo en las dos.
  *
  * El tablero de Notion agrupa por el carril operativo y tiene corte a 60 días:
  * es para coordinar qué se está produciendo. Este agrupa por las dimensiones que
@@ -46,11 +55,53 @@ export type InventarioRow = Unidad;
 
 const ORDENES: Opcion[] = [
   { value: "ruta", label: "Por ubicación" },
+  { value: "alcance", label: "Más alcance" },
+  { value: "alcance-asc", label: "Menos alcance" },
   { value: "reciente", label: "Más reciente" },
   { value: "antigua", label: "Más antigua" },
   { value: "titulo", label: "Título" },
   { value: "cortes", label: "Más medida" },
 ];
+
+type Vista = "tabla" | "metricas" | "tablero";
+
+/** Las opciones del filtro de viralidad, con el conteo de lo que hay. */
+function facetaNiveles(filas: Unidad[]): Opcion[] {
+  const m = new Map<string, number>();
+  for (const f of filas) m.set(f.nivel, (m.get(f.nivel) ?? 0) + 1);
+  // En el orden de NIVELES —de viral a sin umbral— y no por cantidad: es una
+  // progresión que significa algo, como la cobertura.
+  return NIVELES.filter((n) => m.has(n.value)).map((n) => ({
+    value: n.value,
+    label: n.label,
+    count: m.get(n.value),
+  }));
+}
+
+const variantePorVeredicto = (v: string): "success" | "destructive" | "secondary" => {
+  const s = v.toLowerCase();
+  if (["breakout", "strong", "solid"].includes(s)) return "success";
+  if (["weak", "flop"].includes(s)) return "destructive";
+  return "secondary";
+};
+
+/** La estrella de favorito. Es un botón y no un Link: la fila entera ya navega. */
+function Estrella({ on, onClick }: { on: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      aria-label={on ? "Quitar de favoritos" : "Marcar como favorito"}
+      title={on ? "Quitar de favoritos" : "Marcar como favorito"}
+      className={`shrink-0 rounded px-1 text-[13px] leading-none transition-colors hover:bg-muted ${
+        on ? "text-[var(--tg-green)]" : "text-muted-foreground/30"
+      }`}
+    >
+      <span aria-hidden="true">{on ? "★" : "☆"}</span>
+    </button>
+  );
+}
 
 const COBERTURA: Record<string, { label: string; variant: "success" | "secondary" | "outline" }> = {
   tracked: { label: "medida", variant: "success" },
@@ -89,14 +140,20 @@ const ETIQUETA: Record<string, string> = {
 export default function InventarioClient({
   rows,
   creativos = [],
+  account,
+  umbrales = {},
 }: {
   rows: InventarioRow[];
   creativos?: InventarioRow[];
+  /** La marca, para que los favoritos de una no aparezcan en otra. */
+  account: string;
+  umbrales?: Umbrales;
 }) {
   const [f, setF] = useState<EstadoFiltros>(FILTROS_VACIOS);
   const [materia, setMateria] = useState<Materia>("organico");
-  const [vista, setVista] = useState<"tabla" | "tablero">("tabla");
+  const [vista, setVista] = useState<Vista>("tabla");
   const [agrupar, setAgrupar] = useState<Agrupacion>("coverage");
+  const { favoritos, alternar } = useFavoritos(account);
 
   const esAds = materia === "ads";
   const universo = esAds ? creativos : rows;
@@ -107,12 +164,24 @@ export default function InventarioClient({
   const personas = esAds ? facetas(universo, "persona") : [];
   const angulos = esAds ? facetas(universo, "angulo") : [];
   const rondas = esAds ? facetas(universo, "ronda") : [];
+  // Un creativo no tiene nivel de viralidad ni en principio: no se mide con las
+  // métricas del orgánico. En ads el filtro desaparece solo.
+  const niveles = esAds ? [] : facetaNiveles(universo);
 
   const filas = useMemo(() => {
-    const out = aplicarFiltros(universo, f);
+    const out = aplicarFiltros(universo, f, favoritos);
     const porFecha = (a: InventarioRow, b: InventarioRow) =>
       (b.publishedAt || "").localeCompare(a.publishedAt || "");
     switch (f.orden) {
+      case "alcance":
+        return [...out].sort((a, b) => (b.alcance ?? -1) - (a.alcance ?? -1));
+      case "alcance-asc":
+        // Las no medidas al final en los DOS sentidos: `null` no es "menos
+        // alcance que 0", es que nadie lo midió, y encabezar la lista de "menos
+        // alcance" con piezas sin medir respondería otra pregunta.
+        return [...out].sort(
+          (a, b) => (a.alcance ?? Infinity) - (b.alcance ?? Infinity),
+        );
       case "reciente":
         return [...out].sort(porFecha);
       case "antigua":
@@ -122,9 +191,17 @@ export default function InventarioClient({
       case "cortes":
         return [...out].sort((a, b) => b.cortes - a.cortes);
       default:
-        return out;
+        // En la vista de métricas el orden natural es por alcance: pone adelante
+        // las que tienen números y deja atrás las que son todas rayas.
+        return vista === "metricas"
+          ? [...out].sort((a, b) => (b.alcance ?? -1) - (a.alcance ?? -1))
+          : out;
     }
-  }, [universo, f]);
+  }, [universo, f, favoritos, vista]);
+
+  // Si NINGUNA fila tiene serie, la columna entera sobra: con un solo corte por
+  // pieza, repetir "1 corte" en 72 filas es ruido que no dice nada nuevo.
+  const haySeries = filas.some((r) => r.sparkHtml);
 
   const columnas = useMemo(() => {
     const def = AGRUPACIONES.find((a) => a.value === agrupar)!;
@@ -155,8 +232,12 @@ export default function InventarioClient({
           // seleccionada no significa nada en orgánico, y dejarla puesta
           // mostraría una lista vacía sin motivo visible.
           setF(FILTROS_VACIOS);
-          if (m === "ads") setAgrupar("persona");
-          else setAgrupar("coverage");
+          if (m === "ads") {
+            setAgrupar("persona");
+            // La vista de métricas no existe en ads, y quedarse en ella dejaría
+            // la pantalla en blanco sin decir por qué.
+            setVista((v) => (v === "metricas" ? "tabla" : v));
+          } else setAgrupar("coverage");
         }}
         conteos={{ organico: rows.length, ads: creativos.length }}
       />
@@ -165,13 +246,26 @@ export default function InventarioClient({
         <ToggleGroup
           type="single"
           value={vista}
-          onValueChange={(v) => v && setVista(v as "tabla" | "tablero")}
+          onValueChange={(v) => v && setVista(v as Vista)}
         >
           <ToggleGroupItem value="tabla" aria-label="Vista de tabla">Tabla</ToggleGroupItem>
+          {/* La vista que antes era la pantalla /piezas. En ads no existe: un
+              creativo no tiene ninguno de estos números. */}
+          {!esAds && (
+            <ToggleGroupItem value="metricas" aria-label="Vista de métricas">Métricas</ToggleGroupItem>
+          )}
           <ToggleGroupItem value="tablero" aria-label="Vista de tablero">Tablero</ToggleGroupItem>
         </ToggleGroup>
 
-        {vista === "tablero" && (
+        {f.niveles.length > 0 && (
+        <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
+          Umbral de viral por canal: {describir(umbrales)}. Se declara en{" "}
+          <code>config/viralidad.json</code> — no lo deriva la app, porque &ldquo;viral&rdquo;
+          significa algo distinto en cada red.
+        </p>
+      )}
+
+      {vista === "tablero" && (
           <Select value={agrupar} onValueChange={(v) => setAgrupar(v as Agrupacion)}>
             <SelectTrigger className="w-[9.5rem]" aria-label="Agrupar por">
               <SelectValue />
@@ -198,13 +292,20 @@ export default function InventarioClient({
         ordenes={ORDENES}
         conCobertura={!esAds}
         conFechas={!esAds}
+        niveles={niveles}
+        umbrales={esAds ? {} : umbrales}
+        favoritos={favoritos.size}
         resultados={filas.length}
         total={universo.length}
       />
 
       {filas.length === 0 ? (
         <div className="rounded-lg border border-border p-5 text-sm text-muted-foreground">
-          Ninguna pieza pasa estos filtros.
+          {/* Distinguir los dos vacíos importa: "no marcaste ninguna" es una
+              instrucción, "no pasa nada los filtros" es un callejón. */}
+          {f.soloFavoritos && favoritos.size === 0
+            ? "Todavía no marcaste ninguna como favorita. La estrella de cada fila las guarda en este navegador."
+            : "Ninguna pieza pasa estos filtros."}
         </div>
       ) : vista === "tabla" ? (
         <div className="overflow-hidden rounded-lg border border-border">
@@ -235,11 +336,14 @@ export default function InventarioClient({
               {filas.map((r) => {
                 const cob = COBERTURA[r.coverage] ?? COBERTURA.untracked;
                 return (
-                  <TableRow key={r.href}>
+                  <TableRow key={r.llave}>
                     <TableCell className="max-w-0">
-                      <Link href={r.href} className="block truncate text-[13px] hover:underline">
-                        {r.title}
-                      </Link>
+                      <div className="flex items-center gap-1.5">
+                        <Estrella on={favoritos.has(r.llave)} onClick={() => alternar(r.llave)} />
+                        <Link href={r.href} className="min-w-0 flex-1 truncate text-[13px] hover:underline">
+                          {r.title}
+                        </Link>
+                      </div>
                       {r.estado && (
                         <span className="block truncate text-[11px] text-muted-foreground">
                           {r.estado}
@@ -293,6 +397,86 @@ export default function InventarioClient({
             </TableBody>
           </Table>
         </div>
+      ) : vista === "metricas" ? (
+        <div className="overflow-hidden rounded-lg border border-border">
+          <div className="hidden items-center gap-3 border-b border-border px-4 py-2 text-[11px] uppercase tracking-wide text-muted-foreground/70 md:flex">
+            <span className="flex-1">pieza</span>
+            {haySeries && <span className="w-[108px] shrink-0">evolución</span>}
+            <span className="w-20 shrink-0 text-right">alcance</span>
+            <span className="w-14 shrink-0 text-right">eng</span>
+            <span className="w-14 shrink-0 text-right">save/like</span>
+            <span className="w-12 shrink-0 text-right">follows</span>
+          </div>
+
+          <div className="divide-y divide-border">
+            {filas.map((r) => (
+              <div
+                key={r.llave}
+                className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 md:flex-nowrap"
+              >
+                <div className="flex min-w-0 flex-1 items-start gap-1.5">
+                  <Estrella on={favoritos.has(r.llave)} onClick={() => alternar(r.llave)} />
+                  <div className="min-w-0 flex-1">
+                    <Link href={r.href} className="block truncate text-[13px] font-medium hover:underline">
+                      {r.title}
+                    </Link>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span>{r.canal}</span>
+                      {r.formulaCode && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="font-mono" title={r.formula}>{r.formulaCode}</span>
+                        </>
+                      )}
+                      {r.publishedAt && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="tabular-nums">{r.publishedAt}</span>
+                        </>
+                      )}
+                      {/* El nivel de viralidad solo se muestra cuando es un
+                          juicio: "sin medir" y "sin umbral" ya se leen en que el
+                          alcance es una raya, y repetirlos sería ruido. */}
+                      {(r.nivel === "viral" || r.nivel === "destacado") && (
+                        <Badge variant={r.nivel === "viral" ? "success" : "secondary"}>
+                          {r.nivel === "viral" ? "viral" : "destacada"}
+                        </Badge>
+                      )}
+                      {r.verdict && (
+                        <Badge variant={variantePorVeredicto(r.verdict)}>{r.verdict}</Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* El sparkline solo existe con dos cortes o más: una serie de un
+                    punto no es una serie. */}
+                {haySeries && (
+                  <div className="w-[108px] shrink-0" title={`${r.cortes} corte(s) medidos`}>
+                    {r.sparkHtml ? (
+                      <span dangerouslySetInnerHTML={{ __html: r.sparkHtml }} />
+                    ) : (
+                      <span aria-hidden="true" className="text-muted-foreground/25">—</span>
+                    )}
+                  </div>
+                )}
+
+                <span className="w-20 shrink-0 text-right text-[13px] font-medium tabular-nums">
+                  {r.alcanceFmt}
+                </span>
+                <span className="w-14 shrink-0 text-right text-[13px] tabular-nums text-muted-foreground">
+                  {r.engRate}
+                </span>
+                <span className="w-14 shrink-0 text-right text-[13px] tabular-nums text-[var(--tg-green)]">
+                  {r.saveLike}
+                </span>
+                <span className="w-12 shrink-0 text-right text-[13px] tabular-nums text-[var(--tg-green)]">
+                  {r.followsFmt}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : (
         <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
           {columnas.map((col) => (
@@ -305,12 +489,16 @@ export default function InventarioClient({
               </header>
               <div className="flex flex-col gap-1.5">
                 {col.filas.slice(0, 60).map((r) => (
-                  <Link
-                    key={r.href}
-                    href={r.href}
+                  <div
+                    key={r.llave}
                     className="rounded-md border border-border bg-background px-2.5 py-2 transition-colors hover:bg-secondary"
                   >
-                    <div className="line-clamp-2 text-[13px] leading-snug">{r.title}</div>
+                    <div className="flex items-start gap-1.5">
+                      <Estrella on={favoritos.has(r.llave)} onClick={() => alternar(r.llave)} />
+                      <Link href={r.href} className="line-clamp-2 min-w-0 flex-1 text-[13px] leading-snug hover:underline">
+                        {r.title}
+                      </Link>
+                    </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
                       <span>{r.canal}</span>
                       {r.formulaCode && (
@@ -332,7 +520,7 @@ export default function InventarioClient({
                         </>
                       )}
                     </div>
-                  </Link>
+                  </div>
                 ))}
                 {col.filas.length > 60 && (
                   <p className="px-1 text-[11px] text-muted-foreground/70">
@@ -343,6 +531,14 @@ export default function InventarioClient({
             </section>
           ))}
         </div>
+      )}
+
+      {f.niveles.length > 0 && (
+        <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
+          Umbral de viral por canal: {describir(umbrales)}. Se declara en{" "}
+          <code>config/viralidad.json</code> — no lo deriva la app, porque &ldquo;viral&rdquo;
+          significa algo distinto en cada red.
+        </p>
       )}
 
       {vista === "tablero" && (

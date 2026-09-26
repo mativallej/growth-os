@@ -4,70 +4,87 @@ import { listSources } from "@/lib/sources";
 import { loadPieces } from "@/lib/parse";
 import { num } from "@/lib/metrics";
 import Logo from "@/components/Logo";
+import Saludo from "@/components/Saludo";
 
 /**
- * LA RAÍZ. Lista las marcas que ENTRARON A ESTE BUILD, y nada más.
+ * LA RAÍZ. Saluda, y muestra la marca que tiene este build.
  *
  * Antes `/` era un redirect en `next.config.ts` a la primera marca. Eso tenía dos
- * problemas que se juntaron:
+ * problemas: "la primera" es una elección que la config no toma en ningún otro
+ * lado, y `output: 'export'` no soporta `redirects()`, así que en un build
+ * estático desaparecía sin avisar y `/` quedaba en 404.
  *
- *  1. Con n vaults, "la primera" es una elección arbitraria que la config no toma
- *     en ningún otro lado.
- *  2. `output: 'export'` NO SOPORTA `redirects()` (está en la lista de features no
- *     soportadas de los docs de Next 16.3). En un build estático ese redirect
- *     desaparece sin avisar y `/` queda en 404.
+ * Y NO ENUMERA. Un deploy es de UNA marca —es la frontera de privacidad del
+ * proyecto— así que "2 marcas en este build" describía una forma que este repo ya
+ * no tiene. Lo que queda es el dato que sí importa: cuál es, y cuánto tiene.
  *
- * Una página de verdad arregla las dos, y además dice algo que el redirect
- * escondía: qué marcas contiene este deploy. En un build para externos
- * (`GROWTH_SOURCES=tegu`) esta lista tiene UNA entrada, y eso es la prueba visible
- * de que el recorte funcionó — la otra marca no está porque no se compiló.
+ * Sigue siendo una lista y no una sola tarjeta hardcodeada, porque `listSources`
+ * puede devolver más de una si alguien buildea sin `GROWTH_SOURCES`. En ese caso
+ * el encabezado lo dice, en vez de mostrar la primera y esconder el resto.
  */
 export default function Home() {
   const sources = listSources();
   const piezas = loadPieces(sources);
+  const una = sources.length === 1;
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-16">
-      <div className="mb-10">
-        <Logo />
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+    <main className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center px-4 py-12 text-center">
+      <Logo />
+
+      <div className="mt-8">
+        <Saludo />
+      </div>
+
+      <div className="mt-9 w-full">
+        {/* Sin rótulo cuando hay una sola marca: "Tu marca" arriba de una única
+            tarjeta que ya dice su nombre no agrega nada. Con más de una sí, que
+            ahí el número es el dato. */}
+        {!una && (
+          <div className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+            {sources.length} marcas en este build
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {sources.map((s) => {
+            const n = piezas.filter((p) => p.source === s.id).length;
+            const medidas = piezas.filter(
+              (p) => p.source === s.id && p.coverage === "tracked",
+            ).length;
+            return (
+              <Link key={s.id} href={`/${s.id}`} className="block">
+                <Card className="transition-colors hover:border-foreground/25">
+                  <CardContent className="flex items-center justify-between gap-4 p-4 text-left">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">{s.label}</div>
+                      <div className="mt-0.5 text-[11px] text-muted-foreground">
+                        {/* Las dos cifras juntas porque la segunda es el hallazgo:
+                            la brecha entre publicar y medir es la deuda del sistema. */}
+                        {num(n)} piezas · {num(medidas)} medidas
+                      </div>
+                    </div>
+                    <span aria-hidden="true" className="shrink-0 text-muted-foreground">→</span>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Al final y no arriba: quien entra viene a mirar su marca, no a leer
+          para qué existe esto. La cita cierra, no recibe. */}
+      <blockquote className="mt-12 max-w-[44ch] border-l-2 border-border pl-4 text-left">
+        <p className="text-[13px] leading-relaxed text-muted-foreground">
           Lo que ninguna otra herramienta puede responder: qué fórmula nunca se
           estrenó, qué se publicó y nunca se midió, si la cadencia se sostiene.
-          La verdad son los <code>.md</code> de cada vault — esto los lee, no los
-          escribe.
         </p>
-      </div>
+        <footer className="mt-2 text-[11px] leading-relaxed text-muted-foreground/70">
+          — Matias Vallejos
+          <span className="block text-muted-foreground/60">Entrepreneur</span>
+        </footer>
+      </blockquote>
 
-      <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
-        {sources.length === 1 ? "Marca en este build" : `${sources.length} marcas en este build`}
-      </div>
-
-      <div className="space-y-2">
-        {sources.map((s) => {
-          const n = piezas.filter((p) => p.source === s.id).length;
-          return (
-            <Link key={s.id} href={`/${s.id}`} className="block">
-              <Card className="transition-colors hover:border-foreground/25">
-                <CardContent className="flex items-baseline justify-between gap-4 p-4">
-                  <div>
-                    <div className="text-sm font-medium">{s.label}</div>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">/{s.id}</div>
-                  </div>
-                  <div className="whitespace-nowrap text-[13px] tabular-nums text-muted-foreground">
-                    {num(n)} piezas
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })}
-      </div>
-
-      <p className="mt-8 text-[11px] leading-relaxed text-muted-foreground/70">
-        Las marcas que entran se recortan con <code>GROWTH_SOURCES</code> en el build.
-        Una marca que no entró no tiene rutas emitidas: no está escondida, no existe
-        en este deploy.
-      </p>
     </main>
   );
 }

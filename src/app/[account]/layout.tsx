@@ -7,7 +7,6 @@ import { loadPieces } from "@/lib/parse";
 
 const VISTAS = [
   { sub: "", label: "Overview" },
-  { sub: "piezas", label: "Piezas" },
   { sub: "inventario", label: "Inventario" },
   { sub: "cadencia", label: "Cadencia" },
   { sub: "deuda", label: "Deuda" },
@@ -101,56 +100,38 @@ export default async function AccountLayout({
 }
 
 /**
- * Los accesos que solo existen en el entorno local.
+ * El acceso a configuración, que solo existe en el entorno local.
  *
- * Se construyen ACÁ, en un componente de servidor, y no en el nav: un
- * `{local && <Link href="/operar">}` dentro de un componente de cliente deja esa
- * ruta escrita en el bundle del navegador aunque la condición sea falsa. Armarlo
- * del lado del servidor hace que, sin la variable, no exista nada que serializar.
+ * Se construye ACÁ, en un componente de servidor, y no en el nav: un
+ * `{local && <Link href="/configuracion">}` dentro de un componente de cliente
+ * deja esa ruta escrita en el bundle del navegador aunque la condición sea falsa.
+ * Armarlo del lado del servidor hace que, sin la variable, no exista nada que
+ * serializar.
+ *
+ * Y CUANDO NO ESTÁ, NO DICE NADA. Había un aviso en desarrollo explicando que no
+ * estaba compilada y con qué comando aparecía. La idea era que su ausencia no se
+ * confundiera con algo roto, pero el resultado era un cartel permanente en el nav
+ * sobre una pantalla que no se está buscando.
  */
 function accionesLocales() {
-  if (process.env.GROWTH_CONSOLE !== "1") {
-    // En desarrollo, decir POR QUÉ no están. Sin esto, la ausencia de los
-    // botones es indistinguible de que algo se rompió — y la respuesta es un
-    // comando distinto, no un arreglo.
-    //
-    // `NODE_ENV === 'development'` es falso en el build que se comparte, así que
-    // este texto no se renderiza ahí nunca.
-    if (process.env.NODE_ENV !== "development") return null;
-    return (
-      <div className="mb-3 border-t border-border pt-3">
-        <div className="px-2.5 text-[10px] leading-relaxed text-muted-foreground/60">
-          Operar y Configuración no están compilados.
-          <br />
-          <code className="text-[10px]">npm run dev:local</code>
-        </div>
-      </div>
-    );
-  }
-  const items = [
-    { href: "/operar", label: "Operar" },
-    { href: "/configuracion", label: "Configuración" },
-  ];
+  if (process.env.GROWTH_CONSOLE !== "1") return null;
   return (
     <div className="mb-3 border-t border-border pt-3">
       {/* Decía "Solo local", que se lee como "esta app es local" — y no lo es:
-          el dashboard se puede deployar. Lo que no se comparte son estas dos,
-          porque una ejecuta operaciones y la otra muestra credenciales. */}
+          el dashboard se deploya. Lo que no se comparte es esta pantalla, porque
+          muestra credenciales y escribe la config del repo. */}
       <div
         className="px-2.5 pb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground/60"
-        title="Estas dos no se compilan en un build que se comparte: una dispara operaciones y la otra muestra credenciales."
+        title="No se compila en un build que se comparte: muestra credenciales y escribe config/sources.json."
       >
         No se comparte
       </div>
-      {items.map((i) => (
-        <Link
-          key={i.href}
-          href={i.href}
-          className="block rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-        >
-          {i.label}
-        </Link>
-      ))}
+      <Link
+        href="/configuracion"
+        className="block rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+      >
+        Configuración
+      </Link>
     </div>
   );
 }

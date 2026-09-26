@@ -105,15 +105,15 @@ describe('la plataforma no es donde se hace el trabajo creativo', () => {
     }
   });
 
-  it('el único campo de texto libre de la plataforma es el de captar una idea', () => {
+  it('la plataforma no tiene NINGÚN campo de texto libre', () => {
+    // Antes tenía exactamente uno: el de captar una idea, en la consola local.
+    // Al sacarse `/operar` la app dejó de captar ideas y pasó a ser solo un
+    // visualizador, así que la frontera se endureció sola — y este test pasa a
+    // vigilar el conjunto vacío, que es más fácil de defender que "exactamente
+    // uno". Si alguna vez vuelve a aparecer un textarea, hay que decidir a
+    // propósito qué escribe y actualizar esto.
     const conTextarea = FUENTES.filter((f) => /<textarea/.test(f.txt)).map((f) => f.rel);
-    expect(conTextarea).toEqual(['app/operar/Consola.local.tsx']);
-
-    const consola = FUENTES.find((f) => f.rel === 'app/operar/Consola.local.tsx')!;
-    // Y ese campo se llama `texto` y va a la captura de ideas: no hay un segundo
-    // textarea que edite el cuerpo de nada.
-    expect(consola.txt.match(/<textarea/g)).toHaveLength(1);
-    expect(consola.txt).toContain('name="texto"');
+    expect(conTextarea).toEqual([]);
   });
 
   it('la vista de una pieza la muestra, no la edita', () => {

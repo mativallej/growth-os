@@ -16,10 +16,21 @@
 // con un error de Turbopack que no nombraba la causa. Los constructores
 // —`dePieza`, `deCreativo`— viven en `unidades-server.ts`.
 
+import type { Nivel } from './viralidad';
+
 export type Materia = 'organico' | 'ads';
 
 export type Unidad = {
   tipo: Materia;
+  /**
+   * La llave de identidad de la fila, y es lo que guardan los favoritos.
+   *
+   * Es el `id` del footer cuando existe, y el slug como respaldo. La diferencia
+   * importa justo para los favoritos: el slug sale de la ruta, así que mover un
+   * .md de carpeta le cambia el slug y el favorito se perdería en silencio. El
+   * `id` sobrevive a la mudanza — es para lo que se hizo el backfill.
+   */
+  llave: string;
   title: string;
   href: string;
   canal: string;
@@ -33,10 +44,28 @@ export type Unidad = {
   estado: string;
   status: string;
   alcance: number | null;
+  /** En qué nivel de viralidad cae, según los umbrales declarados por canal. */
+  nivel: Nivel;
   engagements: number | null;
   bookmarks: number | null;
   likes: number | null;
   follows: number | null;
+
+  // --- Lo que la vista de métricas muestra, ya formateado en el servidor. ---
+  // Se formatea allá y no acá porque `num`/`pct` deciden qué se ve cuando el dato
+  // FALTA, y esa decisión —una raya, nunca un cero— es la que distingue "no se
+  // midió" de "midió cero". Repetirla en cada vista es repetir el lugar donde se
+  // puede equivocar.
+  /** Nombre largo de la fórmula, del catálogo. Para el `title` del código. */
+  formula: string;
+  cuenta: string;
+  verdict: string;
+  /** Sparkline ya renderizado. `null` con menos de dos cortes: un punto no es una serie. */
+  sparkHtml: string | null;
+  alcanceFmt: string;
+  engRate: string;
+  saveLike: string;
+  followsFmt: string;
 
   // --- Solo ads. Una pieza no tiene ninguno de estos. ---
   persona: string;

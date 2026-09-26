@@ -31,8 +31,14 @@ const consolaLocal = process.env.GROWTH_CONSOLE === '1';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // EL ORDEN DE ESTA LISTA IMPORTA, y cuesta media hora descubrirlo. Verificado:
+  // con `['tsx', 'ts', ..., 'local.tsx', 'local.ts']` —las genéricas primero— un
+  // `next dev` con GROWTH_CONSOLE=1 devuelve 404 en `/`, mientras `/tegu`,
+  // `/configuracion` y `/operar` andan. Poniendo las específicas primero, las
+  // cuatro dan 307. Las extensiones compuestas van ANTES que las que son su
+  // sufijo: `local.tsx` antes de `tsx`.
   pageExtensions: consolaLocal
-    ? ['tsx', 'ts', 'jsx', 'js', 'local.tsx', 'local.ts']
+    ? ['local.tsx', 'local.ts', 'tsx', 'ts', 'jsx', 'js']
     : ['tsx', 'ts', 'jsx', 'js'],
 
   // Las rutas viejas no existen más: se borraron para que no hagan shadow de
@@ -43,9 +49,16 @@ const nextConfig: NextConfig = {
   async redirects() {
     const cuenta = cuentaPorDefecto();
     return [
-      { source: '/piezas', destination: `/${cuenta}/piezas`, permanent: false },
+      // `/piezas` era una lista y ahora es una VISTA del inventario, así que el
+      // link viejo va ahí y no a una ruta que dejó de existir. El detalle de una
+      // pieza (`/piezas/:slug`) sigue donde estaba.
+      { source: '/piezas', destination: `/${cuenta}/inventario`, permanent: false },
       { source: '/piezas/:slug', destination: `/${cuenta}/piezas/:slug`, permanent: false },
       { source: '/inventario', destination: `/${cuenta}/inventario`, permanent: false },
+      // Y el mismo caso CON marca: `/tegu/piezas` era una ruta real y quedaría en
+      // 404. Va antes de nada que pueda hacerle shadow, y no toca
+      // `/tegu/piezas/:slug`, que sigue siendo el detalle de la pieza.
+      { source: '/:cuenta/piezas', destination: '/:cuenta/inventario', permanent: false },
     ];
   },
 };

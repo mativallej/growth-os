@@ -1,0 +1,20 @@
+{
+  "_doc": "QUÉ CUENTA COMO VIRAL, POR CANAL. Es criterio del humano, no un default de la app: 'viral' significa algo distinto en cada red y en cada marca, y una fórmula que lo derive sola inventaría el criterio. Se declara acá y se puede reapuntar por env con VIRALIDAD_<CANAL>_VIRAL y _DESTACADO.",
+  "_campos": {
+    "destacado": "Alcance desde el que la pieza se destaca sobre la base de su canal. Opcional: sin esto hay dos niveles en vez de tres.",
+    "viral": "Alcance desde el que la pieza es un outlier. Obligatorio si el canal figura acá.",
+    "_ausente": "UN CANAL QUE NO FIGURA NO TIENE UMBRAL, y sus piezas se marcan 'sin umbral' — NO 'no viral'. Decir que un post de blog no es viral cuando ningún post de blog se midió nunca sería afirmar algo que no se sabe."
+  },
+  "_como_salieron_estos_numeros": "Del corpus medido de Tegu al 2026-09-26: 'destacado' es el p75 de su canal y 'viral' el p90, redondeados a números legibles. OJO CON EL TAMAÑO DE LA MUESTRA: x tiene 25 piezas medidas e instagram 17, así que un p90 son dos o tres piezas. Es un punto de partida para ajustar mirando, no una ley. Las medianas eran 3.004 (x) y 1.908 (instagram), y los máximos 152.000 y 178.768.",
+  "por_canal": {
+    "x": {
+      "destacado": 20000,
+      "viral": 80000
+    },
+    "instagram": {
+      "destacado": 3500,
+      "viral": 11000
+    }
+  },
+  "_sin_declarar": "blog, linkedin y reddit no tienen umbral porque no tienen UNA SOLA pieza medida (10, 9 y 2 piezas, cero con alcance). Cuando se midan, el umbral se declara acá; hasta entonces sus piezas dicen 'sin umbral' y eso es el dato."
+}

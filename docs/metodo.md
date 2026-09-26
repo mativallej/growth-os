@@ -44,7 +44,7 @@ De una idea suelta a un aprendizaje escrito.
 
 | # | paso | dónde | qué se rompe si se saltea |
 |---|---|---|---|
-| 1 | **Captar** | esta app | La idea se pierde. Es el paso más barato y el que más se saltea |
+| 1 | **Captar** | el vault | La idea se pierde. Es el paso más barato y el que más se saltea |
 | 2 | **Investigar** | el vault | La pieza afirma cosas que no puede sostener, y eso se nota |
 | 3 | **Escribir** | el vault | No hay pieza |
 | 4 | **Evaluar** | el vault | Sale algo que no debería. Existe para que la evaluación quede escrita **antes** del resultado, y no se acomode después |
@@ -53,9 +53,17 @@ De una idea suelta a un aprendizaje escrito.
 | 7 | **Medir** | el vault | La deuda de medición — hoy el agujero más grande del sistema |
 | 8 | **Aprender** | el vault | El loop no cierra: se publica mucho y no se aprende nada, que es el estado del que este proyecto existe para salir |
 
-**Esta app entra en dos pasos y en ningún otro**: captar la idea (1) y preparar
-la medición (7), más el cruce del paso 8 contra el catálogo. Los demás son el
-vault con sus skills, que viven en `.claude/skills/` de cada uno.
+**Esta app entra en un solo paso**: el cruce del paso 8 contra el catálogo, más
+mostrar la deuda del 7. Los demás son el vault con sus skills, que viven en
+`.claude/skills/`.
+
+> Entraba en dos. Hasta el 2026-09-26 la consola local captaba ideas (paso 1) y
+> preparaba las operaciones de medición (paso 7). Se quitó al volver la
+> plataforma un **visualizador** que se deploya con autenticación: una pantalla
+> que abre sesiones y ejecuta comandos en la máquina no puede vivir en algo que
+> se publica, y mantener dos modos del mismo producto costaba más que mover esos
+> dos pasos al vault y a CI. Captar una idea vuelve a ser crear un `.md`; las
+> operaciones las corren los scripts de `scripts/`.
 
 Del paso 5 vale aclarar una decisión: **no hay publicador automático** (D-3). Lo
 que sí queda es la `url` registrada, que es la llave con la que después se mide.

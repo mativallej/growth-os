@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 import AccountSwitcher, { type AccountOption } from "./AccountSwitcher";
 import CommandPalette, { type Comando } from "./CommandPalette";
 import Logo from "./Logo";
+import SesionControles from "./SesionControles";
 
 const nav = [
   { sub: "", label: "Overview" },
-  { sub: "piezas", label: "Piezas" },
   { sub: "inventario", label: "Inventario" },
   // Lo que Notion no puede dar: series y catálogo.
   { sub: "cadencia", label: "Cadencia" },
@@ -48,7 +48,6 @@ export default function DashboardNav({
 }) {
   const pathname = usePathname();
   const base = `/${account}`;
-  const actual = accounts.find((a) => a.id === account);
 
   return (
     <>
@@ -92,12 +91,12 @@ export default function DashboardNav({
       <div className="mt-auto pt-4">
         {accionesLocales}
 
-        {/* Decía "sin API", y dejó de ser cierto: hay Supabase como índice
-            derivado y el puente con Notion. Lo que SÍ sigue siendo cierto —y es
-            la regla que ordena todo— es que la verdad son los `.md`. */}
-        <p className="border-t border-border pt-3 text-[11px] leading-relaxed text-muted-foreground/70">
-          {actual?.label ?? account} · la verdad son los <code>.md</code> del vault
-        </p>
+        {/* La sesión al pie. El texto que la acompañaba —"la verdad son los .md
+            del vault"— decía algo cierto en un lugar donde nadie lo leía dos
+            veces; vive en docs/metodo.md, que es donde se va a buscar. */}
+        <div className="flex items-center border-t border-border pt-3">
+          <SesionControles conDatos />
+        </div>
       </div>
       </aside>
     </>

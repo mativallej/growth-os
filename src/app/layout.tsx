@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ClerkProvider, Show, SignInButton, UserButton } from "@clerk/nextjs";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,38 +15,17 @@ export const metadata: Metadata = {
 // el "display:none" que el gating de `pageExtensions` evita. Se llega por URL
 // directa a /operar, con GROWTH_CONSOLE=1.
 //
-// LOS CONTROLES DE SESIÓN SÍ VAN ACÁ, y no en el nav de marca: `/` también está
-// protegida, así que tiene que haber de dónde cerrar sesión desde cualquier
-// pantalla. `ClerkProvider` va DENTRO de `<body>`, no envolviendo `<html>`.
-//
-// `Show when="signed-out"` es defensa en profundidad y no la puerta: quien no tiene sesión no
-// llega hasta acá, porque `src/proxy.ts` lo redirige antes de renderizar. Si
-// alguna vez se ve ese botón, significa que el matcher del proxy dejó de cubrir
-// esta ruta — y por eso está, para que eso se note en vez de servir la página.
+// LOS CONTROLES DE SESIÓN NO VAN ACÁ. Estuvieron, como un overlay fijo arriba a
+// la derecha, y era el lugar equivocado por dos motivos: se superponía al
+// contenido, y un `<ClerkProvider>` en este layout —que es de servidor— vuelve
+// dinámicas las 10 rutas del build, que es justo lo que sostiene el aislamiento
+// entre marcas. Viven en el pie del nav (`DashboardNav`) y en el encabezado de la
+// raíz (`page.tsx`), en los dos casos como isla de cliente.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
       <body className="min-h-screen antialiased">
-        <ClerkProvider>
-          <div className="pointer-events-none fixed right-3 top-3 z-50 flex items-center gap-2">
-            <div className="pointer-events-auto">
-              <Show when="signed-in">
-                <UserButton />
-              </Show>
-              <Show when="signed-out">
-                <SignInButton>
-                  <button
-                    type="button"
-                    className="rounded-md border border-border bg-background px-2.5 py-1 text-[12px] font-medium hover:bg-muted"
-                  >
-                    Entrar
-                  </button>
-                </SignInButton>
-              </Show>
-            </div>
-          </div>
-          {children}
-        </ClerkProvider>
+        {children}
       </body>
     </html>
   );
