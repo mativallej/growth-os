@@ -81,3 +81,35 @@ export function countBy(pieces: Piece[], key: keyof Piece): Record<string, numbe
   }
   return out;
 }
+
+/**
+ * Alcance primario: la métrica de alcance que corresponda al canal de la pieza.
+ *
+ * X reporta `impressions`; Instagram reporta `views` y `reach`, y NO reporta
+ * impressions. Ordenar una lista mixta por `impressions` mandaba todas las
+ * piezas de IG al fondo con un cero que no era un cero: era "esta red no mide
+ * eso". Devuelve `null` —no 0— cuando no hay ninguna medición de alcance, para
+ * que la ausencia se pueda distinguir de un alcance real de cero (regla dura 5).
+ */
+export function primaryReach(p: Piece): number | null {
+  const l = latest(p);
+  if (!l) return null;
+  const candidatos = p.channel === 'instagram'
+    ? [l.views, l.reach, l.impressions]
+    : [l.impressions, l.views, l.reach];
+  for (const v of candidatos) if (typeof v === 'number') return v;
+  return null;
+}
+
+/**
+ * Mediana de una lista de números. Para distribuciones con cola larga —que es
+ * lo que son las métricas de contenido— el promedio lo decide el outlier: un
+ * tweet de 152K impresiones vuelve irreconocible la mediana de 800.
+ * Devuelve `null` con lista vacía, nunca 0.
+ */
+export function median(xs: number[]): number | null {
+  const s = xs.filter((x) => typeof x === 'number' && Number.isFinite(x)).sort((a, b) => a - b);
+  if (!s.length) return null;
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}

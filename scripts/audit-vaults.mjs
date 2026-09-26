@@ -39,7 +39,15 @@ const KNOWN = new Set([
   'ronda', 'cta',
 ]);
 
-const IDENTITY = new Set(['platform', 'canal', 'red', 'formula', 'fórmula', 'formato']);
+// Métricas que el vault personal escribe como bullets sueltos. Una clave de
+// estas presente y VACÍA (`- likes:`) es una declaración de pendiente, no un
+// cero: la pieza se va a medir y todavía no se midió. Espejo de METRIC_KEYS en
+// src/lib/footer.ts.
+const METRICAS = new Set([
+  'impressions', 'likes', 'views', 'reach', 'bookmarks', 'reposts', 'replies',
+  'engagements', 'saves', 'comments', 'shares', 'follows', 'new_follows',
+  'profile_visits', 'detail_expands', 'nonfoll',
+]);
 const PAR = /^([A-Za-zÁÉÍÓÚÜÑáéíóúüñ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ. -]{0,24}?):\s*(.*)$/;
 
 function expandHome(p) {
@@ -60,7 +68,7 @@ function isDir(p) {
   }
 }
 
-function sources() {
+export function sources() {
   return REGISTRY.map((entry) => {
     const brand = CONFIG.brands.find((b) => b.id === entry.brand);
     if (!brand) throw new Error(`config/sources.json no declara la marca "${entry.brand}".`);
@@ -80,7 +88,7 @@ function sources() {
   });
 }
 
-function walk(dir, out = []) {
+export function walk(dir, out = []) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (e.name.startsWith('.')) continue;
     const p = join(dir, e.name);
@@ -94,41 +102,88 @@ function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
+// Mismo criterio que parseNum en src/lib/normalize.ts. Está duplicado a
+// propósito —este script corre sin node_modules y sin TypeScript— pero las dos
+// implementaciones SHALL coincidir, y el test de paridad lo verifica.
+function esNumero(v) {
+  const s = String(v ?? '').trim().replace(/%$/, '');
+  if (!s) return false;
+  const miles = /^\d{1,3}(\.\d{3})+$/.test(s) ? s.replace(/\./g, '') : s;
+  return Number.isFinite(Number(miles));
+}
+
 // Lee UN archivo y devuelve qué tiene su footer. Entiende las dos gramáticas:
 // un bullet por clave (brain) y varias claves por línea separadas por ` · ` (tegu).
-function inspect(path) {
+export function inspect(path) {
   const lines = readFileSync(path, 'utf8').split(/\r?\n/);
   let sep = -1;
   for (let i = lines.length - 1; i >= 0; i--) {
     if (lines[i].trim() === '---') { sep = i; break; }
   }
   const claves = new Map();
+  const valores = new Map();
   let snapshots = 0;
+  let pendiente = false;
+  let conBullets = false;
+  let enFence = false;
   if (sep !== -1) {
     for (const raw of lines.slice(sep + 1)) {
-      const line = raw.trim().replace(/^[-*]\s+/, '');
+      const t = raw.trim();
+      // Toggle de fence: 10 archivos del vault personal terminan con un prompt
+      // de Claude Design dentro de ```. Sin esto, las líneas del prompt entran
+      // como metadatos y la pieza se reporta medida sin estarlo.
+      if (/^(```|~~~)/.test(t)) { enFence = !enFence; continue; }
+      if (enFence) continue;
+      // Una línea de BULLET trae una sola clave; solo las inline traen varias.
+      // Partir un bullet por ` · ` hace que un `notas:` largo escupa decenas de
+      // falsos pares clave/valor — es como el audit contaba medida una pieza
+      // cuyos bullets de métricas estaban todos vacíos. Misma regla que
+      // splitInline en src/lib/footer.ts.
+      const esBullet = /^[-*]\s+/.test(t);
+      const line = t.replace(/^[-*]\s+/, '');
       if (!line) continue;
-      if (/^snapshot\s/i.test(line) || /(^|\s)t=[+-]/.test(line)) {
+      // Las tres gramáticas de corte que lee src/lib/snapshots.ts. La primera
+      // admite `@cuenta` entre el horizonte y los dos puntos: el vault de Tegu
+      // escribe `snapshot 2026-09-25 (+197d) @ig_tegu: views=…` en 25 archivos,
+      // y exigir el `:` pegado al paréntesis los dejaba a todos sin métricas.
+      if (/^snapshot\s/i.test(line) || /(^|\s)t=\S/.test(line) || /^\d{4}-\d{2}-\d{2}\s+\+\S+\s*:/.test(line)) {
         snapshots++;
         claves.set('snapshot', (claves.get('snapshot') ?? 0) + 1);
         continue;
       }
-      for (const seg of line.includes(' · ') ? line.split(' · ') : [line]) {
+      for (const seg of !esBullet && line.includes(' · ') ? line.split(' · ') : [line]) {
         const m = seg.trim().match(PAR);
         if (!m) continue;
         const k = m[1].trim().toLowerCase();
         claves.set(k, (claves.get(k) ?? 0) + 1);
+        if (!valores.has(k)) valores.set(k, m[2].trim());
+        if (k === 'analytics' && /pendiente|pending/i.test(m[2])) pendiente = true;
+        if (METRICAS.has(k)) {
+          // Con número cuenta como medición (el parser la colapsa en un corte
+          // implícito, ver snapshotFromFields); sin número, como pendiente.
+          // El test tiene que ser el MISMO que parseNum de src/lib/normalize.ts:
+          // `30.448 (followers 10% · non-followers 90%)` tiene dígitos pero no es
+          // un número, y contarla como medición desalinearía las dos herramientas.
+          if (esNumero(m[2])) conBullets = true;
+          else pendiente = true;
+        }
       }
     }
   }
-  const fecha = claves.has('date') || claves.has('fecha');
+  // La fecha puede venir del campo `date`/`fecha` o adentro del estado, que es
+  // como la escribe Tegu (`estado: Publicado 2026-07-08`). Antes solo se
+  // miraba el campo, y por eso Tegu reportaba 0 piezas con fecha.
+  const fecha =
+    claves.has('date') || claves.has('fecha') ||
+    /\d{4}-\d{2}-\d{2}/.test(valores.get('estado') ?? '') ||
+    /\d{4}-\d{2}-\d{2}/.test(valores.get('status') ?? '');
   return {
     tieneSeparador: sep !== -1,
     claves,
     conFooter: claves.size > 0,
-    // Lo que el parser de HOY considera pieza (src/lib/parse.ts:172).
-    piezaParaElParser: [...claves.keys()].some((k) => IDENTITY.has(k)),
-    conMetricas: snapshots > 0,
+    // Ninguna pieza se descarta ya por falta de metadatos: se marca su cobertura.
+    cobertura: snapshots > 0 || conBullets ? 'tracked' : pendiente ? 'pending' : 'untracked',
+    conMetricas: snapshots > 0 || conBullets,
     conFecha: fecha,
   };
 }
@@ -157,7 +212,8 @@ function main() {
   console.log(`\nAuditoría de fuentes · ${new Date().toISOString().slice(0, 10)} · read-only\n`);
 
   for (const s of srcs) {
-    const stats = { total: 0, sinSeparador: 0, conFooter: 0, pieza: 0, metricas: 0, fecha: 0, sinMetadata: 0 };
+    const stats = { total: 0, sinSeparador: 0, conFooter: 0, metricas: 0, fecha: 0, sinMetadata: 0,
+                    tracked: 0, pending: 0, untracked: 0 };
 
     for (const root of s.roots) {
       for (const file of walk(root)) {
@@ -167,7 +223,7 @@ function main() {
         if (!i.tieneSeparador) stats.sinSeparador++;
         if (i.conFooter) stats.conFooter++;
         else stats.sinMetadata++;
-        if (i.piezaParaElParser) stats.pieza++;
+        stats[i.cobertura]++;
         if (i.conMetricas) stats.metricas++;
         if (i.conFecha) stats.fecha++;
 
@@ -179,7 +235,7 @@ function main() {
           desconocidas.set(k, d);
         }
 
-        if (i.piezaParaElParser) {
+        {
           const slug = slugify(relative(root, file).replace(/\.md$/i, ''));
           const rel = relative(s.vault, file);
           slugs.set(slug, [...(slugs.get(slug) ?? []), { source: s.id, rel }]);
@@ -191,13 +247,14 @@ function main() {
     console.log(`  vault   ${s.vault}`);
     for (const r of s.roots) console.log(`  raíz    ${relative(s.vault, r)}`);
     console.log(`  ${pad('archivos .md', 22)}${stats.total}`);
+    console.log(`  ${pad('piezas', 22)}${stats.total}   ← ninguna se descarta`);
     console.log(`  ${pad('con footer', 22)}${stats.conFooter}`);
-    console.log(`  ${pad('piezas para el parser', 22)}${stats.pieza}${
-      stats.conFooter > stats.pieza ? `   ← ${stats.conFooter - stats.pieza} con footer que el parser descarta` : ''
-    }`);
-    console.log(`  ${pad('con métricas', 22)}${stats.metricas}`);
     console.log(`  ${pad('con fecha', 22)}${stats.fecha}`);
     console.log(`  ${pad('sin metadata', 22)}${stats.sinMetadata}`);
+    console.log(`  cobertura de medición`);
+    console.log(`    ${pad('medidas', 20)}${stats.tracked}`);
+    console.log(`    ${pad('pendientes', 20)}${stats.pending}`);
+    console.log(`    ${pad('sin trackear', 20)}${stats.untracked}   ← deuda visible, no cero`);
     console.log('');
   }
 
@@ -227,4 +284,4 @@ function main() {
   }
 }
 
-main();
+if (import.meta.url === `file://${process.argv[1]}`) main();
