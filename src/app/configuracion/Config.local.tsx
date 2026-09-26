@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { GrupoEstado } from '@/lib/config-env';
 import { guardarConfig, probarConexiones, type Chequeo, type ResultadoConfig } from './actions.local';
 import Vaults, { type MarcaListada } from './Vaults.local';
+import Viralidad, { type FilaCanal } from './Viralidad.local';
 import { Desplegable } from '@/components/ui/accordion';
 
 const INICIAL: ResultadoConfig = { ok: true, mensaje: '' };
@@ -84,100 +85,25 @@ function Grupo({ g, abierto }: { g: GrupoEstado; abierto?: boolean }) {
   );
 }
 
-export default function Config({
-  marcas,
-  general,
-  listado,
+/**
+ * El pie del formulario de claves: guardar, el mensaje y la nota de `.env.local`.
+ *
+ * Se repite en las dos pestañas que guardan claves porque cada una es su PROPIO
+ * formulario, y el botón tiene que estar dentro del que envía.
+ *
+ * Va acá arriba y no adentro de `Config`: un componente definido durante el
+ * render es un TIPO nuevo en cada render, así que React desmonta y vuelve a
+ * montar todo el subárbol en cada tecla — el compilador lo marca como error.
+ */
+function PieClaves({
+  enviando,
+  estado,
 }: {
-  marcas: GrupoEstado[];
-  general: GrupoEstado;
-  listado: MarcaListada[];
+  enviando: boolean;
+  estado: { ok: boolean; mensaje: string };
 }) {
-  const [estado, accion, enviando] = useActionState(guardarConfig, INICIAL);
-  const [chequeos, setChequeos] = useState<Chequeo[] | null>(null);
-  const [probando, iniciarPrueba] = useTransition();
-
   return (
-    <form action={accion}>
-      <Tabs defaultValue="marcas">
-        {/* Tres pestañas FIJAS. Antes cada marca era su propia pestaña, mezcladas
-            con las de función: con cinco marcas la barra tiene siete botones y
-            deja de leerse. Las marcas son una dimensión que crece — van adentro
-            de una pestaña, como desplegables. */}
-        <TabsList>
-          <TabsTrigger value="marcas">
-            Marcas
-            <span className="ml-1.5 tabular-nums opacity-60">{marcas.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="general">{general.titulo}</TabsTrigger>
-          <TabsTrigger value="vaults">Agregar o quitar</TabsTrigger>
-        </TabsList>
-
-        {/* Las claves de todas las marcas viven en UN formulario y se montan
-            siempre: si una pestaña cerrada no mandara sus campos, guardar desde
-            otra borraría lo que se escribió ahí. */}
-        <TabsContent value="marcas" forceMount className="data-[state=inactive]:hidden">
-          <div className="space-y-3">
-            {marcas.map((m, i) => (
-              <Grupo key={m.id} g={m} abierto={i === 0} />
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="general" forceMount className="data-[state=inactive]:hidden">
-          <Grupo g={general} abierto />
-
-          <Card className="mt-4">
-            <CardContent className="p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-medium">Probar las conexiones</h3>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Consulta cada servicio de verdad, solo lectura. No escribe nada.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={probando}
-                  onClick={() => iniciarPrueba(async () => setChequeos(await probarConexiones()))}
-                >
-                  {probando ? 'Probando…' : 'Probar'}
-                </Button>
-              </div>
-
-              {chequeos && (
-                <div className="mt-4 divide-y divide-border">
-                  {chequeos.map((c) => (
-                    <div key={c.id} className="flex items-start gap-2.5 py-2.5 first:pt-0">
-                      <span
-                        aria-hidden="true"
-                        className={`mt-1 size-2 shrink-0 rounded-full ${
-                          c.ok ? 'bg-[var(--tg-green)]' : 'bg-[var(--tg-red)]'
-                        }`}
-                      />
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-medium">{c.nombre}</div>
-                        <div className="text-[11px] leading-relaxed text-muted-foreground">
-                          {c.detalle}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Agregar y quitar NO va dentro del formulario de claves: son acciones
-            propias, y un enter en el campo equivocado no puede disparar una. */}
-        <TabsContent value="vaults">
-          <Vaults marcas={listado} />
-        </TabsContent>
-      </Tabs>
-
+    <>
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={enviando}>
           {enviando ? 'Guardando…' : 'Guardar'}
@@ -195,6 +121,126 @@ export default function Config({
         credencial hay que marcar <em>borrar</em>. Lo que se muestra al lado de cada clave
         es una máscara — el valor completo nunca sale del servidor.
       </p>
-    </form>
+    </>
+  );
+}
+
+export default function Config({
+  marcas,
+  general,
+  listado,
+  canales,
+}: {
+  marcas: GrupoEstado[];
+  general: GrupoEstado;
+  listado: MarcaListada[];
+  canales: FilaCanal[];
+}) {
+  const [estado, accion, enviando] = useActionState(guardarConfig, INICIAL);
+  const [chequeos, setChequeos] = useState<Chequeo[] | null>(null);
+  const [probando, iniciarPrueba] = useTransition();
+
+  return (
+    <Tabs defaultValue="marcas">
+      {/* Pestañas FIJAS. Antes cada marca era su propia pestaña, mezcladas con
+          las de función: con cinco marcas la barra tiene siete botones y deja de
+          leerse. Las marcas son una dimensión que crece — van adentro de una
+          pestaña, como desplegables. */}
+      <TabsList>
+        <TabsTrigger value="marcas">
+          Marcas
+          <span className="ml-1.5 tabular-nums opacity-60">{marcas.length}</span>
+        </TabsTrigger>
+        <TabsTrigger value="general">{general.titulo}</TabsTrigger>
+        <TabsTrigger value="viralidad">Viralidad</TabsTrigger>
+        <TabsTrigger value="vaults">Agregar o quitar</TabsTrigger>
+      </TabsList>
+
+      {/* UN FORMULARIO POR PESTAÑA, Y NINGUNO ANIDADO.
+          Antes había un solo `<form>` envolviendo las cuatro, y adentro `Vaults`
+          abría los suyos. Un `<form>` dentro de otro es HTML inválido: el parser
+          del navegador DESCARTA el interno, así que "agregar vault" enviaba el
+          formulario de claves — la acción equivocada. El comentario de acá decía
+          que no estaba adentro; la estructura decía que sí.
+
+          Separarlos es seguro porque `guardarConfig` solo escribe las claves que
+          VIENEN con valor: una pestaña que no manda sus campos no borra nada.
+
+          `forceMount` se queda, pero por otra razón que antes: ya no hace falta
+          para no perder datos al guardar, sino para no perder lo TIPEADO al
+          cambiar de pestaña. */}
+      <TabsContent value="marcas" forceMount className="data-[state=inactive]:hidden">
+        <form action={accion}>
+          <div className="space-y-3">
+            {marcas.map((m, i) => (
+              <Grupo key={m.id} g={m} abierto={i === 0} />
+            ))}
+          </div>
+          <PieClaves enviando={enviando} estado={estado} />
+        </form>
+      </TabsContent>
+
+      <TabsContent value="general" forceMount className="data-[state=inactive]:hidden">
+        <form action={accion}>
+          <Grupo g={general} abierto />
+          <PieClaves enviando={enviando} estado={estado} />
+        </form>
+
+        {/* Las conexiones van FUERA del formulario, en la misma pestaña: es un
+            botón que consulta, no un envío, y adentro un enter en un campo de
+            clave podría dispararlo. Dos `TabsContent` con el mismo `value`
+            tampoco: Radix monta los dos y el segundo pisa al primero. */}
+        <Card className="mt-4">
+          <CardContent className="p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-medium">Probar las conexiones</h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Consulta cada servicio de verdad, solo lectura. No escribe nada.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={probando}
+                onClick={() => iniciarPrueba(async () => setChequeos(await probarConexiones()))}
+              >
+                {probando ? 'Probando…' : 'Probar'}
+              </Button>
+            </div>
+
+            {chequeos && (
+              <div className="mt-4 divide-y divide-border">
+                {chequeos.map((c) => (
+                  <div key={c.id} className="flex items-start gap-2.5 py-2.5 first:pt-0">
+                    <span
+                      aria-hidden="true"
+                      className={`mt-1 size-2 shrink-0 rounded-full ${
+                        c.ok ? 'bg-[var(--tg-green)]' : 'bg-[var(--tg-red)]'
+                      }`}
+                    />
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium">{c.nombre}</div>
+                      <div className="text-[11px] leading-relaxed text-muted-foreground">
+                        {c.detalle}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="viralidad">
+        <Viralidad filas={canales} />
+      </TabsContent>
+
+      <TabsContent value="vaults">
+        <Vaults marcas={listado} />
+      </TabsContent>
+    </Tabs>
   );
 }

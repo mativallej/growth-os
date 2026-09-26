@@ -6,6 +6,11 @@ import { escribir } from '@/lib/config-env';
 import { gruposPorMarca, grupoGeneral } from '@/lib/config-catalogo';
 import { listSources } from '@/lib/sources';
 import { agregarMarca, quitarMarca, type Resultado } from '@/lib/config-marcas';
+import {
+  guardarUmbrales,
+  type EntradaUmbral,
+  type Resultado as ResultadoViralidad,
+} from '@/lib/config-viralidad';
 
 // Los efectos viven SOLO acá. Abrir o recargar la pantalla de configuración no
 // escribe nada: una acción de servidor se invoca con un POST desde el formulario.
@@ -193,6 +198,33 @@ export async function quitarVault(
   fd: FormData,
 ): Promise<Resultado> {
   const r = quitarMarca(texto(fd, 'quitar_id'));
+  if (r.ok) revalidatePath('/configuracion');
+  return r;
+}
+
+/**
+ * Guarda los umbrales de viralidad.
+ *
+ * Los canales salen del propio formulario (`canal:<id>`) y no de una lista fija:
+ * el conjunto de canales lo decide el corpus, así que uno nuevo aparece solo.
+ * Un `viral` vacío QUITA el umbral de ese canal — es la única forma de volver a
+ * "sin criterio declarado", que es un estado legítimo y distinto de cero.
+ */
+export async function guardarViralidad(
+  _previo: ResultadoViralidad,
+  fd: FormData,
+): Promise<ResultadoViralidad> {
+  const entradas: EntradaUmbral[] = [];
+  for (const [k, v] of fd.entries()) {
+    if (typeof v !== 'string' || !k.startsWith('canal:')) continue;
+    const canal = k.slice('canal:'.length);
+    entradas.push({
+      canal,
+      viral: texto(fd, `viral:${canal}`),
+      destacado: texto(fd, `destacado:${canal}`),
+    });
+  }
+  const r = guardarUmbrales(entradas);
   if (r.ok) revalidatePath('/configuracion');
   return r;
 }

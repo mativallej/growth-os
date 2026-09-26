@@ -48,6 +48,9 @@ const PUEDEN_ESCRIBIR = new Set([
   // config/sources.json, y solo desde la pantalla de configuración. Escribe la
   // DECLARACIÓN de dónde están los vaults — nunca adentro de uno.
   'lib/config-marcas.ts',
+  // config/viralidad.json: el criterio de qué cuenta como viral en cada red.
+  // Es un archivo del REPO, no de un vault, y no contiene contenido de nadie.
+  'lib/config-viralidad.ts',
 ]);
 
 // Los que NO pueden siquiera conocer la ubicación de un vault.
