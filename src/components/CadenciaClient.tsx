@@ -6,6 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import MultiSelect, { type Opcion } from "@/components/MultiSelect";
+import RangoFechas, { RANGO_VACIO, type Rango } from "@/components/RangoFechas";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { GRANULARIDADES, bucketDe, mesesDe, type Granularidad } from "@/lib/periodos";
 import {
   Table,
   TableHeader,
@@ -39,7 +48,8 @@ export type PiezaDelMes = {
   medida: boolean;
 };
 
-export type Mes = { month: string; piezas: PiezaDelMes[] };
+/** Un período con sus piezas. La granularidad la elige quien mira. */
+export type Periodo = { clave: string; piezas: PiezaDelMes[] };
 
 function faceta(ps: PiezaDelMes[], get: (p: PiezaDelMes) => string): Opcion[] {
   const m = new Map<string, number>();
@@ -65,65 +75,103 @@ function Stat({ k, v, sub }: { k: string; v: string; sub?: string }) {
 }
 
 export default function CadenciaClient({
-  meses,
+  piezas: todas,
   piso,
   techo,
   sinFecha,
   totalPublicadas,
-  mesEnCurso,
+  hoy,
 }: {
-  meses: Mes[];
+  /** Todas las publicadas CON fecha. El agrupado lo hace la vista. */
+  piezas: PiezaDelMes[];
   piso: number;
   techo: number;
-  /** Publicadas que no declaran fecha: no entran en ningún mes. */
+  /** Publicadas que no declaran fecha: no entran en ningún período. */
   sinFecha: number;
   totalPublicadas: number;
-  /** El mes del build, para no leer un mes incompleto como un mes flojo. */
-  mesEnCurso: string;
+  /** La fecha del build, para no leer un período incompleto como uno flojo. */
+  hoy: string;
 }) {
+  const [granularidad, setGranularidad] = useState<Granularidad>("mes");
+  const [rango, setRango] = useState<Rango>(RANGO_VACIO);
   const [canales, setCanales] = useState<string[]>([]);
   const [formulas, setFormulas] = useState<string[]>([]);
   const [abierto, setAbierto] = useState<string | null>(null);
 
-  const todas = useMemo(() => meses.flatMap((m) => m.piezas), [meses]);
+  const conRango = Boolean(rango.desde || rango.hasta);
   const filtrado = canales.length > 0 || formulas.length > 0;
+  const enCursoClave = bucketDe(hoy, granularidad);
+
+  // El objetivo ESCALADO al período. Es aritmética sobre la dieta declarada —a
+  // trimestre ×3, a año ×12— y no una estimación. A semana no hay: 4,33 semanas
+  // por mes daría una meta con decimales que nadie declaró.
+  const meses = mesesDe(granularidad);
+  const pisoP = meses === null ? null : piso * meses;
+  const techoP = meses === null ? null : techo * meses;
 
   const vista = useMemo(() => {
     const cs = new Set(canales);
     const fs = new Set(formulas);
-    return meses
-      .map((m) => ({
-        month: m.month,
-        piezas: m.piezas.filter(
-          (p) =>
-            (!cs.size || cs.has(p.canal)) && (!fs.size || fs.has(p.formulaCode)),
-        ),
-      }))
-      // Un mes que queda en cero por el filtro SE MUESTRA: "no publiqué nada de
-      // esto en junio" es exactamente lo que se está preguntando.
-      .sort((a, b) => a.month.localeCompare(b.month));
-  }, [meses, canales, formulas]);
+    const buckets = new Map<string, PiezaDelMes[]>();
+    for (const p of todas) {
+      if (rango.desde && p.publishedAt < rango.desde) continue;
+      if (rango.hasta && p.publishedAt > rango.hasta) continue;
+      if (cs.size && !cs.has(p.canal)) continue;
+      if (fs.size && !fs.has(p.formulaCode)) continue;
+      const k = bucketDe(p.publishedAt, granularidad);
+      buckets.set(k, [...(buckets.get(k) ?? []), p]);
+    }
+    return [...buckets.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([clave, ps]) => ({ clave, piezas: ps }));
+  }, [todas, canales, formulas, granularidad, rango.desde, rango.hasta]);
 
-  const cerrados = vista.filter((m) => m.month !== mesEnCurso);
-  const bajoPiso = cerrados.filter((m) => m.piezas.length < piso).length;
-  const enObjetivo = cerrados.filter(
-    (m) => m.piezas.length >= piso && m.piezas.length <= techo,
-  ).length;
+  const cerrados = vista.filter((m) => m.clave !== enCursoClave);
+  const bajoPiso = pisoP === null ? 0 : cerrados.filter((m) => m.piezas.length < pisoP).length;
+  const enObjetivo =
+    pisoP === null || techoP === null
+      ? 0
+      : cerrados.filter((m) => m.piezas.length >= pisoP && m.piezas.length <= techoP).length;
   const conteos = cerrados.map((m) => m.piezas.length);
   const mediana = conteos.length
     ? [...conteos].sort((a, b) => a - b)[Math.floor(conteos.length / 2)]
     : 0;
-  const enCurso = vista.find((m) => m.month === mesEnCurso);
+  const enCurso = vista.find((m) => m.clave === enCursoClave);
 
-  const max = Math.max(filtrado ? 1 : techo, ...vista.map((m) => m.piezas.length));
+  // La banda solo se dibuja con el objetivo a la vista: sin él, la escala la
+  // fija el período más alto.
+  const conBanda = !filtrado && pisoP !== null && techoP !== null;
+  // Por qué no hay objetivo, dicho donde se nota su ausencia.
+  const razonSinBanda =
+    pisoP === null
+      ? "una semana no es fracción limpia de un mes"
+      : "el objetivo cuenta el total, no un recorte";
+  const max = Math.max(conBanda ? techoP! : 1, ...vista.map((m) => m.piezas.length));
 
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center gap-2">
+        {/* La granularidad primero: cambia qué significa cada barra, así que es
+            una decisión de otro orden que filtrar. */}
+        <Select value={granularidad} onValueChange={(v) => { setGranularidad(v as Granularidad); setAbierto(null); }}>
+          <SelectTrigger className="w-[9.5rem]" aria-label="Agrupar por período">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {GRANULARIDADES.map((g) => (
+              <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <RangoFechas valor={rango} onChange={setRango} />
         <MultiSelect titulo="Red" opciones={faceta(todas, (p) => p.canal)} valor={canales} onChange={setCanales} />
         <MultiSelect titulo="Fórmula" opciones={faceta(todas, (p) => p.formulaCode)} valor={formulas} onChange={setFormulas} buscable />
-        {filtrado && (
-          <Button variant="ghost" size="sm" onClick={() => { setCanales([]); setFormulas([]); }}>
+        {(filtrado || conRango || granularidad !== "mes") && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setCanales([]); setFormulas([]); setRango(RANGO_VACIO); setGranularidad("mes"); }}
+          >
             Limpiar
           </Button>
         )}
@@ -131,19 +179,19 @@ export default function CadenciaClient({
 
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat
-          k="Mediana por mes"
+          k="Mediana por período"
           v={String(mediana)}
-          sub={filtrado ? "del recorte" : `objetivo ${piso}-${techo}`}
+          sub={pisoP !== null && !filtrado ? `objetivo ${pisoP}-${techoP}` : "del recorte"}
         />
         <Stat
-          k="Meses bajo el piso"
-          v={filtrado ? "—" : `${bajoPiso}`}
-          sub={filtrado ? "el objetivo es del total" : `de ${cerrados.length} cerrados`}
+          k="Bajo el piso"
+          v={conBanda ? `${bajoPiso}` : "—"}
+          sub={conBanda ? `de ${cerrados.length} cerrados` : razonSinBanda}
         />
         <Stat
-          k="Meses en objetivo"
-          v={filtrado ? "—" : `${enObjetivo}`}
-          sub={filtrado ? "el objetivo es del total" : `de ${cerrados.length} cerrados`}
+          k="En objetivo"
+          v={conBanda ? `${enObjetivo}` : "—"}
+          sub={conBanda ? `de ${cerrados.length} cerrados` : razonSinBanda}
         />
         {/* El dato que estaba en un bloque de texto arriba. Sigue importando —son
             casi la mitad de las publicadas— pero es una cifra, no un párrafo: las
@@ -172,27 +220,27 @@ export default function CadenciaClient({
           <div className="divide-y divide-border">
             {vista.map((m) => {
               const n = m.piezas.length;
-              const esCurso = m.month === mesEnCurso;
-              const bajo = !filtrado && !esCurso && n < piso;
-              const abierta = abierto === m.month;
+              const esCurso = m.clave === enCursoClave;
+              const bajo = conBanda && !esCurso && n < pisoP!;
+              const abierta = abierto === m.clave;
               return (
-                <div key={m.month}>
+                <div key={m.clave}>
                   <button
                     type="button"
-                    onClick={() => setAbierto(abierta ? null : m.month)}
+                    onClick={() => setAbierto(abierta ? null : m.clave)}
                     aria-expanded={abierta}
                     disabled={n === 0}
                     className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-muted/50 disabled:cursor-default disabled:hover:bg-transparent"
                   >
-                    <span className="w-16 shrink-0 font-mono text-muted-foreground">{m.month}</span>
+                    <span className="w-[4.5rem] shrink-0 font-mono text-[12px] text-muted-foreground">{m.clave}</span>
                     <div className="relative h-4 flex-1 overflow-hidden rounded bg-secondary">
                       {/* La banda del objetivo solo con el total a la vista: la
                           dieta es de la marca, y dibujarla contra un canal solo
                           diría que todos los meses están flojos. */}
-                      {!filtrado && (
+                      {conBanda && (
                         <div
                           className="absolute inset-y-0 border-x border-dashed border-muted-foreground/40 bg-muted-foreground/5"
-                          style={{ left: `${(piso / max) * 100}%`, width: `${((techo - piso) / max) * 100}%` }}
+                          style={{ left: `${(pisoP! / max) * 100}%`, width: `${((techoP! - pisoP!) / max) * 100}%` }}
                           aria-hidden="true"
                         />
                       )}
@@ -204,7 +252,7 @@ export default function CadenciaClient({
                     {esCurso && <Badge variant="secondary">en curso</Badge>}
                     <span className="w-16 shrink-0 text-right tabular-nums text-muted-foreground">
                       {n}
-                      {bajo && <span className="ml-1 text-[11px]">−{piso - n}</span>}
+                      {bajo && <span className="ml-1 text-[11px]">−{pisoP! - n}</span>}
                     </span>
                   </button>
 
@@ -256,17 +304,26 @@ export default function CadenciaClient({
       )}
 
       <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
-        {filtrado ? (
-          <>
-            Con un filtro puesto no se dibuja la banda del objetivo: la dieta de {piso}-{techo}{" "}
-            cuenta todo lo publicado, no un canal por separado.
-          </>
+        {!conBanda ? (
+          pisoP === null ? (
+            <>
+              Por semana no se dibuja objetivo: la dieta está declarada por MES, y 4,33
+              semanas por mes daría una meta con decimales que nadie declaró. A trimestre
+              y a año sí, multiplicada exacto.
+            </>
+          ) : (
+            <>
+              Con un filtro puesto no se dibuja la banda: la dieta de {piso}-{techo} por mes
+              cuenta todo lo publicado, no un canal por separado.
+            </>
+          )
         ) : (
           <>
-            La banda punteada es el objetivo de {piso}-{techo}, declarado en la config y no
+            La banda punteada es el objetivo de {pisoP}-{techoP} para este período
+            ({piso}-{techo} por mes), declarado en la config y no
             derivado del promedio — sacarlo de lo que viene pasando garantiza no estar nunca
             por debajo. El número chico es lo que faltó para el piso.
-            {enCurso ? " El mes en curso no cuenta para los totales: está incompleto." : ""}
+            {enCurso ? " El período en curso no cuenta para los totales: está incompleto." : ""}
           </>
         )}
       </p>
