@@ -5,11 +5,17 @@ import { statSync } from 'node:fs';
 import { escribir } from '@/lib/config-env';
 import { gruposPorMarca, grupoGeneral } from '@/lib/config-catalogo';
 import { listSources } from '@/lib/sources';
+import { agregarMarca, quitarMarca, type Resultado } from '@/lib/config-marcas';
 
 // Los efectos viven SOLO acá. Abrir o recargar la pantalla de configuración no
 // escribe nada: una acción de servidor se invoca con un POST desde el formulario.
 
 export type ResultadoConfig = { ok: boolean; mensaje: string };
+
+function texto(fd: FormData, clave: string): string {
+  const v = fd.get(clave);
+  return typeof v === 'string' ? v : '';
+}
 
 /** Las claves que el catálogo DECLARA. Un campo de más en el POST no llega al archivo. */
 function clavesPermitidas(): Set<string> {
@@ -154,4 +160,39 @@ export async function probarConexiones(): Promise<Chequeo[]> {
   }
 
   return out;
+}
+
+/**
+ * Agrega un vault a la config.
+ *
+ * Valida ANTES de escribir: que el id sirva como segmento de URL, que la ruta
+ * exista y que la subcarpeta de contenido exista adentro. Escribir primero y
+ * que el build se caiga después deja el repo en un estado que hay que arreglar
+ * a mano.
+ */
+export async function agregarVault(
+  _previo: Resultado,
+  fd: FormData,
+): Promise<Resultado> {
+  const r = agregarMarca({
+    id: texto(fd, 'nuevo_id'),
+    label: texto(fd, 'nuevo_label'),
+    vault: texto(fd, 'nuevo_vault'),
+    content: texto(fd, 'nuevo_content'),
+  });
+  if (r.ok) revalidatePath('/configuracion');
+  return r;
+}
+
+/**
+ * Quita un vault de la config. NO TOCA SUS ARCHIVOS: son del humano, y esta app
+ * no los borra nunca. Lo que se pierde es la configuración.
+ */
+export async function quitarVault(
+  _previo: Resultado,
+  fd: FormData,
+): Promise<Resultado> {
+  const r = quitarMarca(texto(fd, 'quitar_id'));
+  if (r.ok) revalidatePath('/configuracion');
+  return r;
 }

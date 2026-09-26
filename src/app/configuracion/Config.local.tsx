@@ -8,6 +8,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { GrupoEstado } from '@/lib/config-env';
 import { guardarConfig, probarConexiones, type Chequeo, type ResultadoConfig } from './actions.local';
+import Vaults, { type MarcaListada } from './Vaults.local';
+import { Desplegable } from '@/components/ui/accordion';
 
 const INICIAL: ResultadoConfig = { ok: true, mensaje: '' };
 
@@ -60,30 +62,36 @@ function Clave({ c }: { c: GrupoEstado['claves'][number] }) {
   );
 }
 
-function Grupo({ g }: { g: GrupoEstado }) {
+function Grupo({ g, abierto }: { g: GrupoEstado; abierto?: boolean }) {
+  const puestas = g.claves.filter((c) => c.puesta).length;
+  // Desplegable y no tarjeta abierta: con n marcas, todas expandidas a la vez
+  // vuelven la pantalla imposible de recorrer.
   return (
-    <Card>
-      <CardContent className="p-5">
-        <h2 className="text-sm font-medium">{g.titulo}</h2>
-        {g.detalle && (
-          <p className="mt-0.5 break-all text-[11px] text-muted-foreground">{g.detalle}</p>
-        )}
-        <div className="mt-4">
-          {g.claves.map((c) => (
-            <Clave key={c.nombre} c={c} />
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+    <Desplegable
+      titulo={g.titulo}
+      detalle={g.detalle}
+      abiertoPorDefecto={abierto}
+      acciones={
+        <span className="text-[11px] tabular-nums text-muted-foreground">
+          {puestas}/{g.claves.length}
+        </span>
+      }
+    >
+      {g.claves.map((c) => (
+        <Clave key={c.nombre} c={c} />
+      ))}
+    </Desplegable>
   );
 }
 
 export default function Config({
   marcas,
   general,
+  listado,
 }: {
   marcas: GrupoEstado[];
   general: GrupoEstado;
+  listado: MarcaListada[];
 }) {
   const [estado, accion, enviando] = useActionState(guardarConfig, INICIAL);
   const [chequeos, setChequeos] = useState<Chequeo[] | null>(null);
@@ -91,26 +99,33 @@ export default function Config({
 
   return (
     <form action={accion}>
-      <Tabs defaultValue={marcas[0]?.id ?? 'general'}>
+      <Tabs defaultValue="marcas">
+        {/* Tres pestañas FIJAS. Antes cada marca era su propia pestaña, mezcladas
+            con las de función: con cinco marcas la barra tiene siete botones y
+            deja de leerse. Las marcas son una dimensión que crece — van adentro
+            de una pestaña, como desplegables. */}
         <TabsList>
-          {marcas.map((m) => (
-            <TabsTrigger key={m.id} value={m.id}>
-              {m.titulo}
-            </TabsTrigger>
-          ))}
+          <TabsTrigger value="marcas">
+            Marcas
+            <span className="ml-1.5 tabular-nums opacity-60">{marcas.length}</span>
+          </TabsTrigger>
           <TabsTrigger value="general">{general.titulo}</TabsTrigger>
+          <TabsTrigger value="vaults">Agregar o quitar</TabsTrigger>
         </TabsList>
 
-        {/* Las pestañas se montan todas: un campo dentro de una pestaña cerrada
-            tiene que viajar igual en el envío, o guardar desde una pestaña
-            borraría lo que se escribió en la otra. */}
-        {marcas.map((m) => (
-          <TabsContent key={m.id} value={m.id} forceMount className="data-[state=inactive]:hidden">
-            <Grupo g={m} />
-          </TabsContent>
-        ))}
+        {/* Las claves de todas las marcas viven en UN formulario y se montan
+            siempre: si una pestaña cerrada no mandara sus campos, guardar desde
+            otra borraría lo que se escribió ahí. */}
+        <TabsContent value="marcas" forceMount className="data-[state=inactive]:hidden">
+          <div className="space-y-3">
+            {marcas.map((m, i) => (
+              <Grupo key={m.id} g={m} abierto={i === 0} />
+            ))}
+          </div>
+        </TabsContent>
+
         <TabsContent value="general" forceMount className="data-[state=inactive]:hidden">
-          <Grupo g={general} />
+          <Grupo g={general} abierto />
 
           <Card className="mt-4">
             <CardContent className="p-5">
@@ -154,6 +169,12 @@ export default function Config({
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Agregar y quitar NO va dentro del formulario de claves: son acciones
+            propias, y un enter en el campo equivocado no puede disparar una. */}
+        <TabsContent value="vaults">
+          <Vaults marcas={listado} />
         </TabsContent>
       </Tabs>
 

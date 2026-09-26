@@ -45,10 +45,19 @@ const PUEDEN_ESCRIBIR = new Set([
   'lib/handoff.ts',
   'lib/config-env.ts',
   'lib/marcar-corrida.ts',
+  // config/sources.json, y solo desde la pantalla de configuración. Escribe la
+  // DECLARACIÓN de dónde están los vaults — nunca adentro de uno.
+  'lib/config-marcas.ts',
 ]);
 
+// Los que NO pueden siquiera conocer la ubicación de un vault.
+//
 // `config-env` sí resuelve la raíz del REPO (para `.env.local`), que es distinto
-// de conocer la de un vault. Los otros dos no resuelven ninguna.
+// de conocer la de un vault.
+//
+// `config-marcas` queda AFUERA a propósito: es el único módulo cuyo trabajo es
+// declarar dónde están los vaults, así que tiene que conocer sus rutas. Lo que
+// no puede es escribir adentro de uno, y eso lo verifica su propio test.
 const SIN_VAULTS = new Set([
   'lib/ideas-queue.ts',
   'lib/handoff.ts',
@@ -59,7 +68,7 @@ const SIN_VAULTS = new Set([
 const ESCRITURAS = /\b(writeFileSync|appendFileSync|createWriteStream|writeFile|unlinkSync|rmSync|cpSync|copyFileSync)\b/;
 
 describe('la plataforma no es donde se hace el trabajo creativo', () => {
-  it('solo cuatro módulos escriben en disco, y ninguno toca un vault', () => {
+  it('solo cinco módulos escriben en disco, y ninguno toca un vault', () => {
     const escriben = FUENTES.filter((f) => ESCRITURAS.test(f.txt)).map((f) => f.rel);
     expect(new Set(escriben)).toEqual(PUEDEN_ESCRIBIR);
   });
@@ -72,6 +81,16 @@ describe('la plataforma no es donde se hace el trabajo creativo', () => {
       expect(f.txt, rel).not.toMatch(/from '\.\/sources'/);
       expect(f.txt, rel).not.toMatch(/vaults/);
     }
+  });
+
+  it('el módulo que declara los vaults NO escribe adentro de ninguno', () => {
+    const f = FUENTES.find((x) => x.rel === 'lib/config-marcas.ts')!;
+    // Escribe UN archivo: config/sources.json, la declaración. Quitar una marca
+    // saca su configuración y no toca un solo archivo suyo — los archivos son
+    // del humano, y esta app no los borra nunca.
+    const destinos = [...f.txt.matchAll(/writeFileSync\(([^,]+)/g)].map((m) => m[1].trim());
+    expect(destinos.every((d) => /tmp|ruta\(\)|`\$\{p\}/.test(d)), destinos.join(' · ')).toBe(true);
+    expect(f.txt).not.toMatch(/rmSync|unlinkSync/);
   });
 
   it('nada en la app escribe un .md', () => {

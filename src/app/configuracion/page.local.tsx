@@ -2,6 +2,7 @@ import PageHeader from '@/components/PageHeader';
 import { estadoDe } from '@/lib/config-env';
 import { grupoGeneral, gruposPorMarca } from '@/lib/config-catalogo';
 import Config from './Config.local';
+import { brandsConfig } from '@/lib/sources';
 
 // Configuración.
 //
@@ -25,7 +26,16 @@ export default function ConfiguracionPage() {
         title="Configuración"
         subtitle="Una pestaña por marca, más las conexiones del proyecto. Solo entorno local."
       />
-      <Config marcas={marcas} general={general} />
+      <Config
+        marcas={marcas}
+        general={general}
+        listado={brandsConfig().map((b) => ({
+          id: b.id,
+          label: b.label,
+          vault: b.vault,
+          content: Array.isArray(b.content) ? b.content.join(' · ') : b.content,
+        }))}
+      />
     </div>
   );
 }
