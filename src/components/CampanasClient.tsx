@@ -212,7 +212,6 @@ export default function CampanasClient({
     }));
   }, [visibles, eje, angulos]);
 
-  const sinCreativos = matriz.filter((m) => m.total === 0).map((m) => m.persona);
 
   // Clickear lo ya seleccionado deselecciona. Sin eso el único modo de volver a
   // ver todo es el botón de limpiar, y la celda encendida queda como una trampa.
@@ -274,18 +273,11 @@ export default function CampanasClient({
       </div>
 
       <div className="mb-2 flex items-baseline justify-between gap-3">
-        {/* El conteo de personas vacías va ACÁ y no en una tarjeta aparte.
-            Tenía la suya, y sobraba: la matriz de abajo ya muestra esas filas
-            enteras en raya, así que la tarjeta repetía con muchas palabras algo
-            que se ve de un vistazo. El número igual vale — es la razón de ser de
-            esta vista— así que queda, en una línea. */}
+        {/* El conteo de personas vacías no se escribe: la matriz de abajo ya
+            muestra esas filas enteras en raya. Tuvo una tarjeta y después una
+            línea, y las dos repetían con palabras algo que se ve de un vistazo. */}
         <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
           Cobertura por persona × ángulo
-          {sinCreativos.length > 0 && (
-            <span className="ml-2 normal-case tracking-normal text-muted-foreground">
-              · {sinCreativos.length} de {eje.length} personas sin ningún creativo
-            </span>
-          )}
           {sucio && (
             <span className="ml-2 normal-case tracking-normal">
               · sobre {visibles.length} de {creativos.length}

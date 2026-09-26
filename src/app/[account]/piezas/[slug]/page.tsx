@@ -347,6 +347,7 @@ export default async function PiezaPage({
           {/* Solo las columnas CON DATOS de esta pieza. Un tweet no tiene
               `views` ni `reach`, y un reel no tiene `imp` ni `rt`: diez columnas
               de las cuales siete son rayas hacen ilegibles las tres que importan. */}
+          <div className="overflow-x-auto">
           <Table className="font-mono text-xs">
             <TableHeader>
               <TableRow>
@@ -367,6 +368,7 @@ export default async function PiezaPage({
               ))}
             </TableBody>
           </Table>
+          </div>
         </>
       )}
 

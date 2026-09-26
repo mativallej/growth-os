@@ -207,7 +207,7 @@ export default function DeudaClient({
             <Stat k="Personas" v={String(new Set(vistaCreativos.map((c) => c.persona).filter(Boolean)).size || "—")} />
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -250,13 +250,13 @@ export default function DeudaClient({
         </>
       ) : (
         <>
-          <div className="mb-4 grid grid-cols-3 gap-3">
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Stat k="Sin medir" v={String(vistaPiezas.length)} />
             <Stat k="La más vieja" v={masVieja !== null ? `${masVieja} días` : "—"} />
             <Stat k="Sin enlace" v={String(sinEnlace)} />
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <Table>
               <TableHeader>
                 <TableRow>

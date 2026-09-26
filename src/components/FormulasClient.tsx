@@ -170,7 +170,7 @@ export default function FormulasClient({ filas }: { filas: FilaFormula[] }) {
         )}
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border">
+      <div className="overflow-x-auto rounded-lg border border-border">
         <div className="hidden items-center gap-3 border-b border-border px-3 py-2 text-[11px] uppercase tracking-wide text-muted-foreground/70 sm:flex">
           <span className="w-12 shrink-0">cód.</span>
           <span className="flex-1">fórmula</span>
@@ -214,7 +214,7 @@ export default function FormulasClient({ filas }: { filas: FilaFormula[] }) {
                 </button>
 
                 {abierto && (
-                  <div className="border-t border-border bg-muted/20 px-3 py-2">
+                  <div className="overflow-x-auto border-t border-border bg-muted/20 px-3 py-2">
                     {/* UNA TABLA Y NO UNA LISTA: la pregunta al abrir una fórmula
                         es "cuáles son y cómo les fue", y eso necesita columnas —
                         con los títulos sueltos hay que abrir una por una para

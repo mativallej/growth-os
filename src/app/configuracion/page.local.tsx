@@ -47,7 +47,7 @@ export default function ConfiguracionPage() {
     }));
 
   return (
-    <div className="mx-auto max-w-[900px] px-6 py-9 md:px-10">
+    <div className="mx-auto max-w-[900px] px-4 py-6 sm:px-6 md:px-10 md:py-9">
       <PageHeader
         title="Configuración"
         subtitle="Una pestaña por marca, más las conexiones del proyecto. Solo entorno local."

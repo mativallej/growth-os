@@ -19,7 +19,7 @@ const EN_DESARROLLO = process.env.NODE_ENV === "development";
 
 export default function NotFound() {
   return (
-    <main className="mx-auto max-w-[42rem] px-6 py-20">
+    <main className="mx-auto max-w-[42rem] px-4 py-14 sm:px-6 sm:py-20">
       <h1 className="text-xl font-semibold tracking-tight">Esta página no existe</h1>
       <p className="mt-2 text-[13px] text-muted-foreground">
         La dirección no corresponde a ninguna vista de este build.

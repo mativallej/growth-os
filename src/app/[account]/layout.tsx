@@ -94,7 +94,7 @@ export default async function AccountLayout({
         comandos={comandos}
         accionesLocales={accionesLocales()}
       />
-      <main className="max-w-[1080px] px-6 py-9 md:ml-[220px] md:px-10">{children}</main>
+      <main className="max-w-[1080px] px-4 py-6 sm:px-6 md:ml-[220px] md:px-10 md:py-9">{children}</main>
     </>
   );
 }
@@ -128,9 +128,10 @@ function accionesLocales() {
       </div>
       <Link
         href="/configuracion"
-        className="block rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        className="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-secondary hover:text-foreground"
       >
         Configuración
+        <span aria-hidden="true" className="text-muted-foreground/40">→</span>
       </Link>
     </div>
   );

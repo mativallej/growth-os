@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import AccountSwitcher, { type AccountOption } from "./AccountSwitcher";
 import CommandPalette, { type Comando } from "./CommandPalette";
 import Logo from "./Logo";
@@ -48,12 +49,70 @@ export default function DashboardNav({
 }) {
   const pathname = usePathname();
   const base = `/${account}`;
+  const [abierto, setAbierto] = useState(false);
+
+  // Y con el panel abierto el fondo no scrollea: en un teléfono el scroll se lo
+  // queda lo que está DEBAJO del overlay, y el panel parece trabado.
+  useEffect(() => {
+    if (!abierto) return;
+    const previo = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previo;
+    };
+  }, [abierto]);
 
   return (
     <>
       <CommandPalette comandos={comandos} />
-      <aside className="fixed inset-y-0 left-0 hidden w-[220px] flex-col gap-1 overflow-y-auto border-r border-border px-4 py-6 md:flex">
-      <div className="px-2.5 pb-5">
+
+      {/* LA BARRA DE MOBILE. Abajo de `md` el panel lateral está oculto, y hasta
+          el 2026-09-26 no había NADA en su lugar: en un teléfono no se podía
+          llegar a ninguna vista sin tipear la URL. */}
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border bg-background/95 px-4 py-2.5 backdrop-blur md:hidden">
+        <Logo />
+        <button
+          type="button"
+          onClick={() => setAbierto(true)}
+          aria-label="Abrir la navegación"
+          aria-expanded={abierto}
+          className="rounded-md border border-border px-2.5 py-1.5 text-xs transition-colors hover:bg-secondary"
+        >
+          Menú
+        </button>
+      </header>
+
+      {/* El fondo oscurecido. Es un botón y no un div con onClick: tocar afuera
+          para cerrar tiene que funcionar también con teclado y con lector. */}
+      {abierto && (
+        <button
+          type="button"
+          aria-label="Cerrar la navegación"
+          onClick={() => setAbierto(false)}
+          className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-[1px] md:hidden"
+        />
+      )}
+
+      {/* Al navegar se cierra, y se hace acá y no en un efecto sobre `pathname`:
+          un setState sincrónico dentro de un efecto dispara un render en cascada
+          y el compilador lo marca como error.
+
+          Se delega en el `<aside>` y se filtra por `closest('a')` para que cierre
+          con CUALQUIER link —incluidos los del selector de marca, que este
+          componente no renderiza— sin tocar los botones: el desplegable de marca
+          y el menú de sesión abren su propio panel y cerrar el cajón al tocarlos
+          los volvería inusables. */}
+      <aside
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("a")) setAbierto(false);
+        }}
+        className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col gap-1 overflow-y-auto border-r border-border bg-background px-4 py-6 transition-transform duration-200 md:z-auto md:w-[220px] md:translate-x-0 md:transition-none ${
+          abierto ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+      {/* En mobile el logo ya está en la barra de arriba; repetirlo acá deja el
+          panel abriendo con dos. */}
+      <div className="hidden px-2.5 pb-5 md:block">
         <Logo />
       </div>
 

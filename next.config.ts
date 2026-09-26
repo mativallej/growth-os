@@ -13,7 +13,19 @@ import type { NextConfig } from "next";
 // `page.local.tsx` / `*.local.ts`, y esa extensión solo entra en `pageExtensions`
 // cuando GROWTH_CONSOLE=1. Sin esa variable, Next ni siquiera los reconoce como
 // rutas: no hay ruta, no hay manejador, y nada de lo que importan entra al bundle.
-const consolaLocal = process.env.GROWTH_CONSOLE === '1';
+//
+// EN DESARROLLO ESTÁ PRENDIDA POR DEFECTO. Antes hacía falta `GROWTH_CONSOLE=1`
+// siempre, y el resultado era que un `npm run dev` normal no tenía
+// `/configuracion` — la pantalla existía, el botón del nav estaba escrito, y no
+// aparecía. Quien no supiera de la variable concluía que faltaba implementarla.
+//
+// Lo que importa gatear es el build QUE SE PUBLICA, y ese nunca corre en
+// desarrollo: el workflow de CI no define la variable, así que sigue sin
+// compilarse. `GROWTH_CONSOLE=0` la apaga en dev, para poder probar en local
+// exactamente lo que ve un externo.
+const consolaLocal =
+  process.env.GROWTH_CONSOLE === '1' ||
+  (process.env.NODE_ENV === 'development' && process.env.GROWTH_CONSOLE !== '0');
 
 // POR QUÉ ESTE REPO NO SE PUBLICA COMO EXPORT ESTÁTICO.
 //

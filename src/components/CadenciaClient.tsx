@@ -257,7 +257,7 @@ export default function CadenciaClient({
                   </button>
 
                   {abierta && (
-                    <div className="border-t border-border bg-muted/20 px-3 py-2">
+                    <div className="overflow-x-auto border-t border-border bg-muted/20 px-3 py-2">
                       <Table>
                         <TableHeader>
                           <TableRow>
