@@ -8,6 +8,7 @@ import { loadPieces } from "@/lib/parse";
 import { sortedSnaps, latest, engRate, pvRate, saveLike, primaryReach, num, pct } from "@/lib/metrics";
 import { lineChart } from "@/lib/charts";
 import { findSource } from "@/lib/sources";
+import { compararVariantes, variantesDe } from "@/lib/variantes";
 
 /**
  * Anidado: Next ejecuta esto UNA VEZ POR CADA `account` que emitió el layout
@@ -50,8 +51,14 @@ export default async function PiezaPage({
   const { account, slug } = await params;
   const source = findSource(account);
   if (!source) notFound();
-  const p = loadPieces([source]).find((x) => x.slug === slug);
+  const piezas = loadPieces([source]);
+  const p = piezas.find((x) => x.slug === slug);
   if (!p) notFound();
+
+  // Las variantes viven en la misma carpeta y comparten el número: `002`, `002b`,
+  // `002c` son el MISMO post intentado de tres formas. Compararlas compara las
+  // formas; comparar dos piezas distintas de una serie no diría nada.
+  const variantes = compararVariantes(variantesDe(p, piezas));
 
   const snaps = sortedSnaps(p);
   const l = latest(p);
@@ -180,6 +187,67 @@ export default async function PiezaPage({
               {p.lesson}
             </p>
           )}
+        </div>
+      )}
+
+      {variantes.length > 1 && (
+        <div className="mt-6">
+          <div className="mb-2 flex items-baseline gap-2">
+            <h2 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+              Variantes de esta pieza
+            </h2>
+            <span className="text-[11px] text-muted-foreground/60">
+              mismo post, {variantes.length} formas
+            </span>
+          </div>
+          <div className="overflow-hidden rounded-lg border border-border">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted-foreground/70">
+                  <th className="px-3 py-2 text-left font-normal">variante</th>
+                  <th className="px-2 py-2 text-right font-normal">alcance</th>
+                  <th className="px-2 py-2 text-right font-normal">eng</th>
+                  <th className="px-2 py-2 text-right font-normal">guardados</th>
+                  <th className="px-3 py-2 text-right font-normal">follows</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {variantes.map((v) => {
+                  const esta = v.variante.piece.slug === p.slug;
+                  return (
+                    <tr key={v.variante.piece.slug} className={esta ? "bg-secondary/50" : undefined}>
+                      <td className="px-3 py-2">
+                        <Link
+                          href={`/${account}/piezas/${v.variante.piece.slug}`}
+                          className="hover:underline"
+                        >
+                          <span className="font-mono text-muted-foreground">
+                            {v.variante.sufijo || "orig"}
+                          </span>
+                          <span className="ml-2">{v.variante.piece.title}</span>
+                        </Link>
+                        {v.gana && (
+                          <Badge variant="success" className="ml-2">más alcance</Badge>
+                        )}
+                        {esta && <span className="ml-2 text-[11px] text-muted-foreground">esta</span>}
+                      </td>
+                      {/* Una variante sin medir muestra raya, no cero: no perdió,
+                          todavía no compitió. */}
+                      <td className="px-2 py-2 text-right tabular-nums">{num(v.alcance)}</td>
+                      <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">{num(v.engagements)}</td>
+                      <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">{num(v.bookmarks)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{num(v.follows)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground/70">
+            Las variantes son el mismo post contado de otra forma, así que la
+            diferencia entre sus números es la forma. Las que no tienen alcance medido
+            no perdieron: todavía no compitieron.
+          </p>
         </div>
       )}
 

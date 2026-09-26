@@ -21,6 +21,20 @@ import {
 // Tampoco sabe CÓMO se escribe un footer: eso es ./footer.ts, y cómo se escribe
 // un corte de métricas es ./snapshots.ts. Acá queda solo la orquestación.
 
+/**
+ * Una evaluación NO es una pieza: es prosa SOBRE una pieza, y vive al lado en la
+ * misma carpeta (`tweet-001-aeo-lagarto - evaluacion.md`).
+ *
+ * Medido el 2026-09-26: hay 12 en el contenido orgánico de Tegu. Desde que el
+ * parser dejó de descartar archivos sin footer, entraban como piezas sin
+ * trackear e inflaban todos los conteos — incluida la deuda de medición, que es
+ * justo la vista donde un falso positivo hace perder tiempo.
+ *
+ * Es la misma regla que ya aplicaba `src/lib/ads.ts` a las evaluaciones de los
+ * creativos; faltaba acá.
+ */
+const ES_EVALUACION = /\s-\s*evaluaci[oó]n\.md$/i;
+
 function slugify(s: string): string {
   return s
     .toLowerCase()
@@ -181,6 +195,7 @@ function loadUncached(sources: ContentSource[]): SourceLoad[] {
     for (const root of source.roots) {
       for (const file of fg.sync('**/*.md', { cwd: root, absolute: true })) {
         if (source.ignore.some((dir) => file === dir || file.startsWith(dir + PATH_SEP))) continue;
+        if (ES_EVALUACION.test(file)) continue;
         if (seen.has(file)) continue; // dos raíces anidadas no duplican la pieza
         seen.add(file);
         try {

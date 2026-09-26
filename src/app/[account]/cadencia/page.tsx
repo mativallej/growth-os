@@ -5,17 +5,17 @@ import { loadPieces } from "@/lib/parse";
 import { findSource } from "@/lib/sources";
 import { cadenceByMonth } from "@/lib/rollups";
 import { num } from "@/lib/metrics";
-
-// La dieta: el piso y el techo de piezas por mes. Son los números del proyecto,
-// no una estimación de esta app.
-const PISO = 10;
-const TECHO = 14;
+import { dietaDe } from "@/lib/cadencia";
 
 export default async function CadenciaPage({ params }: { params: Promise<{ account: string }> }) {
   const { account } = await params;
   const source = findSource(account);
   if (!source) notFound();
 
+  // La dieta es de la MARCA y la declara el humano: se lee de la config, no se
+  // infiere del promedio de los últimos meses. Derivar el objetivo de lo que
+  // viene pasando es garantizar que nunca se esté por debajo de él.
+  const { piso: PISO, techo: TECHO } = dietaDe(source.brand);
   const { months, undated, total } = cadenceByMonth(loadPieces([source]));
   const max = Math.max(TECHO, ...months.map((m) => m.count));
 

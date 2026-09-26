@@ -30,6 +30,17 @@ export function gruposPorMarca(): GrupoConfig[] {
           donde: 'Ruta absoluta o ~/… — siempre por ~/vaults/, nunca la ruta real',
         },
         {
+          nombre: `CADENCIA_${P}_PISO`,
+          descripcion: 'Piso de piezas por mes. Es tu objetivo, no un promedio de lo que viene pasando',
+          tipo: 'dato',
+          donde: `Vacío = lo que declara config/sources.json en growth.cadencia`,
+        },
+        {
+          nombre: `CADENCIA_${P}_TECHO`,
+          descripcion: 'Techo de piezas por mes',
+          tipo: 'dato',
+        },
+        {
           nombre: `SUPABASE_${P}_URL`,
           descripcion: 'URL del proyecto de Supabase de esta marca',
           tipo: 'dato',

@@ -220,6 +220,9 @@ function main() {
     for (const root of s.roots) {
       for (const file of walk(root)) {
         if (s.ignore.some((d) => file === d || file.startsWith(d + '/'))) continue;
+        // Una evaluación es prosa SOBRE una pieza, no una pieza. Ver el mismo
+        // corte en src/lib/parse.ts y en src/lib/ads.ts.
+        if (/\s-\s*evaluaci[oó]n\.md$/i.test(file)) continue;
         stats.total++;
         const i = inspect(file);
         if (!i.tieneSeparador) stats.sinSeparador++;

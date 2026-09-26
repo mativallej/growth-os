@@ -36,8 +36,6 @@ export type OverviewPiece = {
   sinEnlace: boolean;
 };
 
-const PISO = 10;
-const TECHO = 14;
 
 const ETIQUETA: Record<string, string> = {
   published: "publicadas",
@@ -93,15 +91,19 @@ export default function OverviewClient({
   piezas,
   account,
   label,
+  dieta,
   formulasSinEstrenar,
   sinClasificar,
 }: {
   piezas: OverviewPiece[];
   account: string;
   label: string;
+  /** La dieta de ESTA marca. Criterio del humano, no un default de la app. */
+  dieta: { piso: number; techo: number };
   formulasSinEstrenar: string[];
   sinClasificar: number;
 }) {
+  const { piso: PISO, techo: TECHO } = dieta;
   const [rango, setRango] = useState<Rango>(RANGO_VACIO);
   const conRango = Boolean(rango.desde || rango.hasta);
 
