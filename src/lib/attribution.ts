@@ -90,52 +90,8 @@ export function clavesRepetidas(pieces: Piece[]): { clave: string; paths: string
     .sort((a, b) => a.clave.localeCompare(b.clave));
 }
 
-/** Estado de una señal: se está midiendo, o el circuito está abierto. */
-export type EstadoSenal =
-  | { disponible: true; valor: number }
-  | { disponible: false; motivo: string; falta: string };
-
-export type Senales = {
-  clic: EstadoSenal;
-  autoReportada: EstadoSenal;
-  serieTemporal: EstadoSenal;
-};
-
-/**
- * Las tres señales, con su estado.
- *
- * NINGUNA SE PRESENTA SOLA, y ninguna no disponible se muestra como cero. Esa
- * es la distinción que más fácil se rompe y más caro sale: un cero en una vista
- * de atribución, cuando en realidad el circuito está abierto, es la clase de
- * número que hace cancelar un canal que funcionaba.
- *
- * Hoy las tres están abiertas: el producto todavía no emite nada. La función
- * existe igual para que la vista tenga qué decir —y para que el día que una se
- * cierre, el lugar donde enchufarla esté escrito.
- */
-export function senales(): Senales {
-  return {
-    clic: {
-      disponible: false,
-      motivo: 'El producto todavía no persiste el origen de un registro.',
-      falta: 'Guardar primer y último toque por separado, y emitirlos con el registro.',
-    },
-    autoReportada: {
-      disponible: false,
-      motivo: 'No existe el campo de "¿cómo nos conociste?" en el post-registro.',
-      falta:
-        'Un campo abierto y opcional. Es lo más barato de toda la lista y lo único ' +
-        'que ve el boca a boca — el WhatsApp, que hoy es completamente invisible.',
-    },
-    serieTemporal: {
-      disponible: false,
-      motivo: 'No hay serie de registros ni de tráfico directo contra la que cruzar.',
-      falta: 'Un export periódico de registros por día.',
-    },
-  };
-}
-
-/** true si ninguna señal está disponible: el circuito está abierto de punta a punta. */
-export function circuitoAbierto(s: Senales = senales()): boolean {
-  return !s.clic.disponible && !s.autoReportada.disponible && !s.serieTemporal.disponible;
-}
+// Las tres señales de atribución —por clic, auto-reportada y serie temporal—
+// están especificadas en `docs/attribution.md`, con la regla que las ordena:
+// nunca se colapsan en un número, ninguna se presenta sola, y una que no está
+// midiendo NO se muestra como cero. Acá no hay código porque todavía no hay
+// nada que medir: el producto no emite el origen de un registro.

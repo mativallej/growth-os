@@ -14,9 +14,6 @@ const VISTAS = [
   { sub: "formulas", label: "Fórmulas" },
   { sub: "ranking", label: "Ranking" },
   { sub: "campanas", label: "Campañas" },
-  { sub: "atribucion", label: "Atribución" },
-  { sub: "metodo", label: "El método" },
-  { sub: "mapa", label: "Mapa" },
 ];
 
 /**
@@ -136,8 +133,14 @@ function accionesLocales() {
   ];
   return (
     <div className="mb-3 border-t border-border pt-3">
-      <div className="px-2.5 pb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground/60">
-        Solo local
+      {/* Decía "Solo local", que se lee como "esta app es local" — y no lo es:
+          el dashboard se puede deployar. Lo que no se comparte son estas dos,
+          porque una ejecuta operaciones y la otra muestra credenciales. */}
+      <div
+        className="px-2.5 pb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground/60"
+        title="Estas dos no se compilan en un build que se comparte: una dispara operaciones y la otra muestra credenciales."
+      >
+        No se comparte
       </div>
       {items.map((i) => (
         <Link
