@@ -13,6 +13,7 @@ const VISTAS = [
   { sub: "formulas", label: "Fórmulas" },
   { sub: "ranking", label: "Ranking" },
   { sub: "campanas", label: "Campañas" },
+  { sub: "mapa", label: "Mapa" },
 ];
 
 /**
