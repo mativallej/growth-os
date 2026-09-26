@@ -176,11 +176,11 @@ export default function RankingClient({
             <span className="w-6 shrink-0" />
             <span className="flex-1">pieza</span>
             <span className="w-20 shrink-0 text-right">{etiqueta.toLowerCase()}</span>
-            <span className="w-20 shrink-0 text-right">/ alcance</span>
+            <span className="hidden w-20 shrink-0 text-right sm:block">/ alcance</span>
           </div>
           <div className="divide-y divide-border">
             {ordenadas.map((r, i) => (
-              <div key={r.href} className="flex items-baseline gap-3 px-4 py-2.5 text-[13px]">
+              <div key={r.href} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5 text-[13px] sm:flex-nowrap">
                 <span className="w-6 shrink-0 tabular-nums text-muted-foreground/60">{i + 1}</span>
                 <div className="min-w-0 flex-1">
                   <Link href={r.href} className="block truncate hover:underline">
@@ -205,7 +205,7 @@ export default function RankingClient({
                 <span className="w-20 shrink-0 text-right font-medium tabular-nums">
                   {num(r.valor)}
                 </span>
-                <span className="w-20 shrink-0 text-right tabular-nums text-muted-foreground">
+                <span className="hidden w-20 shrink-0 text-right tabular-nums text-muted-foreground sm:block">
                   {metrica === "alcance" ? "—" : pct(r.tasa)}
                 </span>
               </div>
