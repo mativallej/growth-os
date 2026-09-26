@@ -21,7 +21,10 @@
 #   · NO INGIERE ANALYTICS. `ingest-analytics.py` necesita un CSV exportado a
 #     mano de Meta o de X. Eso no puede pasar en CI.
 #
-#   · NO APLICA EL SYNC DE NOTION SOLO. Ver el job `sync`.
+#   · NO SINCRONIZA CON NOTION. Ese workflow se mudó a `tegu-labs/tegu-growth`
+#     el 2026-09-26, que es donde está el contenido: el disparador de un sync es
+#     que cambió una pieza, y acá un push a main no significa eso. Además desde
+#     allá no hace falta un PAT para leer el vault.
 
 name: publicar
 
@@ -158,58 +161,3 @@ jobs:
             exit 0
           fi
           npx --yes vercel@latest deploy --prebuilt --prod --token "$VERCEL_TOKEN"
-
-  # EL SYNC A NOTION, SEPARADO Y EN DRY-RUN SALVO QUE SE PIDA LO CONTRARIO.
-  #
-  # La regla dura 6 del repo es "nada corre solo", y no es purismo: un sync
-  # ESCRIBE, y el 2026-09-23 uno puso "En producción" en 51 piezas que el vault
-  # no marcaba y dejó ilegible la columna que más importa. Un push a main no
-  # debería poder repetir eso.
-  #
-  # Así que corre siempre —para que el diff esté publicado y se pueda mirar— y
-  # aplica solo cuando alguien lo dispara a mano marcando la casilla.
-  sync:
-    # `marcas` además de `publicar`: este job usa `needs.marcas.outputs.lista`
-    # para su matriz, y un `needs` que no lo declara la deja en undefined — la
-    # matriz queda vacía y el job "pasa" sin haber corrido nada.
-    #
-    # `always()`: el diff a Notion vale igual aunque el deploy de una marca haya
-    # fallado. Son cosas separadas.
-    needs: [marcas, publicar]
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    strategy:
-      fail-fast: false
-      matrix:
-        marca: ${{ fromJSON(needs.marcas.outputs.lista) }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: ${{ matrix.marca.repo }}
-          ref: ${{ matrix.marca.ref }}
-          path: .vaults/${{ matrix.marca.id }}
-          token: ${{ secrets.VAULT_TOKEN }}
-
-      - name: Sync de contenido
-        env:
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          APLICAR: ${{ github.event_name == 'workflow_dispatch' && inputs.aplicar_sync }}
-        run: |
-          # El chequeo del token va ACÁ y no en el `if` del job: en GitHub Actions
-          # el contexto `secrets` NO está disponible en condiciones a nivel de
-          # job. Ahí se evalúa como vacío y el job se saltea siempre — en
-          # silencio, que es la peor forma de no correr.
-          if [ -z "$NOTION_TOKEN" ]; then
-            echo "Sin NOTION_TOKEN: no hay con qué consultar Notion. Nada que hacer."
-            exit 0
-          fi
-          export ${{ matrix.marca.env }}="$GITHUB_WORKSPACE/.vaults/${{ matrix.marca.id }}"
-          EXTRA=""
-          if [ "$APLICAR" = "true" ]; then
-            echo "::warning::Aplicando el sync: esto ESCRIBE en Notion."
-            EXTRA="--apply"
-          else
-            echo "Dry-run. Para aplicar, disparar el workflow a mano con la casilla marcada."
-          fi
-          python3 scripts/sync-notion.py --brand "${{ matrix.marca.id }}" --scope contenido $EXTRA

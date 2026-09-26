@@ -75,28 +75,39 @@ en islas de cliente (`SesionControles`, `Saludo`, las pantallas de sign-in).
 `VERCEL_PROJECT_ID` va por marca a propósito: con un solo proyecto, el último
 deploy pisaría al anterior y las dos marcas terminarían en la misma URL.
 
-## El sync: por qué no corre solo
+## El sync vive en el otro repo
 
-La **regla dura 6** es que nada corre solo, y acá no es purismo. Un sync
-*escribe*: el 2026-09-23 uno puso «En producción» en 51 piezas que el vault no
-marcaba y dejó ilegible la columna que más importa. Un push a `main` no debería
-poder repetir eso.
+`tegu-labs/tegu-growth` tiene su propio workflow (`.github/workflows/sync.yml`).
+Se mudó el 2026-09-26 por tres razones:
 
-Así que el job corre **siempre en dry-run** —para que el diff quede publicado y
-se pueda mirar— y **aplica solo** cuando alguien dispara el workflow a mano
-marcando la casilla `aplicar_sync`.
+1. **El disparador está allá.** Un sync tiene que correr cuando cambia el
+   contenido, y el contenido cambia con un commit a ese repo. Desde acá, un push
+   a `main` no significa eso: haría falta un cron —que corre cuando no hace
+   falta— o un `repository_dispatch`.
+2. **Desaparece un PAT.** Allá el `GITHUB_TOKEN` por defecto alcanza.
+3. **Coincide con la frontera.** Crear es vault, medir es plataforma. Subir al
+   tablero es **coordinación** —el paso 6— que es del lado del vault.
 
-### Lo que el workflow NO hace, y por qué
+Allá tampoco aplica solo: el push publica el diff en el resumen del job, y
+escribir es un disparo manual. Y la **documentación** no entra en CI, porque
+`sync-notion-docs.py` empareja por `.state/`, que no está en git: un runner
+crearía las ~68 páginas de nuevo en cada corrida. El de filas sí puede, porque
+empareja por la propiedad `ID` contra el `id` del footer — una llave que vive en
+el `.md`.
 
-- **No sincroniza Supabase.** No hay qué sincronizar: ningún script del repo
-  escribe a Supabase. Está declarado en `config/sources.json` como índice
-  derivado (D-15/D-16) y la pantalla de configuración prueba la conexión, pero el
-  índice no existe todavía. Un paso vacío daría un tilde verde por un trabajo que
-  nadie hizo.
-- **No ingiere analytics.** `ingest-analytics.py` necesita un CSV exportado a mano
-  de Meta o de X. Eso no puede pasar en CI.
-- **No compila la consola.** `GROWTH_CONSOLE` no se define en ningún lado del
-  workflow, y sin esa variable `page.local.tsx` no entra en `pageExtensions`:
+> **El contrato del footer quedó espejado en dos repos.** `KNOWN_KEYS` de
+> `src/lib/footer.ts` y `CLAVES` de `sync-notion.py` tienen que decir lo mismo.
+> Agregar una clave es tocar los dos; si se toca uno solo, ninguno falla — el
+> dashboard muestra un campo que el tablero ignora, o al revés.
+
+### Lo que este workflow NO hace
+
+- **No sincroniza Supabase.** No hay qué sincronizar: ningún script le escribe.
+  Está declarado en `config/sources.json` como índice derivado (D-15/D-16) y la
+  pantalla de configuración prueba la conexión, pero el índice no existe todavía.
+- **No ingiere analytics.** `ingest-analytics.py` necesita un CSV exportado a
+  mano de Meta o de X. Eso no puede pasar en CI.
+- **No compila la consola.** `GROWTH_CONSOLE` no aparece en el workflow, así que
   `/configuracion` no existe en el deploy. No está escondida — no hay ruta.
 
 ## Probar el aislamiento a mano

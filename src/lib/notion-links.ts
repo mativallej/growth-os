@@ -8,7 +8,8 @@ import { stateDir } from './repo';
 // descartaba. Sin eso, ir de una pieza a su fila es abrir Notion y buscar por
 // título — esperando que el título no se haya renombrado.
 //
-// La correspondencia la escribe `scripts/sync-notion.py` en `.state/`, que es
+// La correspondencia la escribe el sync —`scripts/sync-notion.py` de
+// tegu-labs/tegu-growth— en `.state/`, que es
 // estado LOCAL y derivado: si se borra, la app sigue funcionando y lo único que
 // se pierde son los enlaces. No es una fuente de verdad, y por eso no se
 // commitea ni se sincroniza.

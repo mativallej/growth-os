@@ -5,10 +5,20 @@
 //   inline   `canal: Twitter · cuenta: x_mati`    (vault de Tegu)
 //
 // Un lector que entienda solo una ve 14 piezas donde hay 95. Ya pasó el
-// 2026-09-24 en scripts/sync-notion.py y está arreglado ahí; el vocabulario de
-// claves de este archivo es el mismo (constante CLAVES), a propósito.
+// 2026-09-24 en el sync y está arreglado ahí; el vocabulario de claves de este
+// archivo es el mismo (constante CLAVES), a propósito.
+//
+// ⚠️  ESE ESPEJO AHORA CRUZA DOS REPOSITORIOS. El sync se mudó a
+// `tegu-labs/tegu-growth` el 2026-09-26 —el disparador es que cambió el
+// contenido, y el contenido está allá— así que `CLAVES` y `AD_CLAVES` viven en
+// `scripts/sync-notion.py` de ESE repo.
+//
+// Agregar una clave al contrato del footer es tocar LOS DOS. Si solo se toca uno:
+// el dashboard la muestra y el tablero la ignora, o al revés — y ninguno de los
+// dos falla, que es lo peor que puede pasar. Los tests del contrato también
+// viven allá (`scripts/test_sync_notion.py`).
 
-/** Claves conocidas -> nombre canónico. Espejo de `CLAVES` en scripts/sync-notion.py. */
+/** Claves conocidas -> nombre canónico. Espejo de `CLAVES` en el sync (otro repo, ver arriba). */
 export const KNOWN_KEYS: Record<string, string> = {
   // La identidad de la pieza (D-9). Se lee, nunca se genera al leer: un id
   // inventado en lectura sería distinto en cada build y peor que no tenerlo.
@@ -46,7 +56,7 @@ export const KNOWN_KEYS: Record<string, string> = {
   note: 'note',
 };
 
-/** Claves de ads. Espejo de `AD_CLAVES` en scripts/sync-notion.py. */
+/** Claves de ads. Espejo de `AD_CLAVES` en el sync (otro repo, ver arriba). */
 export const AD_KEYS: Record<string, string> = {
   'buyer persona': 'persona',
   persona: 'persona',

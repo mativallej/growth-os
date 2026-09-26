@@ -4,7 +4,8 @@ import { repoRoot } from './repo';
 
 // LOS DESTINOS DEL WORKSPACE DE COORDINACIÓN, en un solo lugar.
 //
-// Estaban hardcodeados en `scripts/sync-notion.py` y `sync-notion-docs.py`, cada
+// Estaban hardcodeados en los scripts del sync (hoy en tegu-labs/tegu-growth,
+// que tiene su propia copia de este archivo), cada
 // uno con su copia. Dos copias de un identificador es una que se va a quedar
 // vieja, y además son exactamente lo que `public-release` tiene que sacar del
 // código antes de abrir el repo: un id de workspace no es un secreto, pero es

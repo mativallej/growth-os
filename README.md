@@ -60,32 +60,38 @@ información.
 
 ## ⚠️ Las operaciones que escriben en tus archivos
 
-Tres cosas de este repo pueden modificar tu vault. Las tres son **dry-run por
-defecto** y ninguna escribe sin `--apply`:
+Una cosa de este repo puede modificar tu vault, y es **dry-run por defecto**:
 
 | script | qué escribe | cómo previsualizarlo |
 |---|---|---|
-| `scripts/backfill-piece-id.py` | un `id` en el footer de cada pieza que no lo tiene (~275 archivos) | corré sin `--apply` |
-| `scripts/sync-notion.py` | el estado del kanban de vuelta al `.md` | corré sin `--apply` |
-| `scripts/reconciliar-llaves.py` | nada en el vault; re-llavea filas del tablero | corré sin `--apply` |
+| `scripts/backfill-piece-id.py` | un `id` en el footer de cada pieza que no lo tiene | corré sin `--apply` |
 
-Los dos primeros **abortan si el vault tiene cambios sin commitear**, y no es una
-precaución: se intentó una vez contra un vault que otra sesión estaba
-reorganizando, y las 14 escrituras estaban muertas minutos después.
+**Aborta si el vault tiene cambios sin commitear**, y no es una precaución: se
+intentó una vez contra un vault que otra sesión estaba reorganizando, y las 14
+escrituras estaban muertas minutos después.
+
+Los scripts del sync con el tablero —`sync-notion.py`, `sync-notion-docs.py`,
+`reconciliar-llaves.py`— **se mudaron a `tegu-labs/tegu-growth`** el 2026-09-26.
+El disparador de un sync es que cambió el contenido, y el contenido está allá.
 
 **Commiteá tu vault antes de correr cualquiera con `--apply`**, y revisá el diff
 allá antes de quedártelo.
 
-## La consola de operaciones
+## La pantalla de configuración
 
-Prepara cada operación y la entrega a una sesión local, con su contexto y qué
-revisar antes de aplicar. **No existe fuera del entorno local**: sus archivos
-usan una extensión que solo entra en `pageExtensions` con la variable puesta, así
-que en un build compartido no hay ruta ni manejador.
+Las credenciales, las conexiones, qué cuenta como viral en cada red, y agregar o
+quitar vaults. **No existe fuera del entorno local**: su archivo usa una
+extensión que solo entra en `pageExtensions` con la variable puesta, así que en
+un build compartido no hay ruta ni manejador.
 
 ```bash
-GROWTH_CONSOLE=1 npm run dev     # → /operar y /configuracion
+npm run dev:local     # → /configuracion
 ```
+
+> La consola de operaciones (`/operar`) se quitó el 2026-09-26. Una pantalla que
+> abre sesiones y ejecuta comandos en la máquina no puede vivir en algo que se
+> deploya con autenticación, y mantener dos modos del mismo producto costaba más
+> que mover esas operaciones a los scripts y a CI.
 
 ## Compartir un build sin compartirlo todo
 

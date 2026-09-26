@@ -25,53 +25,43 @@ function archivos(dir: string, out: string[] = []): string[] {
 
 const FUENTES = archivos(SRC).map((p) => ({ rel: relative(SRC, p), txt: readFileSync(p, 'utf8') }));
 
-// Las TRES únicas cosas que la plataforma escribe, y ninguna es contenido:
+// LO ÚNICO QUE LA PLATAFORMA ESCRIBE ES SU PROPIA CONFIGURACIÓN.
 //
-//   ideas-queue  la cola local de ideas — material de entrada que aportó la
-//                persona, no trabajo creativo
-//   handoff      el contexto que recibe una sesión local
-//   config-env   `.env.local`, y solo desde la pantalla de configuración, que no
-//                existe fuera del entorno local
-//   marcar-corrida  `.state/last-run-<id>.json` — hace cuánto corrió cada
-//                operación. Es la mitigación de haber apagado todo lo agendado:
-//                si nada corre solo, lo que puede pasar es que nadie apriete el
-//                botón, y esto es lo que hace que se note
+// Hasta el 2026-09-26 eran cinco módulos y dos escribían cosas que no eran
+// config: la cola de ideas y el contexto de una sesión local. Los dos vivían
+// detrás de `/operar`, que se quitó al volver esto un visualizador que se
+// deploya. Lo que quedó es una frontera más simple de defender:
 //
-// Ninguna escribe un `.md`, y ninguna conoce la ubicación de un vault: eso lo
-// verifican los dos tests de abajo. Sumar un cuarto escritor tiene que ser una
-// decisión, no un descuido — por eso este test compara el conjunto exacto.
+//   config-env       `.env.local` — credenciales, solo desde la pantalla local
+//   config-marcas    `config/sources.json` — DÓNDE están los vaults
+//   config-viralidad `config/viralidad.json` — qué cuenta como viral por canal
+//
+// Ninguno escribe un `.md`, ninguno escribe adentro de un vault, y los tres son
+// archivos DEL REPO. Sumar un cuarto escritor tiene que ser una decisión y no un
+// descuido: por eso el test compara el conjunto EXACTO y no "al menos estos".
 const PUEDEN_ESCRIBIR = new Set([
-  'lib/ideas-queue.ts',
-  'lib/handoff.ts',
   'lib/config-env.ts',
-  'lib/marcar-corrida.ts',
-  // config/sources.json, y solo desde la pantalla de configuración. Escribe la
-  // DECLARACIÓN de dónde están los vaults — nunca adentro de uno.
   'lib/config-marcas.ts',
-  // config/viralidad.json: el criterio de qué cuenta como viral en cada red.
-  // Es un archivo del REPO, no de un vault, y no contiene contenido de nadie.
   'lib/config-viralidad.ts',
 ]);
 
 // Los que NO pueden siquiera conocer la ubicación de un vault.
 //
 // `config-env` sí resuelve la raíz del REPO (para `.env.local`), que es distinto
-// de conocer la de un vault.
+// de conocer la de un vault. `config-viralidad` igual, para `config/`.
 //
 // `config-marcas` queda AFUERA a propósito: es el único módulo cuyo trabajo es
-// declarar dónde están los vaults, así que tiene que conocer sus rutas. Lo que
-// no puede es escribir adentro de uno, y eso lo verifica su propio test.
+// declarar dónde están los vaults, así que tiene que conocer sus rutas. Lo que no
+// puede es escribir adentro de uno, y eso lo verifica su propio test.
 const SIN_VAULTS = new Set([
-  'lib/ideas-queue.ts',
-  'lib/handoff.ts',
   'lib/config-env.ts',
-  'lib/marcar-corrida.ts',
+  'lib/config-viralidad.ts',
 ]);
 
 const ESCRITURAS = /\b(writeFileSync|appendFileSync|createWriteStream|writeFile|unlinkSync|rmSync|cpSync|copyFileSync)\b/;
 
 describe('la plataforma no es donde se hace el trabajo creativo', () => {
-  it('solo cinco módulos escriben en disco, y ninguno toca un vault', () => {
+  it('solo escriben los módulos de configuración, y ninguno toca un vault', () => {
     const escriben = FUENTES.filter((f) => ESCRITURAS.test(f.txt)).map((f) => f.rel);
     expect(new Set(escriben)).toEqual(PUEDEN_ESCRIBIR);
   });

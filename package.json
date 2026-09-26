@@ -10,8 +10,7 @@
     "build:compartido": "GROWTH_SOURCES=tegu next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest run && npm run test:py",
-    "test:py": "python3 scripts/test_sync_notion.py",
+    "test": "vitest run",
     "audit": "node scripts/audit-vaults.mjs"
   },
   "dependencies": {

@@ -101,7 +101,8 @@ export function normalizeStatus(raw: string | undefined | null): Status {
   if (/\bdraft\b|\bborrador\b/.test(s)) return 'draft';
   if (/\bidea\b/.test(s)) return 'idea';
   if (/\bbacklog\b/.test(s)) return 'backlog';
-  // Mismo criterio que `estado_post` en scripts/sync-notion.py: evidencia de que
+  // Mismo criterio que `estado_post` en el sync (scripts/sync-notion.py de
+  // tegu-labs/tegu-growth): evidencia de que
   // alguien la está trabajando, sin ser evidencia de publicación.
   if (/\blisto\b|\bpendiente\b|\bgrabar\b|\bgrabado\b|\bfalta\b/.test(s)) return 'in-progress';
   return 'unknown';
