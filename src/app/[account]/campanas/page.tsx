@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import PageHeader from "@/components/PageHeader";
 import CampanasClient, {
   type CreativoRow,
-  type PersonaFila,
+  type PersonaEje,
 } from "@/components/CampanasClient";
 import { findSource } from "@/lib/sources";
 import { adCoverage, adUniverse, loadAdsBySource } from "@/lib/ads";
@@ -36,38 +35,21 @@ export default async function CampanasPage({ params }: { params: Promise<{ accou
     );
   }
 
-  // La matriz se arma por persona × ángulo: persona × dolor × ángulo da 72
-  // celdas con 62 en cero, y una grilla casi vacía se lee como un error de la
-  // app en vez de como el hueco que es. El dolor no se pierde — es una columna
-  // del detalle, que ahora existe.
-  const porPersonaAngulo = new Map<string, number>();
-  const porPersona = new Map<string, number>();
-  for (const c of creatives) {
-    if (!c.persona) continue;
-    porPersona.set(c.persona, (porPersona.get(c.persona) ?? 0) + 1);
-    if (c.angulo) {
-      const k = `${c.persona}\u0000${c.angulo}`;
-      porPersonaAngulo.set(k, (porPersonaAngulo.get(k) ?? 0) + 1);
-    }
-  }
-  const sinCreativos = cov.personas.filter((p) => !porPersona.get(p));
-
-  const filas: PersonaFila[] = cov.personas.map((persona) => {
-    const dolores = universo.find((u) => u.persona === persona)?.dolores ?? [];
-    const cubiertos = new Set(
-      creatives.filter((c) => c.persona === persona && c.dolor).map((c) => c.dolor!),
-    );
-    return {
-      persona,
-      publico: universo.find((u) => u.persona === persona)?.publico,
-      dolores: dolores.length,
-      cubiertos: cubiertos.size,
-      porAngulo: Object.fromEntries(
-        cov.angulos.map((a) => [a, porPersonaAngulo.get(`${persona}\u0000${a}`) ?? 0]),
-      ),
-      total: porPersona.get(persona) ?? 0,
-    };
-  });
+  // EL EJE, que sale del framework del vault y NO de los creativos: las personas
+  // y sus dolores son lo que SE PODRÍA cubrir. La matriz en sí la calcula el
+  // cliente, porque se recalcula con cada filtro — filtrar por ronda tiene que
+  // responder "cómo quedó la cobertura EN esa ronda", no solo mostrar esos
+  // creativos.
+  //
+  // El eje es persona × ángulo y no persona × dolor × ángulo: eso último da 72
+  // celdas con 62 en cero, y una grilla casi vacía se lee como un error de la app
+  // en vez de como el hueco que es. El dolor no se pierde — es una columna del
+  // detalle y un filtro.
+  const eje: PersonaEje[] = cov.personas.map((persona) => ({
+    persona,
+    publico: universo.find((u) => u.persona === persona)?.publico,
+    dolores: universo.find((u) => u.persona === persona)?.dolores ?? [],
+  }));
 
   // Solo los campos que la tabla muestra. Un `Creative` entero lleva `path`
   // absoluto, y eso es la ruta del disco de alguien: no tiene por qué viajar al
@@ -101,41 +83,7 @@ export default async function CampanasPage({ params }: { params: Promise<{ accou
         subtitle={`${source.label} · ${num(creatives.length)} creativos · persona × dolor × ángulo`}
       />
 
-      {/* El aviso va primero y es parte del dato, no una nota al pie: sin esto
-          alguien lee la matriz como rendimiento y no lo es. */}
-      <Card className="mb-5">
-        <CardContent className="p-4">
-          <p className="text-[13px] leading-relaxed">
-            <strong>Esto es cobertura, no rendimiento.</strong> Ningún creativo tiene
-            números cargados todavía: son briefs. Un creativo no se mide con las métricas
-            del orgánico —pesan hook-rate, CTR y costo por resultado, no saves ni
-            shares— y esas son derivadas que el contrato no escribe, porque{" "}
-            <em>quién decide qué es caro o barato es una persona, no una fórmula</em>.
-          </p>
-        </CardContent>
-      </Card>
-
-      {sinCreativos.length > 0 && (
-        <Card className="mb-5">
-          <CardContent className="p-4">
-            <div className="text-sm">
-              <strong className="tabular-nums">{sinCreativos.length}</strong> de{" "}
-              {cov.personas.length} buyer personas <strong>sin un solo creativo</strong>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {sinCreativos.map((p) => (
-                <Badge key={p} variant="outline">{p}</Badge>
-              ))}
-            </div>
-            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-              Una persona sin creativos no tiene fila en ningún tablero de campañas:
-              solo aparece cruzando el framework contra lo producido.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      <CampanasClient filas={filas} angulos={cov.angulos} creativos={creativos} />
+      <CampanasClient eje={eje} angulos={cov.angulos} creativos={creativos} />
 
       <div className="mt-4 space-y-1.5 text-[11px] leading-relaxed text-muted-foreground/70">
         <p>

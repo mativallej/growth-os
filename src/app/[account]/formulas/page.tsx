@@ -1,13 +1,36 @@
 import { notFound } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import PageHeader from "@/components/PageHeader";
-import BarList from "@/components/BarList";
+import FormulasClient, {
+  type FilaFormula,
+  type PiezaDeFormula,
+} from "@/components/FormulasClient";
 import { loadPieces } from "@/lib/parse";
 import { findSource } from "@/lib/sources";
-import { loadFormulas } from "@/lib/formulas";
-import { formulaUsage } from "@/lib/rollups";
-import { num } from "@/lib/metrics";
+import { formulaCodeOf, loadFormulas } from "@/lib/formulas";
+import { num, primaryReach } from "@/lib/metrics";
+
+/**
+ * Qué fórmulas se usaron y cuáles nunca.
+ *
+ * Es lo que Notion no puede dar ni en principio: una fórmula sin estrenar no
+ * tiene fila en ninguna base. Solo aparece cruzando el catálogo del vault contra
+ * las piezas producidas.
+ */
+
+/** La mediana, y no el promedio. Con una pieza de 178.768 y tres de 2.000, el
+ *  promedio dice 46.000 y ninguna pieza se parece a eso. */
+function mediana(xs: number[]): number | null {
+  if (xs.length === 0) return null;
+  const a = [...xs].sort((x, y) => x - y);
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2);
+}
+
+const COBERTURA: Record<string, string> = {
+  tracked: "medida",
+  pending: "pendiente",
+  untracked: "sin trackear",
+};
 
 export default async function FormulasPage({ params }: { params: Promise<{ account: string }> }) {
   const { account } = await params;
@@ -16,91 +39,81 @@ export default async function FormulasPage({ params }: { params: Promise<{ accou
 
   const pieces = loadPieces([source]);
   const catalogo = loadFormulas();
-  const { used, unused, unclassified } = formulaUsage(pieces, catalogo.formulas);
-  const fueraDeCatalogo = used.filter((f) => f.channel === "unknown");
+
+  // Las piezas agrupadas por su código. Una pieza sin código no entra en ninguna
+  // fórmula, y NO se le adivina una por el parecido del nombre: una mal
+  // clasificada haría figurar como usada una fórmula que nunca se estrenó, que
+  // es justo el hallazgo que esta vista existe para dar.
+  const porCodigo = new Map<string, PiezaDeFormula[]>();
+  // Se cuentan aunque no se muestren: el `continue` de abajo es lo que impide
+  // que una pieza sin código entre a una fórmula por parecido, y el contador deja
+  // el criterio visible para quien lea esto.
+  let sinClasificar = 0;
+  for (const p of pieces) {
+    const code = formulaCodeOf(p, catalogo.formulas);
+    if (!code) {
+      sinClasificar++;
+      continue;
+    }
+    const alcance = primaryReach(p);
+    porCodigo.set(code, [
+      ...(porCodigo.get(code) ?? []),
+      {
+        slug: p.slug,
+        title: p.title,
+        href: `/${account}/piezas/${p.slug}`,
+        canal: p.channel,
+        publishedAt: p.publishedAt ?? "",
+        estado: p.estado ?? p.status,
+        cobertura: COBERTURA[p.coverage] ?? p.coverage,
+        alcance,
+        alcanceFmt: num(alcance),
+        medida: alcance !== null,
+      },
+    ]);
+  }
+
+  const arma = (
+    code: string,
+    name: string,
+    channel: string,
+    estado: FilaFormula["estado"],
+  ): FilaFormula => {
+    const piezas = (porCodigo.get(code) ?? []).sort((a, b) =>
+      (b.publishedAt || "").localeCompare(a.publishedAt || ""),
+    );
+    const med = mediana(piezas.map((x) => x.alcance).filter((x): x is number => x !== null));
+    return {
+      code,
+      name,
+      channel,
+      estado,
+      piezas,
+      medidas: piezas.filter((x) => x.medida).length,
+      mediana: med,
+      medianaFmt: num(med),
+    };
+  };
+
+  const filas: FilaFormula[] = catalogo.formulas.map((f) =>
+    arma(f.code, f.name, f.channel, (porCodigo.get(f.code)?.length ?? 0) > 0 ? "usada" : "sin-estrenar"),
+  );
+
+  // Un código usado que el catálogo no declara igual se muestra: es una familia
+  // de fórmulas que esta marca usa y que el catálogo todavía no documenta.
+  // Esconderla perdería piezas del conteo y escondería el hallazgo.
+  for (const code of porCodigo.keys()) {
+    if (!filas.some((f) => f.code === code)) {
+      filas.push(arma(code, code, "unknown", "fuera-de-catalogo"));
+    }
+  }
+
+  void sinClasificar;
 
   return (
     <>
-      <PageHeader
-        title="Fórmulas"
-        subtitle={`${source.label} · uso por código, incluidas las que nunca se estrenaron`}
-      />
-
-      {/* Esto es lo que Notion no puede dar ni en principio: una fórmula sin
-          estrenar no tiene fila en ninguna base. Solo aparece cruzando el
-          catálogo contra las piezas — por eso va primero. */}
-      <Card className="mb-5">
-        <CardContent className="p-5">
-          <h3 className="mb-1 text-xs font-medium text-muted-foreground">Sin estrenar</h3>
-          {unused.length === 0 ? (
-            <p className="text-[13px] text-muted-foreground">
-              Todas las fórmulas del catálogo tienen al menos una pieza.
-            </p>
-          ) : (
-            <>
-              <p className="mb-3 text-[13px] leading-relaxed text-muted-foreground">
-                <strong className="text-foreground tabular-nums">{num(unused.length)}</strong>{" "}
-                fórmulas del catálogo sin una sola pieza en esta marca.
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {unused.map((f) => (
-                  <Badge key={f.code} variant="outline" title={f.name}>
-                    <span className="font-mono">{f.code}</span>
-                    <span className="ml-1.5 max-w-[16ch] truncate text-muted-foreground">{f.name}</span>
-                  </Badge>
-                ))}
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-5">
-          <h3 className="mb-4 text-xs font-medium text-muted-foreground">
-            Uso ({num(used.length)} códigos)
-          </h3>
-          <BarList
-            items={used.map((f) => ({ label: f.code, value: f.count }))}
-            labelClassName="w-16 font-mono"
-            empty="Ninguna pieza tiene un código de fórmula asignado."
-          />
-        </CardContent>
-      </Card>
-
-      {fueraDeCatalogo.length > 0 && (
-        <p className="mt-4 text-[13px] leading-relaxed text-muted-foreground">
-          <strong className="text-foreground">{num(fueraDeCatalogo.length)}</strong> códigos
-          usados ({fueraDeCatalogo.map((f) => f.code).join(", ")}) <strong>no están en el
-          catálogo</strong>. No es un error de clasificación: son familias de fórmula que
-          esta marca usa y que el catálogo todavía no documenta.
-        </p>
-      )}
-
-      {unclassified > 0 && (
-        <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-          <strong className="text-foreground tabular-nums">{num(unclassified)}</strong> de{" "}
-          {num(pieces.length)} piezas <strong>sin clasificar</strong>: no declaran un código
-          en el footer ni viven en una carpeta que nombre uno.{" "}
-          <span className="text-muted-foreground/70">
-            No se les adivina uno por el parecido del nombre — una pieza mal clasificada
-            haría figurar como usada una fórmula que en realidad nunca se estrenó, que es
-            justo lo que esta vista existe para mostrar.
-          </span>
-        </p>
-      )}
-
-      <p className="mt-4 text-[11px] text-muted-foreground/70">
-        Catálogo:{" "}
-        {catalogo.origin === "catalogo" ? (
-          <>leído del vault · {num(catalogo.formulas.length)} fórmulas</>
-        ) : (
-          <>
-            <strong>no se encontró</strong> — se usan los códigos de reserva, sin sus
-            nombres. Apuntalo con <code>CATALOG_DIR</code>.
-          </>
-        )}
-      </p>
+      <PageHeader title="Fórmulas" />
+      <FormulasClient filas={filas} />
     </>
   );
 }
