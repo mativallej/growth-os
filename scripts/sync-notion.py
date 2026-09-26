@@ -398,6 +398,43 @@ def guardar_enlaces(brand, filas, apply_):
     print("  ✓ correspondencia guardada: %d filas en .state/" % len(previas))
 
 
+
+# ── el freno de mudanza ───────────────────────────────────────────────────────
+
+# Cuántas filas huérfanas alcanzan para sospechar de una mudanza. Con 3 puede ser
+# que alguien borró tres piezas; con 20 y encima 20 archivos nuevos sin fila, lo
+# que pasó es que el vault se reorganizó.
+UMBRAL_HUERFANAS = 8
+
+
+def detectar_mudanza(huerfanas, sin_fila, total_filas):
+    """(frena, mensaje). Una mudanza se ve como huérfanas Y archivos sin fila a la vez.
+
+    Por qué existe: el 2026-09-24 se fusionaron los dos pipelines de contenido de
+    Tegu y 57 filas quedaron apuntando a archivos que ya no estaban. El sync no se
+    dio cuenta: para él eran 57 piezas borradas y 93 nuevas, así que el siguiente
+    --apply habría creado 93 filas duplicadas y dejado las 57 huérfanas.
+
+    Muchas huérfanas SOLAS pueden ser un borrado real. Muchas huérfanas MÁS muchos
+    archivos sin fila es otra cosa: las mismas piezas en otro lado."""
+    if len(huerfanas) < UMBRAL_HUERFANAS or len(sin_fila) < UMBRAL_HUERFANAS:
+        return False, ""
+    pct = (100.0 * len(huerfanas) / total_filas) if total_filas else 0
+    return True, (
+        "FRENO: esto parece una mudanza del vault, no piezas borradas.\n\n"
+        "  %d filas del tablero apuntan a archivos que no existen (%.0f%% del tablero)\n"
+        "  %d archivos del vault no tienen fila\n\n"
+        "Aplicar ahora crearía %d filas duplicadas y dejaría %d huérfanas, con su\n"
+        "estado del kanban y su historial adentro.\n\n"
+        "Qué hacer:\n"
+        "  1. python3 scripts/reconciliar-llaves.py --brand <marca>   (dry-run)\n"
+        "  2. revisar los emparejamientos que propone\n"
+        "  3. volver a correr el sync\n\n"
+        "Para saltear este freno a sabiendas: --sin-freno"
+        % (len(huerfanas), pct, len(sin_fila), len(sin_fila), len(huerfanas))
+    )
+
+
 def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion, ads_root=""):
     ds = destino_ref("ads" if kind == "ads" else "contenido")
     titulo = "Creativo" if kind == "ads" else "Pieza"
@@ -417,6 +454,7 @@ def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion, ads_root
 
     nuevas = [pid for pid in sorted(por_id) if pid not in remote]
     existentes = [pid for pid in sorted(por_id) if pid in remote]
+    huerfanas = [pid for pid in remote if pid not in por_id]
     print("\n%s · marca %s (Notion: %s)" % (kind.upper(), brand, marca))
     print("  en el vault: %d (%d con id) · filas en Notion: %d (%d con ID)"
           % (len(local), len(por_id), len(remote) + len(sin_llave), len(remote)))
@@ -444,6 +482,10 @@ def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion, ads_root
               % len(mudadas))
         for pid, k in mudadas[:5]:
             print("     %s  %s → %s" % (pid, remote[pid]["archivo"] or "(vacío)", k))
+
+    frena, aviso = detectar_mudanza(huerfanas, nuevas, len(remote) + len(sin_llave))
+    if frena and not os.environ.get("GROWTH_SIN_FRENO"):
+        sys.exit("\n" + aviso)
 
     devuelta = []
     if not only_to_notion:
@@ -543,6 +585,10 @@ def main():
     ap.add_argument("--brand", required=True)
     ap.add_argument("--scope", choices=SCOPES, help="si se omite, pregunta")
     ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--sin-freno", action="store_true",
+                    help="saltea el freno de mudanza. Solo a sabiendas: el freno "
+                         "existe porque una reorganización del vault dejó 57 filas "
+                         "huérfanas y el sync no se dio cuenta")
     ap.add_argument("--only-to-notion", action="store_true",
                     help="no escribe el estado de vuelta al vault")
     ap.add_argument("--all-history", action="store_true",

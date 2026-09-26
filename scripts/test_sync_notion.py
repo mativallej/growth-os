@@ -226,5 +226,35 @@ class DestinosDesdeConfig(unittest.TestCase):
         self.assertIn("no-existe", str(cm.exception))
 
 
+class FrenoDeMudanza(unittest.TestCase):
+    """El freno que faltó el 2026-09-24, cuando 57 filas quedaron huérfanas."""
+
+    def test_una_mudanza_frena(self):
+        # Muchas huérfanas Y muchos archivos sin fila a la vez: son las mismas
+        # piezas en otro lado, no 57 borradas y 93 nuevas.
+        frena, msg = sn.detectar_mudanza(["h%d" % i for i in range(57)],
+                                         ["n%d" % i for i in range(93)], 128)
+        self.assertTrue(frena)
+        self.assertIn("57 filas", msg)
+        self.assertIn("93 filas duplicadas", msg)
+        # El mensaje tiene que decir QUÉ HACER, no solo que algo está mal.
+        self.assertIn("reconciliar-llaves.py", msg)
+
+    def test_unos_pocos_borrados_NO_frenan(self):
+        # Tres huérfanas y tres nuevas es un martes normal.
+        frena, _ = sn.detectar_mudanza(["a", "b", "c"], ["x", "y", "z"], 128)
+        self.assertFalse(frena)
+
+    def test_muchas_huerfanas_SOLAS_no_frenan(self):
+        # Sin archivos nuevos que las expliquen, un borrado masivo puede ser real.
+        frena, _ = sn.detectar_mudanza(["h%d" % i for i in range(40)], [], 128)
+        self.assertFalse(frena)
+
+    def test_el_caso_normal_de_piezas_nuevas_no_frena(self):
+        # Diez piezas nuevas y ninguna huérfana: no hay nada que reconciliar.
+        frena, _ = sn.detectar_mudanza([], ["n%d" % i for i in range(10)], 128)
+        self.assertFalse(frena)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
