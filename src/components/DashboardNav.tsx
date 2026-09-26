@@ -14,6 +14,7 @@ const nav = [
   { sub: "deuda", label: "Deuda" },
   { sub: "formulas", label: "Fórmulas" },
   { sub: "ranking", label: "Ranking" },
+  { sub: "campanas", label: "Campañas" },
 ];
 
 /**

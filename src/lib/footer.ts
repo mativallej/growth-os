@@ -52,6 +52,8 @@ export const AD_KEYS: Record<string, string> = {
   angulo: 'angulo',
   ronda: 'ronda',
   cta: 'cta',
+  creativo: 'creativo',
+  formato: 'formato',
 };
 
 /** Métricas que el vault personal escribe como bullets sueltos de primer nivel. */

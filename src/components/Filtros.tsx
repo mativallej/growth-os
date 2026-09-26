@@ -9,26 +9,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import MultiSelect, { type Opcion } from "@/components/MultiSelect";
+import RangoFechas, { type Rango } from "@/components/RangoFechas";
 
 /**
  * La barra de filtros, compartida por las vistas de lista.
  *
- * Todo en UNA fila arriba de los datos, y todo del lado del cliente: la marca es
- * la ruta (es la frontera de privacidad), y las facetas son estado del
- * navegador. Un filtro que necesita ir al servidor haría dinámica una página que
- * hoy es estática, y eso es lo que sostiene el aislamiento entre marcas.
+ * Las FACETAS son multi-select: la pregunta real casi nunca es "Instagram o
+ * Twitter", es "Instagram y Twitter, sin Blog". Un dropdown de opción única
+ * obliga a mirar de a una y a perder la comparación, que es el punto.
  *
- * Los valores posibles salen de los datos, no de una lista fija: un canal nuevo
- * en el vault aparece solo.
+ * El ORDEN sí es de opción única, porque una lista se ordena por un criterio a
+ * la vez.
+ *
+ * Todo del lado del cliente: la marca es la ruta (es la frontera de privacidad),
+ * y las facetas son estado del navegador. Un filtro que necesita ir al servidor
+ * haría dinámica una página que hoy es estática, y eso es lo que sostiene el
+ * aislamiento entre marcas.
  */
 
-export type Opcion = { value: string; label: string; count?: number };
+export type { Opcion };
 
 export type EstadoFiltros = {
   q: string;
-  canal: string;
-  formula: string;
-  cobertura: string;
+  canales: string[];
+  formulas: string[];
+  coberturas: string[];
   desde: string;
   hasta: string;
   orden: string;
@@ -36,49 +42,19 @@ export type EstadoFiltros = {
 
 export const FILTROS_VACIOS: EstadoFiltros = {
   q: "",
-  canal: "",
-  formula: "",
-  cobertura: "",
+  canales: [],
+  formulas: [],
+  coberturas: [],
   desde: "",
   hasta: "",
   orden: "",
 };
 
-function Combo({
-  valor,
-  onChange,
-  opciones,
-  placeholder,
-  ancho = "w-[8.5rem]",
-}: {
-  valor: string;
-  onChange: (v: string) => void;
-  opciones: Opcion[];
-  placeholder: string;
-  ancho?: string;
-}) {
-  if (opciones.length === 0) return null;
-  return (
-    // El valor vacío no puede ser "" en Radix, así que el "todos" viaja como
-    // centinela y se traduce en el borde.
-    <Select value={valor || "__todos"} onValueChange={(v) => onChange(v === "__todos" ? "" : v)}>
-      <SelectTrigger className={ancho} aria-label={placeholder}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__todos">{placeholder}</SelectItem>
-        {opciones.map((o) => (
-          <SelectItem key={o.value} value={o.value}>
-            {o.label}
-            {o.count !== undefined && (
-              <span className="ml-1.5 tabular-nums text-muted-foreground">{o.count}</span>
-            )}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
+const COBERTURAS: Opcion[] = [
+  { value: "tracked", label: "Medidas" },
+  { value: "pending", label: "Pendientes" },
+  { value: "untracked", label: "Sin trackear" },
+];
 
 export default function Filtros({
   estado,
@@ -101,8 +77,14 @@ export default function Filtros({
   resultados: number;
   total: number;
 }) {
-  const set = (k: keyof EstadoFiltros) => (v: string) => onChange({ ...estado, [k]: v });
-  const sucio = Object.values(estado).some(Boolean);
+  const set = <K extends keyof EstadoFiltros>(k: K) => (v: EstadoFiltros[K]) =>
+    onChange({ ...estado, [k]: v });
+
+  const sucio =
+    Boolean(estado.q || estado.desde || estado.hasta || estado.orden) ||
+    estado.canales.length > 0 ||
+    estado.formulas.length > 0 ||
+    estado.coberturas.length > 0;
 
   return (
     <div className="mb-4 space-y-2">
@@ -111,47 +93,50 @@ export default function Filtros({
           value={estado.q}
           onChange={(e) => set("q")(e.target.value)}
           placeholder="Buscar…"
-          className="h-8 w-full text-xs sm:w-56"
+          className="h-8 w-full text-xs sm:w-48"
           aria-label="Buscar"
         />
 
-        <Combo valor={estado.canal} onChange={set("canal")} opciones={canales} placeholder="Todas las redes" />
-        <Combo valor={estado.formula} onChange={set("formula")} opciones={formulas} placeholder="Toda fórmula" />
-
+        <MultiSelect titulo="Red" opciones={canales} valor={estado.canales} onChange={set("canales")} />
+        <MultiSelect
+          titulo="Fórmula"
+          opciones={formulas}
+          valor={estado.formulas}
+          onChange={set("formulas")}
+          buscable
+        />
         {conCobertura && (
-          <Combo
-            valor={estado.cobertura}
-            onChange={set("cobertura")}
-            placeholder="Toda cobertura"
-            ancho="w-[9.5rem]"
-            opciones={[
-              { value: "tracked", label: "Medidas" },
-              { value: "pending", label: "Pendientes" },
-              { value: "untracked", label: "Sin trackear" },
-            ]}
+          <MultiSelect
+            titulo="Cobertura"
+            opciones={COBERTURAS}
+            valor={estado.coberturas}
+            onChange={set("coberturas")}
           />
         )}
 
-        <Combo valor={estado.orden} onChange={set("orden")} opciones={ordenes} placeholder="Ordenar" ancho="w-[10rem]" />
+        {/* Una lista se ordena por UN criterio: acá la opción única es correcta. */}
+        <Select
+          value={estado.orden || "__defecto"}
+          onValueChange={(v) => set("orden")(v === "__defecto" ? "" : v)}
+        >
+          <SelectTrigger className="w-[9.5rem]" aria-label="Ordenar">
+            <SelectValue placeholder="Ordenar" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__defecto">Orden por defecto</SelectItem>
+            {ordenes.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {conFechas && (
-          <div className="flex items-center gap-1.5">
-            <Input
-              type="date"
-              value={estado.desde}
-              onChange={(e) => set("desde")(e.target.value)}
-              className="h-8 w-[8.5rem] text-xs"
-              aria-label="Publicadas desde"
-            />
-            <span className="text-xs text-muted-foreground">→</span>
-            <Input
-              type="date"
-              value={estado.hasta}
-              onChange={(e) => set("hasta")(e.target.value)}
-              className="h-8 w-[8.5rem] text-xs"
-              aria-label="Publicadas hasta"
-            />
-          </div>
+          <RangoFechas
+            valor={{ desde: estado.desde, hasta: estado.hasta } as Rango}
+            onChange={(r) => onChange({ ...estado, desde: r.desde, hasta: r.hasta })}
+          />
         )}
 
         {sucio && (
@@ -174,7 +159,10 @@ export default function Filtros({
   );
 }
 
-/** El filtrado en sí, compartido para que las dos vistas filtren igual. */
+/**
+ * El filtrado, compartido para que las dos vistas filtren igual.
+ * Una faceta vacía NO filtra: sin selección se ve todo, no nada.
+ */
 export function aplicarFiltros<
   T extends {
     search: string;
@@ -185,11 +173,14 @@ export function aplicarFiltros<
   },
 >(filas: T[], f: EstadoFiltros): T[] {
   const q = f.q.trim().toLowerCase();
+  const canales = new Set(f.canales);
+  const formulas = new Set(f.formulas);
+  const coberturas = new Set(f.coberturas);
   return filas.filter((r) => {
     if (q && !r.search.includes(q)) return false;
-    if (f.canal && r.canal !== f.canal) return false;
-    if (f.formula && r.formulaCode !== f.formula) return false;
-    if (f.cobertura && r.coverage !== f.cobertura) return false;
+    if (canales.size && !canales.has(r.canal)) return false;
+    if (formulas.size && !formulas.has(r.formulaCode)) return false;
+    if (coberturas.size && !coberturas.has(r.coverage)) return false;
     if (f.desde && (!r.publishedAt || r.publishedAt < f.desde)) return false;
     if (f.hasta && (!r.publishedAt || r.publishedAt > f.hasta)) return false;
     return true;

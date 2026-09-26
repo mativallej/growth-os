@@ -200,6 +200,12 @@ def ad_fields(rel, f, vault, ads_root):
     out = {}
 
     publico = _limpio(f.get("publico"))
+    # `buyer persona: Sofía (Cliente)` trae el público adentro del paréntesis.
+    # Leerlo de ahí es leer lo declarado; caer a la carpeta ya es derivar.
+    if not publico:
+        m = re.search(r"\(([^)]+)\)\s*$", f.get("persona") or "")
+        if m and m.group(1).strip().lower() in ("cliente", "profesional"):
+            publico = m.group(1).strip().capitalize()
     if not publico and len(parts) > 2 and parts[2] in ("Cliente", "Profesional"):
         publico, _ = parts[2], derivados.append("público")
     if publico in ("Cliente", "Profesional"):
@@ -232,6 +238,11 @@ def ad_fields(rel, f, vault, ads_root):
         if needle in fmt:
             out["Formato"] = {"select": {"name": val}}
             break
+
+    # El CTA es textual y no se normaliza: es el copy exacto del creativo.
+    cta = (f.get("cta") or "").strip().strip('"').strip()
+    if cta:
+        out["CTA"] = txt(cta)
 
     out["Plataforma"] = {"select": {"name": "Meta"}}
     return out, derivados

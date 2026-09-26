@@ -11,6 +11,14 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import Filtros, {
   aplicarFiltros,
   FILTROS_VACIOS,
@@ -23,8 +31,13 @@ import Filtros, {
  * métricas. Esconder las no medidas es lo que hacía que el agujero real —el
  * canal casi vacío— no se viera.
  *
- * Por eso acá el filtro de cobertura importa más que en Piezas: es cómo se pasa
- * de "295 archivos" a "estas 42 están publicadas y sin medir".
+ * DOS VISTAS, y la de tablero NO duplica el kanban de coordinación.
+ *
+ * El tablero de Notion agrupa por el carril operativo y tiene corte a 60 días:
+ * es para coordinar qué se está produciendo. Este agrupa por las dimensiones que
+ * Notion NO tiene —cobertura de medición, fórmula, canal— sobre las piezas
+ * completas, incluidas las viejas que allá ya no suben. Si lo único que se
+ * quiere es mover una tarjeta de carril, eso se hace en Notion.
  */
 
 export type InventarioRow = {
@@ -55,6 +68,29 @@ const COBERTURA: Record<string, { label: string; variant: "success" | "secondary
   untracked: { label: "sin trackear", variant: "outline" },
 };
 
+/** Las dimensiones por las que se puede agrupar el tablero. */
+type Agrupacion = "coverage" | "status" | "canal" | "formulaCode";
+
+const AGRUPACIONES: { value: Agrupacion; label: string; orden: string[] }[] = [
+  { value: "coverage", label: "Cobertura", orden: ["tracked", "pending", "untracked"] },
+  { value: "status", label: "Estado", orden: ["published", "in-progress", "draft", "idea", "backlog", "unknown"] },
+  { value: "canal", label: "Red", orden: [] },
+  { value: "formulaCode", label: "Fórmula", orden: [] },
+];
+
+const ETIQUETA: Record<string, string> = {
+  tracked: "Medidas",
+  pending: "Pendientes",
+  untracked: "Sin trackear",
+  published: "Publicadas",
+  "in-progress": "En curso",
+  draft: "Draft",
+  idea: "Idea",
+  backlog: "Backlog",
+  unknown: "Sin estado",
+  "": "Sin asignar",
+};
+
 export default function InventarioClient({
   rows,
   canales,
@@ -65,6 +101,8 @@ export default function InventarioClient({
   formulas: Opcion[];
 }) {
   const [f, setF] = useState<EstadoFiltros>(FILTROS_VACIOS);
+  const [vista, setVista] = useState<"tabla" | "tablero">("tabla");
+  const [agrupar, setAgrupar] = useState<Agrupacion>("coverage");
 
   const filas = useMemo(() => {
     const out = aplicarFiltros(rows, f);
@@ -84,8 +122,53 @@ export default function InventarioClient({
     }
   }, [rows, f]);
 
+  const columnas = useMemo(() => {
+    const def = AGRUPACIONES.find((a) => a.value === agrupar)!;
+    const grupos = new Map<string, InventarioRow[]>();
+    for (const r of filas) {
+      const k = (r[agrupar] as string) ?? "";
+      grupos.set(k, [...(grupos.get(k) ?? []), r]);
+    }
+    const claves = [...grupos.keys()];
+    // El orden declarado primero (cobertura y estado tienen una progresión que
+    // significa algo); lo demás, por cantidad.
+    claves.sort((a, b) => {
+      const ia = def.orden.indexOf(a);
+      const ib = def.orden.indexOf(b);
+      if (ia !== -1 || ib !== -1) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      return (grupos.get(b)?.length ?? 0) - (grupos.get(a)?.length ?? 0);
+    });
+    return claves.map((k) => ({ clave: k, label: ETIQUETA[k] ?? (k || "Sin asignar"), filas: grupos.get(k)! }));
+  }, [filas, agrupar]);
+
   return (
     <>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <ToggleGroup
+          type="single"
+          value={vista}
+          onValueChange={(v) => v && setVista(v as "tabla" | "tablero")}
+        >
+          <ToggleGroupItem value="tabla" aria-label="Vista de tabla">Tabla</ToggleGroupItem>
+          <ToggleGroupItem value="tablero" aria-label="Vista de tablero">Tablero</ToggleGroupItem>
+        </ToggleGroup>
+
+        {vista === "tablero" && (
+          <Select value={agrupar} onValueChange={(v) => setAgrupar(v as Agrupacion)}>
+            <SelectTrigger className="w-[9.5rem]" aria-label="Agrupar por">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {AGRUPACIONES.map((a) => (
+                <SelectItem key={a.value} value={a.value}>
+                  Agrupar: {a.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
       <Filtros
         estado={f}
         onChange={setF}
@@ -100,7 +183,7 @@ export default function InventarioClient({
         <div className="rounded-lg border border-border p-5 text-sm text-muted-foreground">
           Ninguna pieza pasa estos filtros.
         </div>
-      ) : (
+      ) : vista === "tabla" ? (
         <div className="overflow-hidden rounded-lg border border-border">
           <Table>
             <TableHeader>
@@ -141,7 +224,7 @@ export default function InventarioClient({
                       <Badge variant={cob.variant}>{cob.label}</Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-[13px] text-muted-foreground">
-                      {/* Cero cortes se escribe como raya: no se midió cero, no se midió. */}
+                      {/* Cero cortes es raya: no se midió cero, no se midió. */}
                       {r.cortes || "—"}
                     </TableCell>
                   </TableRow>
@@ -150,6 +233,65 @@ export default function InventarioClient({
             </TableBody>
           </Table>
         </div>
+      ) : (
+        <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+          {columnas.map((col) => (
+            <section key={col.clave} className="flex w-[15.5rem] shrink-0 flex-col">
+              <header className="mb-2 flex items-baseline justify-between gap-2 px-1">
+                <h3 className="truncate text-[13px] font-medium">{col.label}</h3>
+                <span className="shrink-0 tabular-nums text-[11px] text-muted-foreground">
+                  {col.filas.length}
+                </span>
+              </header>
+              <div className="flex flex-col gap-1.5">
+                {col.filas.slice(0, 60).map((r) => (
+                  <Link
+                    key={r.href}
+                    href={r.href}
+                    className="rounded-md border border-border bg-background px-2.5 py-2 transition-colors hover:bg-secondary"
+                  >
+                    <div className="line-clamp-2 text-[13px] leading-snug">{r.title}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
+                      <span>{r.canal}</span>
+                      {r.formulaCode && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="font-mono">{r.formulaCode}</span>
+                        </>
+                      )}
+                      {r.publishedAt && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="tabular-nums">{r.publishedAt}</span>
+                        </>
+                      )}
+                      {r.cortes > 0 && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="tabular-nums">{r.cortes} cortes</span>
+                        </>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+                {col.filas.length > 60 && (
+                  <p className="px-1 text-[11px] text-muted-foreground/70">
+                    y {col.filas.length - 60} más — afiná los filtros
+                  </p>
+                )}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+
+      {vista === "tablero" && (
+        <p className="mt-4 max-w-[70ch] text-[11px] leading-relaxed text-muted-foreground/70">
+          Este tablero <strong>no reemplaza al de coordinación</strong>: agrupa por
+          cobertura de medición, fórmula y red —que el tablero de Notion no tiene— sobre
+          las piezas completas, incluidas las publicadas hace más de 60 días que allá ya
+          no suben. Mover una pieza de carril se sigue haciendo en Notion.
+        </p>
       )}
     </>
   );

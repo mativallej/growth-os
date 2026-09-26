@@ -92,6 +92,71 @@ Hoy: 2 marcas × 6 cuentas × 3 redes declaradas. **X está completo; Instagram 
 
 Nombrar la cuenta en el footer no es burocracia: es lo que permite que dos cuentas de la misma red convivan en un vault y que el ingest sepa cuál es cuál.
 
+## Claves por plataforma
+
+*(Plegado desde `tegu-growth/Analytics/Contrato de Footer.md` el 2026-09-26, donde
+vivía como `[extensión Tegu]`. Este es ahora el canónico de las tres cosas que
+sumaba: la red `meta-ads`, la resolución de `nonfoll` y la normalización de `imp`
+en Instagram.)*
+
+**Las métricas no se colapsan entre redes.** `imp` (X) no es `views` (IG) no es
+`reach`. Colapsarlas hace que las piezas de una red rankeen en cero en cualquier
+orden por alcance — pasó, y por eso existe `primaryReach` en `src/lib/metrics.ts`.
+
+| plataforma | alcance bruto | propias de la red | estado |
+|---|---|---|---|
+| **X** | `imp` | `detail` · `rt` · `bmk` · `replies` | ✅ export mapeado |
+| **Instagram** | `views` | `reach` · `saves` · `comments` · `accounts_engaged` · `link_taps` | ✅ export mapeado |
+| **LinkedIn** | `imp` | `sends` · `link_eng` | ⏸ falta un export real |
+| **TikTok** | `views` | `favorites` · `watch_full` · `avg_watch` | ⏸ falta un export real |
+| **YouTube Shorts** | `views` | `watch_time` · `avg_view_pct` · `subs` | ⏸ falta un export real |
+| **Meta Ads** | `imp` | `reach` · `results` · `spend` · `currency` · `hook_3s` · `plays` | ⏸ falta un export real |
+
+Comunes a todas: `likes` · `shares` · `comments` · `follows` · `clicks` · `eng` · `pv`.
+
+> ⚠️ **Las cuatro `⏸` no tienen claves confirmadas.** Los nombres son la
+> intención, no el mapeo: falta un export real de cada plataforma para saber cómo
+> se llaman de verdad las columnas. Hasta entonces el ingest **falla con un
+> mensaje claro** en vez de inventar nombres — la misma regla de
+> `config/networks.json`.
+
+## Meta Ads — un creativo no es un post
+
+Otro ciclo y otras métricas. `spend` **obliga a** `currency` (`ARS`/`USD`): un
+número de plata sin moneda no aguanta una auditoría.
+
+**CTR, hook-rate y costo por resultado NO se escriben.** Salen de `clicks/imp`,
+`hook_3s/plays` y `spend/results`. *Qué es caro o barato lo decide una persona, no
+la fórmula* — misma razón por la que no hay campos base de métrica.
+
+Un creativo además declara sus dimensiones de organización, que un post no tiene:
+
+```
+canal: Meta Ads (Instagram/Facebook) · cuenta: metaads_tegu · buyer persona: Diego ·
+dolor: 1 (…) · creativo: 1 · ronda: 2 · formato: Imagen · ángulo: Educativo ·
+CTA: "…" · estado: Draft
+```
+
+| clave | regla |
+|---|---|
+| `buyer persona` | del framework de la marca. Se lee del footer; la carpeta es el respaldo, y quien lo use registra que derivó |
+| `dolor` | número del dolor dentro de esa persona |
+| `formato` | `Imagen` · `Carrusel` · `UGC` · `Video` |
+| `ángulo` | `Educativo` · `Testimonial` · `Comparación` · `Problema-solución`. El calificativo entre paréntesis es prosa: agrupa el término base |
+| `ronda` | la unidad de iteración. Un creativo vive por ronda, no es evergreen |
+| `CTA` | el llamado a la acción, textual |
+
+### Dos preguntas abiertas — NO las resuelve el código
+
+- **`spend`: ¿acumulado o de la ventana del corte?** Meta entrega las dos cosas
+  según cómo se exporte, y la regla general del contrato ("el valor vigente es el
+  último corte") supone acumulado, que para gasto funciona solo si siempre se
+  exporta de por vida. **Se responde con el primer export real, no antes.**
+- **`nonfoll` (no-seguidores) es una derivada**, y el contrato prohíbe escribir
+  derivadas — pero `growth-analytics` y `src/lib/types.ts` la usan hoy. Las
+  opciones son guardar los crudos y calcularla, o aceptarla como excepción
+  documentada. **Hasta que se decida, no se escribe.** Lo decide Matías.
+
 ## Prohibido
 
 - **Campos base de métrica** (`- impressions: 374094`) — envejecen. Es la regla madre de arriba
