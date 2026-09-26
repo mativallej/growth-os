@@ -18,6 +18,28 @@ npm test         # vitest
 npm run audit    # auditoría read-only de las fuentes
 ```
 
+## La consola de operaciones
+
+```bash
+GROWTH_CONSOLE=1 npm run dev     # y después http://localhost:3000/operar
+```
+
+El catálogo de operaciones (`src/lib/operations.ts`) con sus botones: captar una
+idea, ingerir un export, sincronizar contenido o documentación, subir creativos de
+una ronda, el digest. Cada una muestra sus precondiciones y hace cuánto corrió.
+
+**La app no ejecuta lo que escribe.** Prepara la operación, escribe el contexto en
+`.state/handoff-*.md` y se lo entrega a una sesión local, donde una persona revisa
+la previsualización y decide si aplicar. Lo único que la app guarda por su cuenta es
+una idea que alguien acaba de tipear: el contenido lo aportó la persona, no hay nada
+que revisar.
+
+**La consola no existe fuera del entorno local.** Sin `GROWTH_CONSOLE=1` sus
+archivos (`*.local.tsx`) no entran en `pageExtensions`, así que Next ni los
+reconoce como rutas: no hay ruta, no hay manejador, y nada de lo que importan entra
+al bundle. No se llega por link desde el dashboard justamente para que el build
+compartido no lleve ni la URL escrita.
+
 ## De dónde sale el contenido
 
 Las fuentes se declaran en `src/lib/sources.ts` sobre `config/sources.json` — el

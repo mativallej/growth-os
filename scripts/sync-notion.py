@@ -390,6 +390,12 @@ def main():
                     help="no escribe el estado de vuelta al vault")
     ap.add_argument("--all-history", action="store_true",
                     help="ignora el corte operativo y sube también el archivo publicado")
+    ap.add_argument("--ronda", metavar="N",
+                    help="solo los creativos de esa ronda. El número, o el nombre "
+                         "completo del documento de ronda")
+    ap.add_argument("--only", metavar="RUTA",
+                    help="sincroniza UNA sola pieza o creativo, por su ruta relativa al "
+                         "vault. El resto del lote queda sin tocar")
     a = ap.parse_args()
     load_env()
 
@@ -428,6 +434,33 @@ def main():
         base = os.path.join(vault, pre)
         if os.path.isdir(base):
             ads.update(walk(base, vault))
+    if a.only:
+        # Alcance por elemento. Es la MISMA operación que el lote —mismo walk, mismos
+        # campos, mismo estado derivado— nada más que sobre una clave. Si no
+        # coincide con ninguna, se corta acá en vez de sincronizar un lote entero
+        # que nadie pidió.
+        objetivo = os.path.normpath(a.only)
+        posts = {k: v for k, v in posts.items() if os.path.normpath(k) == objetivo}
+        ads = {k: v for k, v in ads.items() if os.path.normpath(k) == objetivo}
+        if not posts and not ads:
+            sys.exit("--only %s no coincide con ninguna pieza ni creativo del vault.\n"
+                     "La ruta va relativa a la raíz del vault, con la extensión .md." % a.only)
+
+    if a.ronda:
+        # El filtro usa la MISMA resolución de ronda que la fila que se va a crear
+        # (_ronda: el footer manda, el documento de Rondas/ resuelve el nombre), así
+        # que filtrar por ronda y ver la ronda en el tablero no pueden discrepar.
+        quiere = _ronda(a.ronda, vault, ads_prefixes[0] if ads_prefixes else "")
+        antes_ronda = len(ads)
+        ads = {k: v for k, v in ads.items()
+               if _ronda(v["f"].get("ronda"), vault,
+                         ads_prefixes[0] if ads_prefixes else "") == quiere}
+        if not ads:
+            sys.exit("Ningún creativo declara la ronda %r (se miraron %d).\n"
+                     "Las rondas salen del campo `ronda` del footer de cada creativo."
+                     % (quiere, antes_ronda))
+        print("Ronda %s: %d de %d creativos." % (quiere, len(ads), antes_ronda))
+
     no_creativos = [k for k in ads if no_es_creativo(k)]
     for k in no_creativos:
         del ads[k]
