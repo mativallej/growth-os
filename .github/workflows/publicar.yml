@@ -1,0 +1,215 @@
+# Publica la plataforma: UN DEPLOY POR MARCA.
+#
+# El aislamiento entre marcas es un HECHO DEL BUILD y no un chequeo de permisos.
+# `GROWTH_SOURCES=<marca>` hace que `generateStaticParams` no emita las rutas de
+# ninguna otra, y `dynamicParams = false` hace que tampoco se fabriquen bajo
+# demanda. Un deploy para externos no contiene un solo byte de otra marca — no
+# está escondida, no se compiló. El paso `aislamiento` lo verifica antes de subir
+# nada, porque una garantía que nadie comprueba deja de ser una garantía.
+#
+# LA CONSOLA NO SE COMPILA ACÁ: `GROWTH_CONSOLE` no se define en ningún lado de
+# este archivo, y sin esa variable `page.local.tsx` no entra en `pageExtensions`.
+#
+# LO QUE NO HACE, Y POR QUÉ:
+#
+#   · NO SINCRONIZA SUPABASE. No hay qué sincronizar: al 2026-09-26 ningún script
+#     del repo escribe a Supabase. Está declarado en config/sources.json como
+#     índice derivado (D-15/D-16) y la pantalla de configuración prueba la
+#     conexión, pero el índice no existe todavía. Un paso que no hace nada es
+#     peor que no tenerlo: da un tilde verde por un trabajo que nadie hizo.
+#
+#   · NO INGIERE ANALYTICS. `ingest-analytics.py` necesita un CSV exportado a
+#     mano de Meta o de X. Eso no puede pasar en CI.
+#
+#   · NO APLICA EL SYNC DE NOTION SOLO. Ver el job `sync`.
+
+name: publicar
+
+on:
+  workflow_dispatch:
+    inputs:
+      aplicar_sync:
+        description: 'Aplicar el sync a Notion (escribe). Sin esto es dry-run.'
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # La matriz sale de config/sources.json y no de una lista escrita acá: agregar
+  # una marca tiene que seguir siendo agregar un objeto a la config.
+  marcas:
+    runs-on: ubuntu-latest
+    outputs:
+      lista: ${{ steps.leer.outputs.lista }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: leer
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          d = json.load(open('config/sources.json'))
+          out = []
+          for b in d['brands']:
+              vr = b.get('vault_repo')
+              if not vr:
+                  # Fallar ruidoso: una marca sin origen declarado no se puede
+                  # publicar, y saltearla en silencio daría un deploy incompleto.
+                  raise SystemExit(
+                      f"La marca '{b['id']}' no declara vault_repo en config/sources.json. "
+                      "Sin eso no hay de dónde clonar su vault en CI."
+                  )
+              out.append({
+                  'id': b['id'],
+                  'repo': vr['repo'],
+                  'ref': vr.get('ref', 'main'),
+                  # Dónde se monta el vault dentro del runner, y la env var que
+                  # lo reapunta. La convención es la de src/lib/sources.ts.
+                  'env': 'VAULT_TEGU_DIR' if b['id'] == 'tegu'
+                         else 'VAULT_' + b['id'].upper().replace('-', '_') + '_DIR',
+              })
+          print('lista=' + json.dumps(out))
+          PY
+
+  publicar:
+    needs: marcas
+    runs-on: ubuntu-latest
+    strategy:
+      # `fail-fast: false`: que una marca no compile no tiene por qué frenar el
+      # deploy de otra. Son productos separados a propósito.
+      fail-fast: false
+      matrix:
+        marca: ${{ fromJSON(needs.marcas.outputs.lista) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clonar el vault de ${{ matrix.marca.id }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.marca.repo }}
+          ref: ${{ matrix.marca.ref }}
+          path: .vaults/${{ matrix.marca.id }}
+          # El GITHUB_TOKEN por defecto NO alcanza: el vault vive en otro
+          # repositorio, y a veces en otra organización. Hace falta un PAT con
+          # lectura sobre ese repo.
+          token: ${{ secrets.VAULT_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+
+      - name: Build de ${{ matrix.marca.id }}
+        env:
+          GROWTH_SOURCES: ${{ matrix.marca.id }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+        run: |
+          export ${{ matrix.marca.env }}="$GITHUB_WORKSPACE/.vaults/${{ matrix.marca.id }}"
+          npm run build
+
+      # EL PASO QUE HACE QUE EL AISLAMIENTO SEA UNA GARANTÍA Y NO UNA INTENCIÓN.
+      - name: Verificar que no se coló otra marca
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, sys
+          marca = os.environ['MARCA']
+          otras = [b['id'] for b in json.load(open('config/sources.json'))['brands']
+                   if b['id'] != marca]
+          if not otras:
+              print('Una sola marca declarada: nada con qué mezclarse.'); sys.exit(0)
+
+          salida = pathlib.Path('.next/server/app')
+          # 1. Ninguna RUTA de otra marca fue emitida.
+          rutas = [d.name for d in salida.iterdir() if d.is_dir()]
+          coladas = [o for o in otras if o in rutas]
+          if coladas:
+              sys.exit(f'FALLA: el build emitió rutas de {coladas}. '
+                       f'GROWTH_SOURCES={marca} tendría que haberlas dejado afuera.')
+
+          # 2. Y el bundle de cliente no nombra ninguna. Es la mitad que se
+          #    olvida: una ruta puede no emitirse y su nombre quedar igual en un
+          #    chunk, que es cómo se filtró /operar una vez.
+          for chunk in pathlib.Path('.next/static').rglob('*.js'):
+              t = chunk.read_text(errors='ignore')
+              for o in otras:
+                  if f'/{o}/' in t:
+                      sys.exit(f'FALLA: {chunk} nombra la ruta /{o}/.')
+          print(f'OK: ni rutas ni chunks de {otras}.')
+          PY
+        env:
+          MARCA: ${{ matrix.marca.id }}
+
+      - name: Deploy a Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          # Un proyecto de Vercel POR MARCA. Con uno solo, el último deploy pisaría
+          # al anterior y las dos marcas terminarían en la misma URL.
+          VERCEL_PROJECT_ID: ${{ secrets[format('VERCEL_PROJECT_ID_{0}', matrix.marca.id)] }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "Faltan VERCEL_TOKEN o VERCEL_PROJECT_ID_${{ matrix.marca.id }}."
+            echo "El build y la verificación de aislamiento pasaron; no se subió nada."
+            exit 0
+          fi
+          npx --yes vercel@latest deploy --prebuilt --prod --token "$VERCEL_TOKEN"
+
+  # EL SYNC A NOTION, SEPARADO Y EN DRY-RUN SALVO QUE SE PIDA LO CONTRARIO.
+  #
+  # La regla dura 6 del repo es "nada corre solo", y no es purismo: un sync
+  # ESCRIBE, y el 2026-09-23 uno puso "En producción" en 51 piezas que el vault
+  # no marcaba y dejó ilegible la columna que más importa. Un push a main no
+  # debería poder repetir eso.
+  #
+  # Así que corre siempre —para que el diff esté publicado y se pueda mirar— y
+  # aplica solo cuando alguien lo dispara a mano marcando la casilla.
+  sync:
+    # `marcas` además de `publicar`: este job usa `needs.marcas.outputs.lista`
+    # para su matriz, y un `needs` que no lo declara la deja en undefined — la
+    # matriz queda vacía y el job "pasa" sin haber corrido nada.
+    #
+    # `always()`: el diff a Notion vale igual aunque el deploy de una marca haya
+    # fallado. Son cosas separadas.
+    needs: [marcas, publicar]
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    strategy:
+      fail-fast: false
+      matrix:
+        marca: ${{ fromJSON(needs.marcas.outputs.lista) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.marca.repo }}
+          ref: ${{ matrix.marca.ref }}
+          path: .vaults/${{ matrix.marca.id }}
+          token: ${{ secrets.VAULT_TOKEN }}
+
+      - name: Sync de contenido
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          APLICAR: ${{ github.event_name == 'workflow_dispatch' && inputs.aplicar_sync }}
+        run: |
+          # El chequeo del token va ACÁ y no en el `if` del job: en GitHub Actions
+          # el contexto `secrets` NO está disponible en condiciones a nivel de
+          # job. Ahí se evalúa como vacío y el job se saltea siempre — en
+          # silencio, que es la peor forma de no correr.
+          if [ -z "$NOTION_TOKEN" ]; then
+            echo "Sin NOTION_TOKEN: no hay con qué consultar Notion. Nada que hacer."
+            exit 0
+          fi
+          export ${{ matrix.marca.env }}="$GITHUB_WORKSPACE/.vaults/${{ matrix.marca.id }}"
+          EXTRA=""
+          if [ "$APLICAR" = "true" ]; then
+            echo "::warning::Aplicando el sync: esto ESCRIBE en Notion."
+            EXTRA="--apply"
+          else
+            echo "Dry-run. Para aplicar, disparar el workflow a mano con la casilla marcada."
+          fi
+          python3 scripts/sync-notion.py --brand "${{ matrix.marca.id }}" --scope contenido $EXTRA
