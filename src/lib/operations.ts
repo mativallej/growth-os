@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import rawConfig from '../../config/sources.json';
-import { listSources } from './sources';
+import { brandsConfig, listSources } from './sources';
 
 // El catálogo de operaciones.
 //
@@ -103,6 +103,15 @@ export const PARAM_OBJETIVO: ParamSpec = {
   ayuda: 'Ruta de la pieza o del creativo, relativa a la raíz del vault.',
 };
 
+/** El destino propio al que apunta un enlace rastreable. */
+export const PARAM_DESTINO: ParamSpec = {
+  id: 'destino',
+  label: 'Destino',
+  kind: 'texto',
+  ayuda: 'La dirección propia a la que lleva el enlace. Ej: https://tegu.ar/algo',
+  maxLargo: 400,
+};
+
 // ── precondiciones ────────────────────────────────────────────────────────────
 //
 // La parte que se suele omitir y la que más molesta cuando falta: si el export de
@@ -198,6 +207,18 @@ export type Operation = {
    */
   etapa: 1 | 2;
 };
+
+/**
+ * Las marcas que cumplen una condición DECLARADA en la config.
+ *
+ * Antes cada operación listaba ids a mano (`['tegu']`) con un comentario que
+ * explicaba por qué. El comentario dejaba de ser cierto en cuanto otra marca
+ * declarara lo mismo, y con una tercera marca había que acordarse de tocar acá.
+ * Ahora la pregunta es sobre lo que la marca declara, no sobre cómo se llama.
+ */
+function marcasQue(cumple: (b: ReturnType<typeof brandsConfig>[number]) => boolean): string[] {
+  return brandsConfig().filter(cumple).map((b) => b.id);
+}
 
 export const OPERACIONES: Operation[] = [
   {
@@ -298,7 +319,10 @@ export const OPERACIONES: Operation[] = [
     nombre: 'Sincronizar documentación',
     descripcion: 'Espeja como páginas del destino las carpetas de documentación declaradas.',
     forma: 'sesion',
-    marcas: ['tegu'], // brain no publica documentación: notion.docs está vacío
+    // Las marcas que publican documentación: las que declaran `notion.docs`.
+    // Antes decía ['tegu'] con un comentario explicando por qué — y ese comentario
+    // dejaba de ser cierto en cuanto otra marca declarara docu.
+    marcas: marcasQue((b) => (b.notion?.docs ?? []).length > 0),
     alcances: ['lote'],
     params: [PARAM_MARCA],
     precondiciones: [PRE_PYTHON, PRE_VAULTS, PRE_NOTION_TOKEN],
@@ -316,7 +340,7 @@ export const OPERACIONES: Operation[] = [
     nombre: 'Subir creativos de campañas',
     descripcion: 'Lleva los creativos de una ronda al tablero de ads.',
     forma: 'sesion',
-    marcas: ['tegu'],
+    marcas: marcasQue((b) => (b.notion?.ads ?? []).length > 0),
     alcances: ['lote', 'elemento'],
     params: [
       PARAM_MARCA,
@@ -350,7 +374,9 @@ export const OPERACIONES: Operation[] = [
     nombre: 'Digest de growth',
     descripcion: 'Arma el resumen del estado de growth y lo postea al canal de la marca.',
     forma: 'sesion',
-    marcas: ['mativallej'],
+    // Capacidad DECLARADA, no inferida: el digest lo arma una skill del vault,
+    // así que tener webhook no alcanza — las dos marcas lo tienen.
+    marcas: marcasQue((b) => b.growth?.digest === true),
     alcances: ['lote'],
     params: [PARAM_MARCA],
     precondiciones: [PRE_PYTHON, preWebhook('DISCORD_WEBHOOK_MATIVALLEJ')],
@@ -397,6 +423,23 @@ export const OPERACIONES: Operation[] = [
     ],
     etapa: 1,
   },
+  {
+    id: 'enlace-atribucion',
+    nombre: 'Enlace rastreable',
+    descripcion: 'Arma el enlace con la pieza en utm_content, para saber qué post trajo el registro.',
+    forma: 'export',
+    marcas: null,
+    // Las dos: una pieza suelta, o el lote que pasa los filtros.
+    alcances: ['elemento', 'lote'],
+    params: [PARAM_MARCA, PARAM_DESTINO, PARAM_OBJETIVO, PARAM_CANAL, PARAM_DESDE, PARAM_HASTA],
+    precondiciones: [PRE_VAULTS],
+    periodoDias: null,
+    queRevisar: [
+      'Que las piezas tengan `id` en el footer: un enlace ya publicado no se puede corregir, y si su llave sale de la ruta y la ruta cambia, el dato no se rompe — apunta a otra pieza.',
+      'El destino: el enlace conserva la query que ya traía, pero pisa los utm_*.',
+    ],
+    etapa: 2,
+  },
   // ── etapa 2 ────────────────────────────────────────────────────────────────
   // Declaradas para que el catálogo esté completo, pero NO ofrecidas: un export
   // lee piezas, y hasta que no cierren footer-contract-parser y
@@ -419,7 +462,7 @@ export const OPERACIONES: Operation[] = [
     nombre: 'Exportar creativos',
     descripcion: 'Descarga los creativos de campañas que cumplen los filtros.',
     forma: 'export',
-    marcas: ['tegu'],
+    marcas: marcasQue((b) => (b.notion?.ads ?? []).length > 0),
     alcances: ['lote'],
     params: [PARAM_MARCA, { ...PARAM_MATERIA, porDefecto: 'ads' }, PARAM_DESDE, PARAM_HASTA],
     precondiciones: [PRE_VAULTS],

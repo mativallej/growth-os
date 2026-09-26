@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { exportar } from './export';
+import { exportar, exportarEnlaces } from './export';
 
 // EL TEST OBLIGATORIO DE ESTE BLOQUE (tarea 2.4): una exportación pedida desde
 // una marca NO puede traer filas de la otra. No es una preferencia de producto:
@@ -138,6 +138,77 @@ describe('el conteo coincide con el mismo filtro aplicado a mano', () => {
       // Y las filas del CSV coinciden con el conteo declarado en la cabecera.
       const cuerpo = r.contenido.split('\n').filter((l) => l && !l.startsWith('#'));
       expect(cuerpo).toHaveLength(r.filas + 1); // + cabecera de columnas
+    } finally {
+      Object.assign(process.env, previo);
+    }
+  });
+});
+
+describe('el export de enlaces rastreables', () => {
+  it('arma un enlace por pieza y marca la llave que usó', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'growth-loop-enl-'));
+    temps.push(dir);
+    const root = join(dir, 'Create', 'Organic');
+    mkdirSync(root, { recursive: true });
+    writeFileSync(join(root, 'con-id.md'),
+      ['C.', '', '---', '- id: k7m2p9qx', '- platform: X', '- status: publicado'].join('\n'), 'utf8');
+    writeFileSync(join(root, 'sin-id.md'),
+      ['C.', '', '---', '- platform: X', '- status: publicado'].join('\n'), 'utf8');
+
+    const previo = { ...process.env };
+    process.env.VAULT_TEGU_DIR = dir;
+    process.env.GROWTH_SOURCES = 'tegu';
+    try {
+      const r = exportarEnlaces({ marca: 'tegu', destino: 'https://tegu.ar/x' });
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.filas).toBe(2);
+      expect(r.contenido).toContain('utm_content=k7m2p9qx');
+      // La llave frágil se marca: sale del slug, y el slug sale de la ruta.
+      expect(r.contenido).toMatch(/,slug,/);
+      expect(r.contenido).toMatch(/,id,/);
+      expect(r.contenido).toContain('con llave fragil');
+    } finally {
+      Object.assign(process.env, previo);
+    }
+  });
+
+  it('sin destino no arma nada: un enlace tiene que llevar a algún lado', () => {
+    const r = exportarEnlaces({ marca: 'tegu', destino: '  ' });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.motivo).toMatch(/Falta el destino/);
+  });
+
+  it('una pieza que NO puede llevar enlace igual sale, con su motivo', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'growth-loop-enl2-'));
+    temps.push(dir);
+    const root = join(dir, 'Create', 'Organic');
+    mkdirSync(root, { recursive: true });
+    // Sin canal: no se puede decir de dónde vino el clic.
+    writeFileSync(join(root, 'sin-canal.md'), ['C.', '', '---', '- status: publicado'].join('\n'), 'utf8');
+    const previo = { ...process.env };
+    process.env.VAULT_TEGU_DIR = dir;
+    process.env.GROWTH_SOURCES = 'tegu';
+    try {
+      const r = exportarEnlaces({ marca: 'tegu', destino: 'https://tegu.ar/x' });
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      // Omitirla haría que el export parezca completo cuando le falta justo lo
+      // que no se puede atribuir.
+      expect(r.filas).toBe(1);
+      expect(r.contenido).toMatch(/no declara canal/);
+    } finally {
+      Object.assign(process.env, previo);
+    }
+  });
+
+  it('un enlace de una marca no sale en el export de la otra', () => {
+    const previo = { ...process.env };
+    process.env.GROWTH_SOURCES = 'tegu';
+    try {
+      const r = exportarEnlaces({ marca: 'personal', destino: 'https://x.com' });
+      expect(r.ok).toBe(false);
     } finally {
       Object.assign(process.env, previo);
     }

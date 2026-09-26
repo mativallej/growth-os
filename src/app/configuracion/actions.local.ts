@@ -133,7 +133,7 @@ export async function probarConexiones(): Promise<Chequeo[]> {
   }
 
   for (const g of gruposPorMarca()) {
-    const P = g.id === 'personal' ? 'MATIVALLEJ' : g.id.toUpperCase();
+    const P = g.id.toUpperCase().replace(/[^A-Z0-9]/g, '_');
     const url = process.env[`SUPABASE_${P}_URL`];
     const key = process.env[`SUPABASE_${P}_SERVICE_ROLE_KEY`];
     const id = `supabase-${g.id}`;

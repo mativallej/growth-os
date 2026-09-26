@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { loadPieces, loadPiecesBySource } from './parse';
 import type { ContentSource } from './sources';
-import { findSource, listSources } from './sources';
+import { allSourceIds, findSource, listSources } from './sources';
 
 const temps: string[] = [];
 afterAll(() => {
@@ -65,7 +65,7 @@ describe('aislamiento entre marcas — vaults reales', () => {
 
   const fuentes = listSources();
   const tegu = fuentes.find((s) => s.id === 'tegu');
-  const personal = fuentes.find((s) => s.id === 'personal');
+  const personal = fuentes.find((s) => s.id === 'mativallej');
 
   it.runIf(tegu && personal)('ninguna sonda personal aparece en lo que carga Tegu', () => {
     const payload = JSON.stringify(loadPieces([tegu!])).toLowerCase();
@@ -94,12 +94,14 @@ describe('el recorte de fuentes es la frontera del build', () => {
     expect(soloTegu.map((s) => s.id)).toEqual(['tegu']);
     // `findSource` busca entre las que ENTRARON al build: una ruta /personal en
     // un build recortado tiene que no existir, no estar escondida.
-    expect(findSource('personal', soloTegu)).toBeUndefined();
+    expect(findSource('mativallej', soloTegu)).toBeUndefined();
     expect(findSource('tegu', soloTegu)).toBeDefined();
   });
 
-  it('sin recorte entran las dos', () => {
-    expect(listSources('').map((s) => s.id).sort()).toEqual(['personal', 'tegu']);
+  it('sin recorte entran TODAS las declaradas', () => {
+    // No se comparan contra una lista escrita acá: las marcas salen de la
+    // config, y sumar una no puede romper un test de aislamiento.
+    expect(listSources('').map((s) => s.id).sort()).toEqual([...allSourceIds()].sort());
   });
 
   it('una fuente inventada rompe en vez de devolver vacío', () => {

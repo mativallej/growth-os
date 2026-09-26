@@ -14,7 +14,13 @@ import { repoRoot } from './repo';
 // de Python, para que no haya dos listas de rutas que se separen), y si una falta
 // se rompe. Preferimos un build roto a un dashboard que muestra cero.
 
-export type SourceId = 'tegu' | 'personal';
+/**
+ * El id de una fuente. Es `string` y no una unión de literales A PROPÓSITO:
+ * las marcas se declaran en `config/sources.json`, y un tipo cerrado obligaría
+ * a tocar código —y recompilar— para sumar un vault. La validación de que un id
+ * existe la hace `listSources`, que conoce la config; el tipo no puede.
+ */
+export type SourceId = string;
 
 export type ContentSource = {
   /** Lo que se nombra en GROWTH_SOURCES. */
@@ -35,23 +41,59 @@ export type ContentSource = {
 
 type Env = Record<string, string | undefined>;
 
-type BrandConfig = {
+export type BrandConfig = {
   id: string;
   label: string;
   vault: string;
   content: string | string[];
-  notion?: { ads?: string[] };
+  notion?: { ads?: string[]; docs?: string[]; marca?: string };
+  growth?: {
+    catalogo?: string;
+    catalogo_de?: string;
+    digest?: boolean;
+    cadencia?: { piso?: number; techo?: number };
+  };
+  supabase?: { ref?: string; url?: string };
 };
 
-// El registro: qué fuentes existen y contra qué marca de config/sources.json va
-// cada una. Las RUTAS no viven acá — vienen de la config. Agregar una fuente es
-// agregar una marca allá y una línea acá.
-const REGISTRY: { id: SourceId; brand: string; envVar: string }[] = [
-  { id: 'tegu', brand: 'tegu', envVar: 'VAULT_TEGU_DIR' },
-  { id: 'personal', brand: 'mativallej', envVar: 'VAULT_PERSONAL_DIR' },
-];
+/** Las marcas declaradas, para quien necesite más que una `ContentSource`. */
+export function brandsConfig(): BrandConfig[] {
+  return brands();
+}
 
-export const ALL_SOURCE_IDS: SourceId[] = REGISTRY.map((e) => e.id);
+/**
+ * El registro se DERIVA de la config. Antes era una lista en el código con dos
+ * entradas, y eso hacía que sumar un vault fuera un cambio de código — en un
+ * repo cuya regla es que agregar una marca es agregar un objeto a la config.
+ *
+ * La env var que reapunta cada vault sale por convención del id de la marca:
+ * `VAULT_<ID>_DIR`. Las dos que ya existían se conservan como alias para no
+ * romper un `.env.local` que ya las tenga.
+ */
+const ALIAS_HISTORICOS: Record<string, string> = {
+  tegu: 'VAULT_TEGU_DIR',
+  mativallej: 'VAULT_PERSONAL_DIR',
+};
+
+export function envVarDe(brand: string): string {
+  return ALIAS_HISTORICOS[brand] ?? `VAULT_${brand.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_DIR`;
+}
+
+type Registro = { id: SourceId; brand: string; envVar: string };
+
+function registro(): Registro[] {
+  return brands().map((b) => ({ id: b.id, brand: b.id, envVar: envVarDe(b.id) }));
+}
+
+export function allSourceIds(): SourceId[] {
+  return registro().map((e) => e.id);
+}
+
+/** @deprecated Usar `allSourceIds()`: la lista depende de la config, no es constante. */
+export const ALL_SOURCE_IDS = { get length() { return allSourceIds().length; },
+  includes: (id: string) => allSourceIds().includes(id),
+  join: (sep: string) => allSourceIds().join(sep),
+  map: <T,>(f: (id: SourceId) => T) => allSourceIds().map(f) };
 
 /**
  * La config se LEE en runtime, no se importa.
@@ -104,7 +146,7 @@ function absolute(p: string): string {
   return resolve(expanded);
 }
 
-function buildSource(entry: (typeof REGISTRY)[number], env: Env): ContentSource {
+function buildSource(entry: Registro, env: Env): ContentSource {
   const brand = brands().find((b) => b.id === entry.brand);
   if (!brand) {
     throw new Error(
@@ -151,23 +193,23 @@ export function listSources(
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  const ids = named.length ? [...new Set(named)] : [...ALL_SOURCE_IDS];
+  const ids = named.length ? [...new Set(named)] : allSourceIds();
 
-  const unknown = ids.filter((id) => !ALL_SOURCE_IDS.includes(id as SourceId));
+  const unknown = ids.filter((id) => !allSourceIds().includes(id));
   if (unknown.length) {
     throw new Error(
       `GROWTH_SOURCES nombra fuentes que no existen: ${unknown.join(', ')}. ` +
-        `Las fuentes válidas son: ${ALL_SOURCE_IDS.join(', ')}.`,
+        `Las fuentes válidas son: ${allSourceIds().join(', ')}.`,
     );
   }
 
-  return REGISTRY.filter((e) => ids.includes(e.id)).map((e) => buildSource(e, env));
+  return registro().filter((e) => ids.includes(e.id)).map((e) => buildSource(e, env));
 }
 
 export function getSource(id: SourceId, env: Env = process.env): ContentSource {
-  const entry = REGISTRY.find((e) => e.id === id);
+  const entry = registro().find((e) => e.id === id);
   if (!entry) {
-    throw new Error(`Fuente desconocida: ${id}. Las válidas son: ${ALL_SOURCE_IDS.join(', ')}.`);
+    throw new Error(`Fuente desconocida: ${id}. Las válidas son: ${allSourceIds().join(', ')}.`);
   }
   return buildSource(entry, env);
 }

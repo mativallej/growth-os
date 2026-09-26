@@ -133,15 +133,93 @@ def indexar(archivos, vault):
     return out
 
 
-def candidatos(ruta_vieja, indice):
-    """Los destinos posibles de una ruta muerta, con su evidencia y su fuerza."""
-    nombre = os.path.basename(ruta_vieja)
-    nombre = nombre[:-3].lower() if nombre.lower().endswith(".md") else nombre.lower()
+def candidatos(fila, indice):
+    """Los destinos posibles de una fila huérfana, con su evidencia y su fuerza.
+
+    `fila` es {ruta, url, nombre}: lo que el tablero guarda de esa pieza.
+    Devuelve [(ruta_destino, evidencia, fuerza)] ordenado de más fuerte a más
+    flojo, SIN decidir. Decidir es de `emparejar`."""
     out = []
-    for rel, datos in indice.items():
-        if datos["nombre"] == nombre:
-            out.append((rel, "nombre", 60))
-    return out
+    nombre = os.path.basename(fila.get("ruta") or "")
+    nombre = nombre[:-3].lower() if nombre.lower().endswith(".md") else nombre.lower()
+    url = (fila.get("url") or "").strip()
+
+    for rel, d in indice.items():
+        if d["id"] and d["id"] == fila.get("id"):
+            out.append((rel, "el mismo identificador de footer", 100))
+        elif url and d["url"] and d["url"] == url:
+            out.append((rel, "la misma url publicada", 90))
+        elif nombre and d["nombre"] == nombre:
+            out.append((rel, "el mismo nombre de archivo", 60))
+    return sorted(out, key=lambda x: -x[2])
+
+
+# Fuerza mínima para emparejar sin preguntar. El nombre de archivo (60) NO
+# alcanza si hay más de un candidato: dos piezas pueden llamarse igual en
+# carpetas distintas, y ya pasó — el intento del 2026-09-24 descartó dos
+# colisiones exactamente así.
+FUERZA_INEQUIVOCA = 90
+
+
+def emparejar(huerfanas, indice):
+    """(seguras, ambiguas, sin_candidato).
+
+    EMPAREJA SOLO LO INEQUÍVOCO. Un emparejamiento flojo aplicado en silencio es
+    peor que no emparejar: deja una fila apuntando a otra pieza y nadie se
+    entera. Lo ambiguo se lista con TODOS sus candidatos para que lo mire una
+    persona.
+
+    Inequívoco significa dos cosas a la vez: evidencia fuerte (id o url, no el
+    nombre) Y un solo candidato. Dos filas que apuntan al mismo destino tampoco
+    se aplican — es una colisión, y elegir una sería inventar."""
+    seguras, ambiguas, sin_candidato = [], [], []
+    destinos = {}
+
+    for fila in huerfanas:
+        cands = candidatos(fila, indice)
+        if not cands:
+            sin_candidato.append(fila)
+            continue
+        mejor = cands[0]
+        fuertes = [c for c in cands if c[2] >= FUERZA_INEQUIVOCA]
+        if len(fuertes) == 1 and mejor[2] >= FUERZA_INEQUIVOCA:
+            destinos.setdefault(mejor[0], []).append((fila, mejor))
+        else:
+            ambiguas.append((fila, cands))
+
+    # Dos filas que resuelven al mismo archivo: colisión, no se aplica ninguna.
+    for destino, lista in destinos.items():
+        if len(lista) == 1:
+            fila, ev = lista[0]
+            seguras.append((fila, ev[0], ev[1]))
+        else:
+            for fila, ev in lista:
+                ambiguas.append((fila, [(destino, ev[1] + " (COLISIÓN: %d filas resuelven acá)" % len(lista), ev[2])]))
+
+    return seguras, ambiguas, sin_candidato
+
+
+def informar(seguras, ambiguas, sin_candidato):
+    """Cada cambio de llave con su origen y su destino. Tarea 2.3."""
+    if seguras:
+        print("\n  %d fila(s) se pueden re-llavear sin ambigüedad:" % len(seguras))
+        for fila, destino, evidencia in seguras[:20]:
+            print("     %s" % (fila.get("ruta") or "(sin ruta)"))
+            print("       → %s" % destino)
+            print("         por %s" % evidencia)
+        if len(seguras) > 20:
+            print("     … y %d más" % (len(seguras) - 20))
+
+    if ambiguas:
+        print("\n  %d fila(s) AMBIGUAS — no se tocan, las mira una persona:" % len(ambiguas))
+        for fila, cands in ambiguas[:10]:
+            print("     %s" % (fila.get("ruta") or "(sin ruta)"))
+            for rel, ev, fuerza in cands[:4]:
+                print("       ? %s  (%s, fuerza %d)" % (rel, ev, fuerza))
+
+    if sin_candidato:
+        print("\n  %d fila(s) sin ningún candidato. O la pieza se borró de verdad," % len(sin_candidato))
+        print("     o se renombró tanto que no queda evidencia. No se tocan.")
 
 
 def main():

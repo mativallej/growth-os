@@ -36,7 +36,7 @@
       Verifica: correrlo con el árbol sucio y ver que no escribe.
 - [x] Idempotente: correrlo dos veces no reasigna nada.
       Verifica: dos corridas seguidas, diff vacío en la segunda.
-- [ ] Un commit por vault, reversible.
+- [x] Un commit por vault, reversible.
 
 ## 4 · Puente con Notion
 

@@ -112,7 +112,24 @@ export default async function AccountLayout({
  * del lado del servidor hace que, sin la variable, no exista nada que serializar.
  */
 function accionesLocales() {
-  if (process.env.GROWTH_CONSOLE !== "1") return null;
+  if (process.env.GROWTH_CONSOLE !== "1") {
+    // En desarrollo, decir POR QUÉ no están. Sin esto, la ausencia de los
+    // botones es indistinguible de que algo se rompió — y la respuesta es un
+    // comando distinto, no un arreglo.
+    //
+    // `NODE_ENV === 'development'` es falso en el build que se comparte, así que
+    // este texto no se renderiza ahí nunca.
+    if (process.env.NODE_ENV !== "development") return null;
+    return (
+      <div className="mb-3 border-t border-border pt-3">
+        <div className="px-2.5 text-[10px] leading-relaxed text-muted-foreground/60">
+          Operar y Configuración no están compilados.
+          <br />
+          <code className="text-[10px]">npm run dev:local</code>
+        </div>
+      </div>
+    );
+  }
   const items = [
     { href: "/operar", label: "Operar" },
     { href: "/configuracion", label: "Configuración" },

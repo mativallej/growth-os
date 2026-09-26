@@ -221,11 +221,41 @@ def clear(page_id):
         cursor = r["next_cursor"]
 
 
+# Cuántas páginas huérfanas alcanzan para sospechar de una mudanza de carpetas.
+UMBRAL_HUERFANAS_DOCU = 5
+
+
+def detectar_mudanza_docu(huerfanas, nuevas):
+    """(frena, mensaje). Una carpeta que se movió se ve como borrados + altas.
+
+    Mismo criterio que el sync de piezas: muchas huérfanas SOLAS pueden ser un
+    borrado real; muchas huérfanas MÁS muchas altas son los mismos archivos en
+    otro lado. La diferencia es que acá el daño es peor de deshacer: quedan
+    páginas colgadas en el destino que nadie sabe que sobran."""
+    if len(huerfanas) < UMBRAL_HUERFANAS_DOCU or len(nuevas) < UMBRAL_HUERFANAS_DOCU:
+        return False, ""
+    return True, (
+        "FRENO: esto parece que se movieron carpetas de documentación.\n\n"
+        "  %d páginas del estado apuntan a archivos que ya no existen\n"
+        "  %d archivos del vault no tienen página\n\n"
+        "Aplicar ahora crearía %d páginas nuevas y dejaría %d colgadas en el\n"
+        "destino, sin que nadie sepa que sobran.\n\n"
+        "Qué hacer: revisar si son las mismas carpetas con otro nombre. Si lo son,\n"
+        "editar a mano las rutas en .state/ antes de aplicar.\n\n"
+        "Para saltear este freno a sabiendas: --sin-freno"
+        % (len(huerfanas), len(nuevas), len(nuevas), len(huerfanas))
+    )
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--brand", required=True)
     ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--sin-freno", action="store_true",
+                    help="saltea el freno de mudanza de carpetas")
     a = ap.parse_args()
+    if getattr(a, "sin_freno", False):
+        os.environ["GROWTH_SIN_FRENO"] = "1"
     load_env()
 
     cfg = json.load(io.open(os.path.join(ROOT, "config/sources.json"), encoding="utf-8"))
@@ -258,6 +288,17 @@ def main():
                 if f.endswith(".md") and f.lower() != "readme.md":
                     found.append(os.path.relpath(os.path.join(dp, f), vault))
 
+    # EL MISMO FRENO QUE EL SYNC DE PIEZAS (move-resilient-keys 4.1).
+    #
+    # El estado se indexa por RUTA, así que una carpeta de docu que se renombre
+    # o se mueva se ve como archivos borrados y archivos nuevos: aplicar
+    # duplicaría las páginas y dejaría las viejas colgadas, sin que nadie las
+    # borre. Es exactamente lo que pasó del lado de las piezas.
+    #
+    # Al 2026-09-26 el daño no llegó a producirse acá porque la docu nunca se
+    # subió — el estado está vacío. Este freno es para que siga así.
+    huerfanas = [rel for rel in files if rel not in set(found)]
+
     nuevas, cambiadas, iguales = [], [], 0
     for rel in found:
         md = strip_frontmatter(io.open(os.path.join(vault, rel), encoding="utf-8").read())
@@ -271,6 +312,12 @@ def main():
 
     print("Marca %s · docu en el vault: %d" % (a.brand, len(found)))
     print("  a crear: %d · a actualizar: %d · sin cambios: %d" % (len(nuevas), len(cambiadas), iguales))
+    if huerfanas:
+        print("  %d página(s) del estado sin archivo en el vault" % len(huerfanas))
+
+    frena, aviso = detectar_mudanza_docu(huerfanas, nuevas)
+    if frena and not os.environ.get("GROWTH_SIN_FRENO"):
+        sys.exit("\n" + aviso)
     for rel, _, _ in (nuevas + cambiadas)[:15]:
         print("     %s" % rel)
     if len(nuevas) + len(cambiadas) > 15:

@@ -166,7 +166,7 @@ function descripcionDe(texto: string): string {
 export function skillsDe(brand: string, env: NodeJS.ProcessEnv = process.env): Skill[] {
   let dir: string;
   try {
-    dir = join(getSource(brand === 'mativallej' ? 'personal' : 'tegu', env).vault, '.claude/skills');
+    dir = join(getSource(brand, env).vault, '.claude/skills');
   } catch {
     return [];
   }

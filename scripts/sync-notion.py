@@ -407,6 +407,35 @@ def guardar_enlaces(brand, filas, apply_):
 UMBRAL_HUERFANAS = 8
 
 
+def detectar_rellaveo(sin_llave, nuevas):
+    """(frena, mensaje). El caso que el freno de mudanza NO ve.
+
+    Después del backfill de ids, el vault llavea por `id` y el tablero todavía
+    no: sus filas no tienen la columna. Para el sync eso no se parece a una
+    mudanza —hay CERO huérfanas, porque no hay ninguna fila con id contra la que
+    comparar— y sin embargo aplicar crearía una fila nueva por cada pieza,
+    duplicando el tablero entero.
+
+    Es el estado exacto en el que quedó el proyecto el 2026-09-26, después de
+    asignarle id a las 275 piezas."""
+    if len(sin_llave) < UMBRAL_HUERFANAS or len(nuevas) < UMBRAL_HUERFANAS:
+        return False, ""
+    return True, (
+        "FRENO: el tablero todavía no tiene la columna ID.\n\n"
+        "  %d filas sin ID — son de antes de que las piezas tuvieran identificador\n"
+        "  %d piezas del vault con id que no encuentran su fila\n\n"
+        "Para el sync esas %d piezas son NUEVAS, así que aplicar ahora duplicaría\n"
+        "el tablero entero: %d filas nuevas al lado de las %d que ya están.\n\n"
+        "Qué hacer, en este orden:\n"
+        "  1. agregar una propiedad de texto llamada `ID` a la base del tablero\n"
+        "  2. python3 scripts/reconciliar-llaves.py --brand <marca>   (dry-run)\n"
+        "  3. revisar el mapeo y aplicarlo: escribe el id en cada fila existente\n"
+        "  4. recién ahí, el sync\n\n"
+        "Para saltear este freno a sabiendas: --sin-freno"
+        % (len(sin_llave), len(nuevas), len(nuevas), len(nuevas), len(sin_llave))
+    )
+
+
 def detectar_mudanza(huerfanas, sin_fila, total_filas):
     """(frena, mensaje). Una mudanza se ve como huérfanas Y archivos sin fila a la vez.
 
@@ -483,9 +512,11 @@ def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion, ads_root
         for pid, k in mudadas[:5]:
             print("     %s  %s → %s" % (pid, remote[pid]["archivo"] or "(vacío)", k))
 
-    frena, aviso = detectar_mudanza(huerfanas, nuevas, len(remote) + len(sin_llave))
-    if frena and not os.environ.get("GROWTH_SIN_FRENO"):
-        sys.exit("\n" + aviso)
+    for detectar, args in ((detectar_rellaveo, (sin_llave, nuevas)),
+                           (detectar_mudanza, (huerfanas, nuevas, len(remote) + len(sin_llave)))):
+        frena, aviso = detectar(*args)
+        if frena and not os.environ.get("GROWTH_SIN_FRENO"):
+            sys.exit("\n" + aviso)
 
     devuelta = []
     if not only_to_notion:

@@ -46,6 +46,11 @@ const nextConfig: NextConfig = {
       { source: '/piezas', destination: `/${cuentaPorDefecto}/piezas`, permanent: false },
       { source: '/piezas/:slug', destination: `/${cuentaPorDefecto}/piezas/:slug`, permanent: false },
       { source: '/inventario', destination: `/${cuentaPorDefecto}/inventario`, permanent: false },
+      // `personal` era el id de la marca cuando el registro estaba escrito en
+      // el código. Al derivarlo de config/sources.json el id pasó a ser el de
+      // la marca (`mativallej`), y estas rutas alcanzaron a existir.
+      { source: '/personal', destination: '/mativallej', permanent: false },
+      { source: '/personal/:resto*', destination: '/mativallej/:resto*', permanent: false },
     ];
   },
 };

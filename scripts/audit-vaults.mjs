@@ -21,11 +21,14 @@ import { fileURLToPath } from 'node:url';
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const CONFIG = JSON.parse(readFileSync(join(ROOT, 'config/sources.json'), 'utf8'));
 
-// Mismo registro que src/lib/sources.ts.
-const REGISTRY = [
-  { id: 'tegu', brand: 'tegu', envVar: 'VAULT_TEGU_DIR' },
-  { id: 'personal', brand: 'mativallej', envVar: 'VAULT_PERSONAL_DIR' },
-];
+// El registro se DERIVA de la config, igual que en src/lib/sources.ts: agregar
+// una marca allá la hace aparecer acá sin tocar este archivo. La env var que
+// reapunta cada vault sale por convención del id; las dos históricas se
+// conservan como alias para no romper un .env.local que ya las tenga.
+const ALIAS_HISTORICOS = { tegu: 'VAULT_TEGU_DIR', mativallej: 'VAULT_PERSONAL_DIR' };
+const envVarDe = (id) =>
+  ALIAS_HISTORICOS[id] ?? `VAULT_${id.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_DIR`;
+const REGISTRY = CONFIG.brands.map((b) => ({ id: b.id, brand: b.id, envVar: envVarDe(b.id) }));
 
 // Las claves que el sistema conoce: el contrato (docs/footer-contract.md), las
 // viejas que todavía conviven, y las de los creativos de ads. Lo que no está acá
@@ -75,6 +78,7 @@ export function sources() {
     const vault = absolute(process.env[entry.envVar] ?? brand.vault);
     const declared = Array.isArray(brand.content) ? brand.content : [brand.content];
     let roots = declared.map((r) => join(vault, r));
+    // Alias retrocompatible: apuntaba a un content root, no a un vault.
     const legacy = entry.id === 'tegu' ? process.env.VAULT_CONTENT_DIR : undefined;
     if (legacy) roots = [absolute(legacy)];
     return {

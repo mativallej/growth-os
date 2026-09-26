@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { abrirSesion, prepararEntrega } from '@/lib/handoff';
 import { captar, marcarPublicadas } from '@/lib/ideas-queue';
 import { getOperation } from '@/lib/operations';
-import { exportar } from '@/lib/export';
+import { exportar, exportarEnlaces } from '@/lib/export';
 import { marcarCorrida } from '@/lib/marcar-corrida';
 import type { ResultadoAccion } from './tipos.local';
 
@@ -125,8 +125,12 @@ export async function generarExport(
       if (v !== '') entrada[p.id] = v;
     }
 
-    const r = exportar({
+    // El enlace de atribución es un export más, con su propio armador.
+    const armar = id === 'enlace-atribucion' ? exportarEnlaces : exportar;
+    const r = armar({
       marca: entrada.marca ?? '',
+      destino: entrada.destino,
+      objetivo: entrada.objetivo,
       materia: entrada.materia,
       canal: entrada.canal,
       estado: entrada.estado,

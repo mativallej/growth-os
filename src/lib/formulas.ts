@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { getSource } from './sources';
+import { getSource, brandsConfig } from './sources';
 import type { Channel } from './normalize';
 
 // EL CATÁLOGO DE FÓRMULAS. Es lo único que cruza la frontera entre marcas, y se
@@ -91,13 +91,27 @@ export type CatalogLoad = {
   dir?: string;
 };
 
-function catalogDir(env: NodeJS.ProcessEnv = process.env): string | undefined {
+/**
+ * Dónde está el catálogo, DECLARADO en la config y no adivinado.
+ *
+ * Cada marca puede tener el suyo (`growth.catalogo`) o apuntar al de otra
+ * (`growth.catalogo_de`), porque es doctrina compartida. Antes esto asumía que
+ * existía una marca llamada `personal` con el catálogo en una ruta fija: con
+ * una tercera marca eso dejaba de tener sentido.
+ */
+function catalogDir(brand?: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
   if (env.CATALOG_DIR) return env.CATALOG_DIR;
   try {
-    // `getSource` y no `findSource`: el catálogo se lee aunque la marca personal
-    // no haya entrado al build. Es doctrina compartida, y lo que se extrae son
-    // códigos y nombres — nunca piezas.
-    return join(getSource('personal', env).vault, 'Personal Brand/Brand Identity/Catalog');
+    const marcas = brandsConfig();
+    const m = brand ? marcas.find((b) => b.id === brand) : undefined;
+    const dueño = m?.growth?.catalogo_de
+      ? marcas.find((b) => b.id === m.growth!.catalogo_de)
+      : m ?? marcas.find((b) => b.growth?.catalogo);
+    const rel = dueño?.growth?.catalogo;
+    if (!dueño || !rel) return undefined;
+    // `getSource` y no `findSource`: el catálogo se lee aunque esa marca no haya
+    // entrado al build. Lo que se extrae son códigos y nombres, nunca piezas.
+    return join(getSource(dueño.id, env).vault, rel);
   } catch {
     return undefined;
   }
@@ -105,9 +119,9 @@ function catalogDir(env: NodeJS.ProcessEnv = process.env): string | undefined {
 
 let cache: CatalogLoad | null = null;
 
-export function loadFormulas(env: NodeJS.ProcessEnv = process.env): CatalogLoad {
+export function loadFormulas(brand?: string, env: NodeJS.ProcessEnv = process.env): CatalogLoad {
   if (cache) return cache;
-  const dir = catalogDir(env);
+  const dir = catalogDir(brand, env);
   if (!dir || !existsSync(dir)) {
     cache = { formulas: FALLBACK, origin: 'fallback' };
     return cache;

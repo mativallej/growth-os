@@ -3,6 +3,7 @@ import { loadCreatives } from './ads';
 import { findSource, listSources, type SourceId } from './sources';
 import { latest, primaryReach } from './metrics';
 import { formulaCodeOf, loadFormulas } from './formulas';
+import { enlaceRastreable } from './attribution';
 
 // Exportar piezas y creativos a CSV.
 //
@@ -18,6 +19,10 @@ import { formulaCodeOf, loadFormulas } from './formulas';
 
 export type FiltroExport = {
   marca: string;
+  /** Solo para el export de enlaces: a dónde apunta cada uno. */
+  destino?: string;
+  /** Una sola pieza, por su ruta relativa al vault. */
+  objetivo?: string;
   materia?: 'piezas' | 'ads' | string;
   canal?: string;
   estado?: string;
@@ -113,6 +118,7 @@ export function exportar(filtro: FiltroExport): ResultadoExport {
 
   const catalogo = loadFormulas().formulas;
   const piezas = loadPieces([source]).filter((p) => {
+    if (filtro.objetivo && p.relPath !== filtro.objetivo) return false;
     if (filtro.canal && p.channel !== filtro.canal) return false;
     if (filtro.estado && p.status !== filtro.estado) return false;
     return enRango(p.publishedAt, filtro.desde, filtro.hasta);
@@ -154,4 +160,82 @@ export function exportar(filtro: FiltroExport): ResultadoExport {
 /** Las marcas que este build puede exportar. Para el selector de la consola. */
 export function marcasExportables(): SourceId[] {
   return listSources().map((s) => s.id);
+}
+
+/**
+ * Los enlaces rastreables de las piezas que pasan los filtros.
+ *
+ * Sale del mismo lugar que los otros exports porque comparte lo que importa: el
+ * aislamiento. Se lee UNA fuente, así que no hay forma de que un enlace de una
+ * marca salga en el export de la otra.
+ *
+ * Una pieza que no puede llevar enlace **igual sale en el archivo**, con su
+ * motivo en lugar de la url. Omitirla haría que el export parezca completo
+ * cuando le falta justo lo que no se puede atribuir, que es el dato.
+ */
+export function exportarEnlaces(filtro: FiltroExport): ResultadoExport {
+  const fuentes = listSources();
+  const source = findSource(filtro.marca, fuentes);
+  if (!source) {
+    return {
+      ok: false,
+      motivo:
+        `La marca "${filtro.marca}" no entró a este build. ` +
+        `Las disponibles son: ${fuentes.map((s) => s.id).join(', ')}.`,
+    };
+  }
+  const destino = (filtro.destino ?? '').trim();
+  if (!destino) {
+    return { ok: false, motivo: 'Falta el destino: el enlace tiene que llevar a algún lado propio.' };
+  }
+
+  const piezas = loadPieces([source]).filter((p) => {
+    if (filtro.objetivo && p.relPath !== filtro.objetivo) return false;
+    if (filtro.canal && p.channel !== filtro.canal) return false;
+    return enRango(p.publishedAt, filtro.desde, filtro.hasta);
+  });
+
+  if (piezas.length === 0) {
+    return {
+      ok: false,
+      motivo: `Ninguna pieza de ${source.label} cumple los filtros. No se genera un archivo vacío.`,
+    };
+  }
+
+  const filas = piezas.map((p) => {
+    const r = enlaceRastreable(p, destino);
+    return [
+      p.id ?? '',
+      p.title,
+      p.channel,
+      p.publishedAt ?? '',
+      r.atribuible ? r.clave : '',
+      // La llave frágil se marca: sale del slug, y el slug sale de la ruta.
+      r.atribuible ? (r.deId ? 'id' : 'slug') : '',
+      r.atribuible ? r.url : '',
+      r.atribuible ? '' : r.motivo,
+      p.relPath,
+    ];
+  });
+
+  const sello = new Date().toISOString().slice(0, 10);
+  const noAtribuibles = filas.filter((f) => !f[6]).length;
+  const porSlug = filas.filter((f) => f[5] === 'slug').length;
+
+  return {
+    ok: true,
+    nombre: `enlaces-${source.id}-${sello}.csv`,
+    filas: filas.length,
+    contenido: csv(
+      ['id', 'titulo', 'canal', 'fecha', 'utm_content', 'llave', 'enlace', 'motivo', 'ruta'],
+      filas,
+      [
+        ...preambulo('enlace-atribucion', filtro, filas.length),
+        `destino: ${destino}`,
+        `sin enlace: ${noAtribuibles} · con llave fragil (del slug, no del id): ${porSlug}`,
+        'Un enlace ya publicado no se puede corregir. Si su llave sale de la ruta y la',
+        'ruta cambia, el dato no se rompe: apunta a otra pieza. Ver docs/attribution.md.',
+      ],
+    ),
+  };
 }

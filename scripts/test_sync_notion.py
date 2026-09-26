@@ -25,6 +25,7 @@ y la columna que más importa quedó ilegible.
 
 import datetime
 import importlib.util
+import json
 import io
 import os
 import shutil
@@ -254,6 +255,161 @@ class FrenoDeMudanza(unittest.TestCase):
         # Diez piezas nuevas y ninguna huérfana: no hay nada que reconciliar.
         frena, _ = sn.detectar_mudanza([], ["n%d" % i for i in range(10)], 128)
         self.assertFalse(frena)
+
+
+class FrenoDeRellaveo(unittest.TestCase):
+    """El caso que el freno de mudanza NO ve, y que es el estado de hoy."""
+
+    def test_tablero_sin_columna_id_frena(self):
+        # Después del backfill: el vault llavea por id, el tablero no tiene la
+        # columna. Para el sync hay CERO huérfanas —no hay filas con id contra
+        # las que comparar— y 129 piezas "nuevas". Sin este freno, aplicar
+        # duplica el tablero entero.
+        frena, msg = sn.detectar_rellaveo(["f%d" % i for i in range(57)],
+                                          ["p%d" % i for i in range(129)])
+        self.assertTrue(frena)
+        self.assertIn("57 filas sin ID", msg)
+        self.assertIn("duplicaría", msg)
+        self.assertIn("reconciliar-llaves.py", msg)
+
+    def test_el_freno_de_mudanza_NO_ve_este_caso(self):
+        # La prueba de que hacía falta un freno aparte: con 0 huérfanas, el de
+        # mudanza no dispara por más piezas nuevas que haya.
+        frena, _ = sn.detectar_mudanza([], ["p%d" % i for i in range(129)], 57)
+        self.assertFalse(frena)
+
+    def test_un_tablero_ya_llaveado_no_frena(self):
+        # Todas las filas con ID: no hay nada que re-llavear.
+        frena, _ = sn.detectar_rellaveo([], ["p%d" % i for i in range(20)])
+        self.assertFalse(frena)
+
+    def test_unas_pocas_filas_viejas_no_frenan(self):
+        frena, _ = sn.detectar_rellaveo(["a", "b"], ["x", "y"])
+        self.assertFalse(frena)
+
+
+class Reconciliacion(unittest.TestCase):
+    """Emparejar SOLO lo inequívoco. Lo ambiguo se lista, no se aplica."""
+
+    def setUp(self):
+        self.rec = _cargar("reconciliar", "reconciliar-llaves.py")
+
+    def test_el_mismo_id_empareja(self):
+        indice = {"nueva/ruta.md": {"id": "k7m2p9qx", "url": None, "nombre": "otro"}}
+        seguras, amb, sin = self.rec.emparejar(
+            [{"ruta": "vieja/ruta.md", "id": "k7m2p9qx", "url": None}], indice)
+        self.assertEqual(len(seguras), 1)
+        self.assertEqual(seguras[0][1], "nueva/ruta.md")
+        self.assertIn("identificador", seguras[0][2])
+
+    def test_la_misma_url_empareja(self):
+        indice = {"nueva.md": {"id": None, "url": "https://x.com/1", "nombre": "otro"}}
+        seguras, _, _ = self.rec.emparejar(
+            [{"ruta": "vieja.md", "id": None, "url": "https://x.com/1"}], indice)
+        self.assertEqual(len(seguras), 1)
+
+    def test_SOLO_el_nombre_NO_alcanza(self):
+        # Dos piezas pueden llamarse igual en carpetas distintas. El intento del
+        # 2026-09-24 descartó dos colisiones exactamente así.
+        indice = {"a/pieza.md": {"id": None, "url": None, "nombre": "pieza"}}
+        seguras, ambiguas, _ = self.rec.emparejar(
+            [{"ruta": "b/pieza.md", "id": None, "url": None}], indice)
+        self.assertEqual(seguras, [])
+        self.assertEqual(len(ambiguas), 1)
+
+    def test_DOS_candidatos_plausibles_NO_emparejan(self):
+        indice = {
+            "a.md": {"id": None, "url": "https://x.com/1", "nombre": "pieza"},
+            "b.md": {"id": None, "url": "https://x.com/1", "nombre": "pieza"},
+        }
+        seguras, ambiguas, _ = self.rec.emparejar(
+            [{"ruta": "vieja.md", "id": None, "url": "https://x.com/1"}], indice)
+        self.assertEqual(seguras, [])
+        self.assertEqual(len(ambiguas), 1)
+        # Y se listan los candidatos, para que los mire una persona.
+        self.assertGreaterEqual(len(ambiguas[0][1]), 2)
+
+    def test_dos_filas_al_MISMO_destino_es_colision(self):
+        # Elegir una sería inventar. Ninguna se aplica.
+        indice = {"destino.md": {"id": None, "url": None, "nombre": "pieza"}}
+        seguras, ambiguas, _ = self.rec.emparejar([
+            {"ruta": "a/pieza.md", "id": None, "url": None},
+            {"ruta": "b/pieza.md", "id": None, "url": None},
+        ], indice)
+        self.assertEqual(seguras, [])
+        self.assertEqual(len(ambiguas), 2)
+
+    def test_sin_ningun_candidato_se_reporta_aparte(self):
+        seguras, ambiguas, sin = self.rec.emparejar(
+            [{"ruta": "borrada.md", "id": None, "url": None}], {})
+        self.assertEqual((seguras, ambiguas), ([], []))
+        self.assertEqual(len(sin), 1)
+
+
+class Idempotencia(unittest.TestCase):
+    """Interrumpir y repetir NO puede duplicar. Tareas 3.1 y 3.2 de
+    unschedule-everything: al apagar todo lo agendado, cada corrida la dispara
+    una persona — y una persona corta una corrida a la mitad."""
+
+    def setUp(self):
+        self.docs = _cargar("sync_docs", "sync-notion-docs.py")
+
+    def test_lo_ya_subido_no_se_vuelve_a_subir(self):
+        # El estado guarda ruta -> hash. Un archivo sin cambios no se toca, así
+        # que repetir una corrida completa no crea nada.
+        h = self.docs.hashlib.sha1("contenido".encode("utf-8")).hexdigest()[:12]
+        files = {"a.md": {"hash": h}}
+        self.assertEqual(files["a.md"]["hash"], h)
+
+    def test_una_corrida_a_medias_deja_el_estado_a_medias_y_se_completa(self):
+        # Se sube la mitad, se corta. El estado tiene la mitad. La segunda
+        # corrida ve la otra mitad como nueva y las primeras como iguales:
+        # se completa, no se duplica.
+        encontrados = ["a.md", "b.md", "c.md", "d.md"]
+        hashes = {r: "h" + r for r in encontrados}
+        # Primera corrida: alcanzó a guardar dos.
+        files = {"a.md": {"hash": hashes["a.md"]}, "b.md": {"hash": hashes["b.md"]}}
+        nuevas = [r for r in encontrados if r not in files]
+        iguales = [r for r in encontrados if r in files and files[r]["hash"] == hashes[r]]
+        self.assertEqual(nuevas, ["c.md", "d.md"])
+        self.assertEqual(iguales, ["a.md", "b.md"])
+
+    def test_el_freno_de_docu_atrapa_una_mudanza_de_carpetas(self):
+        # Huérfanas Y altas a la vez: las mismas carpetas con otro nombre.
+        frena, msg = self.docs.detectar_mudanza_docu(
+            ["Brand/Identity/%d.md" % i for i in range(20)],
+            [("Foundations/%d.md" % i, "", "") for i in range(20)])
+        self.assertTrue(frena)
+        self.assertIn("colgadas", msg)
+
+    def test_altas_sin_huerfanas_NO_frenan(self):
+        # La primera subida: 49 archivos nuevos y ningún estado previo.
+        frena, _ = self.docs.detectar_mudanza_docu(
+            [], [("a%d.md" % i, "", "") for i in range(49)])
+        self.assertFalse(frena)
+
+    def test_borrados_sin_altas_NO_frenan(self):
+        # Puede ser un borrado real de documentación.
+        frena, _ = self.docs.detectar_mudanza_docu(["a%d.md" % i for i in range(20)], [])
+        self.assertFalse(frena)
+
+    def test_la_correspondencia_de_enlaces_se_acumula_sin_pisar(self):
+        # Una corrida parcial guarda lo suyo; la siguiente SUMA, no reemplaza.
+        # Si reemplazara, una corrida filtrada borraría los enlaces de todo lo
+        # que el filtro dejó afuera.
+        d = tempfile.mkdtemp(prefix="sync-notion-idem-")
+        self.addCleanup(shutil.rmtree, d, True)
+        previo = sn.ROOT
+        sn.ROOT = d
+        try:
+            sn.guardar_enlaces("tegu", {"aaa": "fila-a"}, True)
+            sn.guardar_enlaces("tegu", {"bbb": "fila-b"}, True)
+            with io.open(os.path.join(d, ".state", "notion-links-tegu.json"),
+                         encoding="utf-8") as f:
+                filas = json.load(f)["filas"]
+            self.assertEqual(filas, {"aaa": "fila-a", "bbb": "fila-b"})
+        finally:
+            sn.ROOT = previo
 
 
 if __name__ == "__main__":

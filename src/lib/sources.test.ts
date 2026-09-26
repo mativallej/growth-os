@@ -4,7 +4,7 @@ import { isAbsolute, join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { loadPieces, loadPiecesBySource } from './parse';
 import type { ContentSource } from './sources';
-import { ALL_SOURCE_IDS, assertRoots, getSource, listSources } from './sources';
+import { allSourceIds, assertRoots, brandsConfig, getSource, listSources } from './sources';
 
 const temps: string[] = [];
 
@@ -30,19 +30,22 @@ afterAll(() => {
 describe('listSources', () => {
   it('sin GROWTH_SOURCES devuelve todas las fuentes declaradas', () => {
     const ids = listSources(undefined).map((s) => s.id);
-    expect(ids).toEqual(ALL_SOURCE_IDS);
+    // Las fuentes salen de config/sources.json: el test compara contra la
+    // config, no contra una lista escrita acá. Agregar una marca no puede
+    // obligar a tocar un test.
+    expect(ids).toEqual([...allSourceIds()].sort());
     expect(ids).toContain('tegu');
-    expect(ids).toContain('personal');
+    expect(ids).toEqual(brandsConfig().map((b) => b.id).sort());
   });
 
   it('recorta el build a las fuentes nombradas', () => {
     expect(listSources('tegu').map((s) => s.id)).toEqual(['tegu']);
-    expect(listSources(' personal , personal ').map((s) => s.id)).toEqual(['personal']);
+    expect(listSources(' mativallej , mativallej ').map((s) => s.id)).toEqual(['mativallej']);
   });
 
   it('una fuente inexistente rompe listando las válidas', () => {
     expect(() => listSources('tegu,marketing')).toThrow(/marketing/);
-    expect(() => listSources('marketing')).toThrow(/tegu, personal/);
+    expect(() => listSources('marketing')).toThrow(new RegExp(allSourceIds().join(', ')));
   });
 
   it('las raíces son absolutas y no dependen del cwd', () => {
@@ -62,7 +65,7 @@ describe('listSources', () => {
   });
 
   it('una raíz relativa por env rompe en vez de resolverla contra el cwd', () => {
-    expect(() => listSources('personal', { VAULT_PERSONAL_DIR: '../brain' })).toThrow(/relativa/);
+    expect(() => listSources('mativallej', { VAULT_PERSONAL_DIR: '../brain' })).toThrow(/relativa/);
   });
 
   it('VAULT_CONTENT_DIR sigue siendo el alias del content root de Tegu', () => {
@@ -77,7 +80,7 @@ describe('assertRoots', () => {
   });
 
   it('una raíz ausente rompe nombrándola', () => {
-    const roto = listSources('personal', { VAULT_PERSONAL_DIR: '/no/existe' });
+    const roto = listSources('mativallej', { VAULT_PERSONAL_DIR: '/no/existe' });
     expect(() => assertRoots(roto)).toThrow(/\/no\/existe/);
     expect(() => assertRoots(roto)).toThrow(/VAULT_PERSONAL_DIR/);
   });
@@ -88,7 +91,7 @@ describe('assertRoots', () => {
 });
 
 describe('loadPieces sobre fuentes armadas a mano', () => {
-  function fuente(id: 'tegu' | 'personal', vault: string, roots: string[], ignore: string[] = []): ContentSource {
+  function fuente(id: string, vault: string, roots: string[], ignore: string[] = []): ContentSource {
     return { id, label: id, brand: id, vault, roots, ignore, envVar: 'VAULT_TEST_DIR' };
   }
 
