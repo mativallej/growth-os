@@ -1,11 +1,16 @@
 import { notFound } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
 import PageHeader from "@/components/PageHeader";
+import CadenciaClient, { type Mes, type PiezaDelMes } from "@/components/CadenciaClient";
 import { loadPieces } from "@/lib/parse";
 import { findSource } from "@/lib/sources";
-import { cadenceByMonth } from "@/lib/rollups";
-import { num } from "@/lib/metrics";
+import { loadFormulas, formulaCodeOf } from "@/lib/formulas";
+import { primaryReach } from "@/lib/metrics";
 import { dietaDe } from "@/lib/cadencia";
+
+// El mes se congela al BUILD, no al render: estas páginas son estáticas, así que
+// "este mes" es cuándo se generaron. Calcularlo en el cliente haría que dependa
+// del reloj de cada navegador — y dos personas verían meses en curso distintos.
+const MES_EN_CURSO = new Date().toISOString().slice(0, 7);
 
 export default async function CadenciaPage({ params }: { params: Promise<{ account: string }> }) {
   const { account } = await params;
@@ -15,84 +20,53 @@ export default async function CadenciaPage({ params }: { params: Promise<{ accou
   // La dieta es de la MARCA y la declara el humano: se lee de la config, no se
   // infiere del promedio de los últimos meses. Derivar el objetivo de lo que
   // viene pasando es garantizar que nunca se esté por debajo de él.
-  const { piso: PISO, techo: TECHO } = dietaDe(source.brand);
-  const { months, undated, total } = cadenceByMonth(loadPieces([source]));
-  const max = Math.max(TECHO, ...months.map((m) => m.count));
+  const { piso, techo } = dietaDe(source.brand);
+
+  const catalogo = loadFormulas().formulas;
+  const publicadas = loadPieces([source]).filter((p) => p.status === "published");
+
+  // Las piezas sin fecha NO se reparten entre los meses ni se estiman: eso daría
+  // una cadencia inventada. Se cuentan aparte y la vista lo dice.
+  const porMes = new Map<string, PiezaDelMes[]>();
+  let sinFecha = 0;
+  for (const p of publicadas) {
+    if (!p.publishedAt) {
+      sinFecha++;
+      continue;
+    }
+    const mes = p.publishedAt.slice(0, 7);
+    porMes.set(mes, [
+      ...(porMes.get(mes) ?? []),
+      {
+        slug: p.slug,
+        title: p.title,
+        href: `/${account}/piezas/${p.slug}`,
+        canal: p.channel,
+        formulaCode: formulaCodeOf(p, catalogo) ?? "",
+        publishedAt: p.publishedAt,
+        medida: primaryReach(p) !== null,
+      },
+    ]);
+  }
+
+  const meses: Mes[] = [...porMes.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([month, piezas]) => ({
+      month,
+      piezas: piezas.sort((a, b) => a.publishedAt.localeCompare(b.publishedAt)),
+    }));
 
   return (
     <>
-      <PageHeader
-        title="Cadencia"
-        subtitle={`${source.label} · piezas publicadas por mes contra la dieta de ${PISO}-${TECHO}`}
+      <PageHeader title="Cadencia" />
+      <CadenciaClient
+        meses={meses}
+        piso={piso}
+        techo={techo}
+        sinFecha={sinFecha}
+        totalPublicadas={publicadas.length}
+        mesEnCurso={MES_EN_CURSO}
       />
-
-      {/* Las piezas sin fecha van ARRIBA, no en una nota al pie. Para Tegu son
-          casi la mitad de las publicadas, y repartirlas entre los meses daría
-          una cadencia inventada: el agujero es el hallazgo. */}
-      {undated > 0 && (
-        <Card className="mb-5 border-[var(--tg-amber,theme(colors.amber.500))]">
-          <CardContent className="p-4">
-            <div className="text-sm">
-              <strong className="tabular-nums">{num(undated)}</strong> de {num(total)} piezas publicadas{" "}
-              <strong>no declaran fecha</strong>, así que no están en ningún mes de abajo.
-            </div>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-              No se reparten ni se estiman. La cadencia de abajo es la de las{" "}
-              {num(total - undated)} que sí la declaran — leerla como la cadencia real
-              sería leer una fracción como si fuera el total.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {months.length === 0 ? (
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-sm">Ninguna pieza publicada declara fecha.</p>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-              No es que no se publicó: es que no se puede saber cuándo. La fecha va
-              en el campo <code>date</code> del footer, o adentro del estado
-              (<code>estado: Publicado 2026-07-08</code>).
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="p-5">
-            <div className="space-y-2">
-              {months.map((m) => {
-                const bajo = m.count < PISO;
-                return (
-                  <div key={m.month} className="flex items-center gap-3 text-[13px]">
-                    <span className="w-16 shrink-0 font-mono text-muted-foreground">{m.month}</span>
-                    <div className="relative h-4 flex-1 overflow-hidden rounded bg-secondary">
-                      {/* La banda del objetivo, para que el mes se lea contra
-                          ella y no contra el mes más alto. */}
-                      <div
-                        className="absolute inset-y-0 border-x border-dashed border-muted-foreground/40 bg-muted-foreground/5"
-                        style={{ left: `${(PISO / max) * 100}%`, width: `${((TECHO - PISO) / max) * 100}%` }}
-                        aria-hidden="true"
-                      />
-                      <div
-                        className={`h-full rounded-r ${bajo ? "bg-muted-foreground/50" : "bg-primary"}`}
-                        style={{ width: `${(m.count / max) * 100}%` }}
-                      />
-                    </div>
-                    <span className="w-16 shrink-0 text-right tabular-nums text-muted-foreground">
-                      {m.count}
-                      {bajo && <span className="ml-1 text-[11px]">−{PISO - m.count}</span>}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="mt-4 text-[11px] text-muted-foreground/70">
-              La banda punteada es el objetivo de {PISO}-{TECHO}. El número chico es lo
-              que faltó para el piso.
-            </p>
-          </CardContent>
-        </Card>
-      )}
     </>
   );
 }
