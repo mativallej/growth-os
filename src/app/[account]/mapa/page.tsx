@@ -3,7 +3,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import PageHeader from "@/components/PageHeader";
 import { CAPAS, DUENOS, marcasDelMapa, operacionesDelMapa } from "@/lib/mapa";
+import Link from "next/link";
 import { destinosDe } from "@/lib/destinos";
+import { FASES } from "@/lib/metodologia";
 import { findSource as buscarFuente } from "@/lib/sources";
 
 const FORMA: Record<string, string> = {
@@ -31,8 +33,27 @@ export default async function MapaPage({ params }: { params: Promise<{ account: 
         subtitle="Qué se hace en cada capa, y qué no le corresponde a ninguna otra."
       />
 
+      {/* El método va PRIMERO: la pregunta de quien entra no es "qué capas hay",
+          es "cómo se trabaja acá". Las capas explican dónde vive cada paso. */}
+      <Link
+        href={`/${account}/metodo`}
+        className="mb-7 block rounded-lg border border-border p-4 transition-colors hover:bg-secondary"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-medium">El método, paso por paso</h2>
+          <span aria-hidden="true" className="text-muted-foreground">→</span>
+        </div>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          {FASES.map((f) => f.nombre).join(" → ")}
+        </p>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground/70">
+          Qué skill hace cada paso, qué hace esta app en cada uno, y qué se rompe si se
+          saltea.
+        </p>
+      </Link>
+
       <p className="mb-7 max-w-[70ch] text-[13px] leading-relaxed text-muted-foreground">
-        Tres capas y <strong>un verbo cada una</strong>. Si dos comparten verbo, una de
+        Y dónde vive cada paso: tres capas y <strong>un verbo cada una</strong>. Si dos comparten verbo, una de
         las dos está de más. La frontera que más se pone a prueba es la primera: esta
         plataforma no es un editor, y la única escritura de contenido que admite es
         captar una idea — que es materia prima, no trabajo creativo.

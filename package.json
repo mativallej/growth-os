@@ -4,12 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:local": "GROWTH_CONSOLE=1 next dev",
     "build": "next build",
+    "build:local": "GROWTH_CONSOLE=1 next build",
+    "build:compartido": "GROWTH_SOURCES=tegu next build",
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run && npm run test:py",
-    "audit": "node scripts/audit-vaults.mjs",
-    "test:py": "python3 scripts/test_sync_notion.py"
+    "test:py": "python3 scripts/test_sync_notion.py",
+    "audit": "node scripts/audit-vaults.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.24",

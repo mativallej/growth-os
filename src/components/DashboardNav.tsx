@@ -17,6 +17,7 @@ const nav = [
   { sub: "ranking", label: "Ranking" },
   { sub: "campanas", label: "Campañas" },
   { sub: "atribucion", label: "Atribución" },
+  { sub: "metodo", label: "El método" },
   { sub: "mapa", label: "Mapa" },
 ];
 
