@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import PageHeader from "@/components/PageHeader";
 import BarList from "@/components/BarList";
 import RangoFechas, { RANGO_VACIO, type Rango } from "@/components/RangoFechas";
+import { BarrasPorMes, BarraCompuesta, Medidor } from "@/components/Graficos";
 
 /**
  * El overview, recalculado contra un rango de fechas.
@@ -36,6 +37,7 @@ export type OverviewPiece = {
 };
 
 const PISO = 10;
+const TECHO = 14;
 
 const ETIQUETA: Record<string, string> = {
   published: "publicadas",
@@ -226,20 +228,68 @@ export default function OverviewClient({
         </>
       )}
 
-      <div className="mt-9 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
-        Distribución
+      <div className="mt-9 grid gap-4 md:grid-cols-3">
+        <Card className="md:col-span-2">
+          <CardContent className="p-5">
+            <div className="mb-4 flex items-baseline justify-between gap-2">
+              <h3 className="text-xs font-medium text-muted-foreground">
+                Cadencia · piezas publicadas por mes
+              </h3>
+              <span className="text-[11px] text-muted-foreground/70">
+                objetivo {PISO}-{TECHO}
+              </span>
+            </div>
+            {porMes.length === 0 ? (
+              <p className="text-[13px] text-muted-foreground/70">
+                Ninguna pieza publicada declara fecha, así que no hay meses que dibujar.
+              </p>
+            ) : (
+              <BarrasPorMes
+                datos={porMes.slice(-12).map(([label, value]) => ({ label, value }))}
+                piso={PISO}
+                techo={TECHO}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-5">
+            <h3 className="mb-4 text-xs font-medium text-muted-foreground">
+              Cobertura de medición
+            </h3>
+            <Medidor
+              valor={medidas.length}
+              total={vista.length}
+              etiqueta="de las piezas tienen al menos un corte medido"
+            />
+          </CardContent>
+        </Card>
       </div>
-      <div className="mt-3 grid gap-4 md:grid-cols-2">
+
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardContent className="p-5">
+            <h3 className="mb-4 text-xs font-medium text-muted-foreground">Medición</h3>
+            <BarraCompuesta
+              tramos={[
+                { label: "Medidas", value: vista.filter((p) => p.coverage === "tracked").length, clase: "bg-primary" },
+                { label: "Pendientes", value: vista.filter((p) => p.coverage === "pending").length, clase: "bg-muted-foreground/45" },
+                { label: "Sin trackear", value: vista.filter((p) => p.coverage === "untracked").length, clase: "bg-muted-foreground/20" },
+              ]}
+            />
+          </CardContent>
+        </Card>
         <Card>
           <CardContent className="p-5">
             <h3 className="mb-4 text-xs font-medium text-muted-foreground">Por canal</h3>
-            <BarList items={topN(cuenta("canal"), 6)} />
+            <BarList items={topN(cuenta("canal"), 6)} labelClassName="w-20" />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-5">
             <h3 className="mb-4 text-xs font-medium text-muted-foreground">Por estado</h3>
-            <BarList items={topN(cuenta("status"), 6)} />
+            <BarList items={topN(cuenta("status"), 6)} labelClassName="w-20" />
           </CardContent>
         </Card>
       </div>

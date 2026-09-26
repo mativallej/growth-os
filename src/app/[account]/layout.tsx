@@ -1,6 +1,19 @@
 import { notFound } from "next/navigation";
 import DashboardNav from "@/components/DashboardNav";
+import type { Comando } from "@/components/CommandPalette";
 import { findSource, listSources } from "@/lib/sources";
+import { loadPieces } from "@/lib/parse";
+
+const VISTAS = [
+  { sub: "", label: "Overview" },
+  { sub: "piezas", label: "Piezas" },
+  { sub: "inventario", label: "Inventario" },
+  { sub: "cadencia", label: "Cadencia" },
+  { sub: "deuda", label: "Deuda" },
+  { sub: "formulas", label: "Fórmulas" },
+  { sub: "ranking", label: "Ranking" },
+  { sub: "campanas", label: "Campañas" },
+];
 
 /**
  * Una ruta por marca. El segmento NO es cosmético: es la frontera de privacidad
@@ -42,13 +55,44 @@ export default async function AccountLayout({
 }) {
   const { account } = await params;
   const sources = listSources();
-  if (!findSource(account, sources)) notFound();
+  const source = findSource(account, sources);
+  if (!source) notFound();
+
+  // El índice del ⌘K: título, canal y ruta. NO lleva el cuerpo de ninguna pieza
+  // —no hay motivo para mandar texto completo a un buscador— y es solo de la
+  // marca que se está mirando, así que no cruza la frontera entre marcas.
+  const comandos: Comando[] = [
+    ...VISTAS.map((v) => ({
+      id: `vista:${v.sub}`,
+      titulo: v.label,
+      href: v.sub ? `/${account}/${v.sub}` : `/${account}`,
+      grupo: "Ir a",
+    })),
+    ...sources
+      .filter((s) => s.id !== account)
+      .map((s) => ({
+        id: `marca:${s.id}`,
+        titulo: s.label,
+        detalle: "cambiar de marca",
+        href: `/${s.id}`,
+        grupo: "Marcas",
+      })),
+    ...loadPieces([source]).map((p) => ({
+      id: `pieza:${p.slug}`,
+      titulo: p.title,
+      detalle: p.channel,
+      href: `/${account}/piezas/${p.slug}`,
+      grupo: "Piezas",
+    })),
+  ];
 
   return (
     <>
       <DashboardNav
         account={account}
         accounts={sources.map((s) => ({ id: s.id, label: s.label }))}
+        comandos={comandos}
+        local={process.env.GROWTH_CONSOLE === "1"}
       />
       <main className="max-w-[1080px] px-6 py-9 md:ml-[220px] md:px-10">{children}</main>
     </>
