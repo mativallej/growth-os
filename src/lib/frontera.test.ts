@@ -32,6 +32,10 @@ const FUENTES = archivos(SRC).map((p) => ({ rel: relative(SRC, p), txt: readFile
 //   handoff      el contexto que recibe una sesión local
 //   config-env   `.env.local`, y solo desde la pantalla de configuración, que no
 //                existe fuera del entorno local
+//   marcar-corrida  `.state/last-run-<id>.json` — hace cuánto corrió cada
+//                operación. Es la mitigación de haber apagado todo lo agendado:
+//                si nada corre solo, lo que puede pasar es que nadie apriete el
+//                botón, y esto es lo que hace que se note
 //
 // Ninguna escribe un `.md`, y ninguna conoce la ubicación de un vault: eso lo
 // verifican los dos tests de abajo. Sumar un cuarto escritor tiene que ser una
@@ -40,16 +44,22 @@ const PUEDEN_ESCRIBIR = new Set([
   'lib/ideas-queue.ts',
   'lib/handoff.ts',
   'lib/config-env.ts',
+  'lib/marcar-corrida.ts',
 ]);
 
 // `config-env` sí resuelve la raíz del REPO (para `.env.local`), que es distinto
 // de conocer la de un vault. Los otros dos no resuelven ninguna.
-const SIN_VAULTS = new Set(['lib/ideas-queue.ts', 'lib/handoff.ts', 'lib/config-env.ts']);
+const SIN_VAULTS = new Set([
+  'lib/ideas-queue.ts',
+  'lib/handoff.ts',
+  'lib/config-env.ts',
+  'lib/marcar-corrida.ts',
+]);
 
 const ESCRITURAS = /\b(writeFileSync|appendFileSync|createWriteStream|writeFile|unlinkSync|rmSync|cpSync|copyFileSync)\b/;
 
 describe('la plataforma no es donde se hace el trabajo creativo', () => {
-  it('solo tres módulos escriben en disco, y ninguno toca un vault', () => {
+  it('solo cuatro módulos escriben en disco, y ninguno toca un vault', () => {
     const escriben = FUENTES.filter((f) => ESCRITURAS.test(f.txt)).map((f) => f.rel);
     expect(new Set(escriben)).toEqual(PUEDEN_ESCRIBIR);
   });

@@ -355,7 +355,7 @@ export const OPERACIONES: Operation[] = [
     params: [PARAM_MARCA],
     precondiciones: [PRE_PYTHON, preWebhook('DISCORD_WEBHOOK_MATIVALLEJ')],
     periodoDias: 7,
-    implementacion: { comando: 'bash', args: ['scripts/cron-digest.sh'] },
+    implementacion: { comando: 'bash', args: ['scripts/digest.sh'] },
     queRevisar: ['El texto del digest antes de que salga: va a un canal, no a un archivo.'],
     etapa: 1,
   },
@@ -437,7 +437,7 @@ export const OPERACIONES: Operation[] = [
  * |---|---|
  * | `scripts/notify-discord.py` | es una PRIMITIVA: la usan el digest y la cola de ideas para postear. Ofrecerla suelta sería un botón de "mandar un mensaje a un canal" sin nada que decir |
  * | `scripts/notify-ideas.py` | **vigila dos carpetas que ya no existen** (`Personal Brand/Content/Ideas` y `Create/Ideas`): las ideas se mudaron al destino de coordinación el 2026-09-23. El script quedó huérfano y hay que borrarlo o reapuntarlo, no ofrecerlo |
- * | `scripts/cron-digest.sh` · `scripts/cron-ideas.sh` | envoltorios de los trabajos agendados que `unschedule-everything` apagó. El digest se ofrece llamando al `.sh`, que sigue siendo el ejecutable; el de ideas lo reemplazó `ideas-publicar` |
+ * | `scripts/publicar-ideas.sh` | lo reemplazó la operación `ideas-publicar`, que lee la cola local en vez de vigilar carpetas |
  *
  * Las skills de los tres vaults (`brain-*`, `growth-*`, `tegu-*`) tampoco entran:
  * son operación CREATIVA, y la regla dura 7 dice que eso vive en Obsidian. La

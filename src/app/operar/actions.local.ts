@@ -5,6 +5,7 @@ import { abrirSesion, prepararEntrega } from '@/lib/handoff';
 import { captar, marcarPublicadas } from '@/lib/ideas-queue';
 import { getOperation } from '@/lib/operations';
 import { exportar } from '@/lib/export';
+import { marcarCorrida } from '@/lib/marcar-corrida';
 import type { ResultadoAccion } from './tipos.local';
 
 // Los efectos viven SOLO acá, en acciones de servidor. Una acción se invoca con un
@@ -36,6 +37,10 @@ export async function dispararOperacion(
     const entrega = prepararEntrega(op, entrada);
     const abierta = abrirSesion(entrega);
 
+    // Se marca la PREPARACIÓN, que es lo que esta app hace. Lo que la sesión
+    // local decida aplicar después no lo sabe nadie acá — y decir "al día"
+    // porque se abrió una terminal sería afirmar de más.
+    marcarCorrida(op.id, true, `entrega preparada${abierta ? ' y sesión abierta' : ''}`);
     revalidatePath('/operar');
     return {
       ok: true,
