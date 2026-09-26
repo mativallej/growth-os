@@ -8,6 +8,7 @@
     "notion.marca": "etiqueta EXACTA de la opción del select 'Marca' en Notion. Ojo: Notion guarda el valor del select como texto, así que si se renombra la opción hay que renombrarla acá y migrar las filas.",
     "notion.docs": "carpetas de documentación a espejar como páginas de Notion. Vacío = esta marca no publica docu (brain sincroniza solo contenido).",
     "notion.ads": "prefijos (relativos al vault) donde viven los creativos de ads. Salen del kanban de contenido y van a Ads Creator: un ad no es un post.",
+    "supabase": "ÍNDICE DERIVADO de esta marca (D-15/D-16), nunca la fuente de verdad. Un proyecto POR MARCA: un deploy se lleva solo los de las marcas que GROWTH_SOURCES dejó entrar, así un deploy para externos no emite las rutas de otra marca NI lleva su credencial. `ref` y `url` no son secretos; la service_role va en .env.local como SUPABASE_<ID_DE_MARCA>_SERVICE_ROLE_KEY, resuelto por convención desde este `id`.",
     "notion.operational_days": "el tablero es lo que se mueve, no un archivo. Una pieza publicada hace más de N días no sube. 0 = sin corte."
   },
   "brands": [
@@ -46,6 +47,10 @@
         "docs": [],
         "ads": [],
         "operational_days": 60
+      },
+      "supabase": {
+        "ref": "ndrpszddzbqhyfzxnpor",
+        "url": "https://ndrpszddzbqhyfzxnpor.supabase.co"
       }
     },
     {
@@ -92,6 +97,10 @@
           "Create/Ads"
         ],
         "operational_days": 60
+      },
+      "supabase": {
+        "ref": "tnavdqmznglovaistmwi",
+        "url": "https://tnavdqmznglovaistmwi.supabase.co"
       }
     }
   ],

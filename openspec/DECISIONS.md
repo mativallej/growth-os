@@ -21,7 +21,7 @@ reconstruir el razonamiento desde cero.
 | D-13 | El proyecto pasa a ser open source | **decidida** | 2026-09-24 |
 | D-14 | Nombre definitivo, remote y licencia | **abierta** | — |
 | D-15 | Supabase como índice derivado del vault | **decidida — con condiciones** | 2026-09-24 |
-| D-16 | Un proyecto de Supabase por marca | **decidida** | 2026-09-26 |
+| D-16 | Supabase es una dimensión por marca, no dos proyectos fijos | **decidida** | 2026-09-26 |
 
 ---
 
@@ -273,28 +273,47 @@ debuggeando en dos lugares en vez de uno.
   persona. Falta decidir si vive en `scripts/` o en la consola de operaciones
   (`operations-console`).
 
-## D-16 · Un proyecto de Supabase por marca — decidida
+## D-16 · Supabase es una dimensión por marca, no dos proyectos fijos — decidida
 
-**Qué se decidió.** El índice derivado de D-15 vive en **dos** proyectos, uno por
-marca, en organizaciones distintas:
+**Qué se decidió.** Cada marca declara SU proyecto de Supabase, y un deploy se
+lleva solo los de las marcas que entraron a ese build. No son "dos proyectos":
+son N, uno por marca, resueltos por convención desde el `id` de la marca.
 
-| proyecto | org | indexa |
-|---|---|---|
-| `tegu-growth` | `tegu` | las piezas de Tegu |
-| `growth-loop-mativallej` | `matiasvallejos` | las piezas de la marca personal |
+```
+deploy propio    GROWTH_SOURCES=tegu,mativallej  → los dos proyectos
+deploy externo   GROWTH_SOURCES=tegu             → solo el de Tegu
+marca nueva      agregar un objeto a config/sources.json
+```
 
-**Por qué no uno solo.** La REGLA DURA 4 pide que la separación entre marcas sea
-estructural, no un filtro. Un solo proyecto en la org de Tegu con las dos marcas
-adentro deja el contenido personal —que incluye la historia del despido— al
-alcance de cualquiera con acceso a esa organización: hoy el socio, mañana quien
-se sume. Y a diferencia del build, donde `GROWTH_SOURCES` recorta, una API no
-tiene ese corte: la única frontera sería un `where` que alguien puede olvidar.
+**Por qué, y esto es lo que cambió respecto de la primera versión de esta
+decisión.** La plataforma no la usa una sola persona. Matías es las dos marcas;
+los externos que se suman son SOLO Tegu. Acoplar la configuración a dos
+proyectos nombrados en el código hace que sumar una marca —o quitarle una a un
+deploy— sea un cambio de código, cuando en este repo agregar una marca es
+agregar un objeto a `config/sources.json`. Supabase pasa a ser la cuarta
+dimensión de esa misma regla, junto a marcas × redes × cuentas.
 
-Con dos proyectos la frontera son las credenciales y las orgs. Un leak expone una
-marca, no las dos.
+**Cómo se implementa.**
 
-**Costo aceptado.** Dos connection strings y dos juegos de claves en `.env.local`.
+| dónde | qué |
+|---|---|
+| `config/sources.json` | cada marca declara `supabase.ref` y `supabase.url` — no son secretos |
+| `.env.local` | `SUPABASE_<ID_DE_MARCA>_SERVICE_ROLE_KEY`, resuelto por convención |
+| el build | `GROWTH_SOURCES` ya decide qué marcas entran; las credenciales siguen esa lista |
 
-**Sigue bloqueada por D-9** hasta que el backfill de ids corra: un índice
-llaveado por ruta reproduce el problema de `move-resilient-keys` una capa más
-abajo. Con D-9 decidida, el desbloqueo es cuestión de correr el backfill.
+**La garantía que da.** Compone con `account-scoped-routes`: un deploy para
+externos no emite las rutas de la marca personal Y no lleva su credencial. El
+externo no puede consultar lo que su deploy no tiene — la frontera es la misma
+en las dos capas, y ninguna de las dos es un filtro.
+
+**Lo que NO cambia.** Supabase sigue siendo un índice DERIVADO (D-15). El
+dashboard lee los `.md`; nunca consulta Supabase. Si el índice se cae o queda
+viejo, el dashboard anda igual.
+
+**Sigue bloqueada por D-9** hasta que corra el backfill de ids: un índice
+llaveado por ruta reproduce el problema de `move-resilient-keys`.
+
+**Estado al 2026-09-26.** Los dos proyectos existen y responden (`tegu-growth`
+en la org `tegu`, `growth-loop-mativallej` en `matiasvallejos`), con sus claves
+en `.env.local`. Falta el código que las lea por convención, que entra con el
+change de Supabase cuando se escriba.

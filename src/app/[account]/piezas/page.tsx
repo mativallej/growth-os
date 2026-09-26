@@ -1,49 +1,72 @@
 import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import PiezasClient, { type PiezaCard } from "@/components/PiezasClient";
+import type { Opcion } from "@/components/Filtros";
 import { loadPieces } from "@/lib/parse";
-import { latest, engRate, pvRate, saveLike, primaryReach, num, pct } from "@/lib/metrics";
-import { lineChart } from "@/lib/charts";
+import { latest, engRate, saveLike, primaryReach, num, pct } from "@/lib/metrics";
+import { sparkline } from "@/lib/charts";
 import { findSource } from "@/lib/sources";
+import { loadFormulas } from "@/lib/formulas";
+import { formulaCodeOf } from "@/lib/formulas";
+
+const conteo = (vals: string[]): Opcion[] => {
+  const m = new Map<string, number>();
+  for (const v of vals) if (v) m.set(v, (m.get(v) ?? 0) + 1);
+  return [...m.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([value, count]) => ({ value, label: value, count }));
+};
 
 export default async function PiezasPage({ params }: { params: Promise<{ account: string }> }) {
   const { account } = await params;
   const source = findSource(account);
   if (!source) notFound();
 
-  // Se ordena por ALCANCE PRIMARIO, no por impressions: Instagram no reporta
-  // impressions, y ordenar por ese campo mandaba todas sus piezas al fondo con
-  // un cero que no era un cero.
-  const pieces = loadPieces([source])
-    .filter((p) => p.coverage === "tracked")
-    .sort((a, b) => (primaryReach(b) ?? 0) - (primaryReach(a) ?? 0));
-
-  const nets = Array.from(new Set(pieces.map((p) => p.canal).filter(Boolean))) as string[];
+  const catalogo = loadFormulas().formulas;
+  const pieces = loadPieces([source]).filter((p) => p.coverage === "tracked");
 
   const cards: PiezaCard[] = pieces.map((p) => {
     const l = latest(p)!;
+    const alcance = primaryReach(p);
+    const code = formulaCodeOf(p, catalogo) ?? "";
+    // La serie del sparkline usa el alcance que corresponde al canal: en
+    // Instagram `impressions` no existe y la línea salía plana en cero.
+    const serie = p.snapshots.map((s) => ({
+      label: s.t,
+      value: s.impressions ?? s.views ?? s.reach ?? 0,
+    }));
     return {
       title: p.title,
       href: `/${account}/piezas/${p.slug}`,
-      canal: p.canal ?? "",
-      meta: [p.canal, p.cuenta, p.formato].filter(Boolean).join(" · "),
-      verdict: p.verdict ?? "",
+      canal: p.channel,
+      cuenta: p.cuenta ?? "",
       formula: p.formula ?? "",
-      chartHtml: lineChart(p.snapshots.map((s) => ({ label: s.t, value: primaryReach(p) != null ? (s.impressions ?? s.views ?? s.reach ?? 0) : 0 }))),
-      stats: [
-        { k: "Alcance", v: num(primaryReach(p)) },
-        { k: "Eng rate", v: pct(engRate(l)) },
-        { k: "PV", v: `${num(l.profileVisits)} · ${pct(pvRate(l))}` },
-        { k: "Save/like", v: pct(saveLike(l)), good: true },
-        { k: "Follows", v: num(l.follows), good: true },
-      ],
+      formulaCode: code,
+      coverage: p.coverage,
+      publishedAt: p.publishedAt ?? "",
+      verdict: p.verdict ?? "",
+      sparkHtml: sparkline(serie),
+      cortes: p.snapshots.length,
+      alcance,
+      alcanceFmt: num(alcance),
+      engRate: pct(engRate(l)),
+      saveLike: pct(saveLike(l)),
+      follows: num(l.follows),
+      search: `${p.title} ${p.canal ?? ""} ${p.formula ?? ""} ${p.cuenta ?? ""}`.toLowerCase(),
     };
   });
 
   return (
     <>
-      <PageHeader title="Piezas" subtitle={`${source.label} · ${pieces.length} pieza(s) con métricas`} />
-      <PiezasClient cards={cards} nets={nets} />
+      <PageHeader
+        title="Piezas"
+        subtitle={`${source.label} · ${cards.length} con métricas`}
+      />
+      <PiezasClient
+        cards={cards}
+        canales={conteo(cards.map((c) => c.canal))}
+        formulas={conteo(cards.map((c) => c.formulaCode))}
+      />
     </>
   );
 }

@@ -3,11 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AccountSwitcher, { type AccountOption } from "./AccountSwitcher";
+import Logo from "./Logo";
 
 const nav = [
   { sub: "", label: "Overview" },
   { sub: "piezas", label: "Piezas" },
   { sub: "inventario", label: "Inventario" },
+  // Lo que Notion no puede dar: series y catálogo.
+  { sub: "cadencia", label: "Cadencia" },
+  { sub: "deuda", label: "Deuda" },
+  { sub: "formulas", label: "Fórmulas" },
+  { sub: "ranking", label: "Ranking" },
 ];
 
 /**
@@ -28,8 +34,8 @@ export default function DashboardNav({
 
   return (
     <aside className="fixed inset-y-0 left-0 hidden w-[220px] flex-col gap-1 border-r border-border px-4 py-6 md:flex">
-      <div className="px-2.5 pb-5 text-[15px] font-semibold tracking-tight">
-        <span className="text-primary">◆</span> Growth Loop
+      <div className="px-2.5 pb-5">
+        <Logo />
       </div>
 
       <AccountSwitcher accounts={accounts} current={account} />

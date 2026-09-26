@@ -98,10 +98,21 @@ export default async function PiezaPage({
 
       {l && (
         <>
-          <div className="mt-6 rounded-lg border border-border p-3">
-            <div className="mb-1 px-1 text-[11px] text-muted-foreground">Alcance en el tiempo</div>
-            {chart && <div dangerouslySetInnerHTML={{ __html: chart }} />}
-          </div>
+          {chart ? (
+            <div className="mt-6 rounded-lg border border-border p-3">
+              <div className="mb-1 px-1 text-[11px] text-muted-foreground">
+                Alcance en el tiempo · {snaps.length} cortes
+              </div>
+              <div dangerouslySetInnerHTML={{ __html: chart }} />
+            </div>
+          ) : (
+            // Un solo corte no es una serie. Dibujar el marco vacío alrededor de
+            // un punto ocupa media pantalla para no decir nada.
+            <p className="mt-6 text-[11px] text-muted-foreground/70">
+              Un solo corte medido{snaps[0]?.date ? ` (${snaps[0].date})` : ""} — no hay
+              evolución que mostrar todavía.
+            </p>
+          )}
 
           <div className="my-5 grid grid-cols-2 gap-4 border-y border-border py-4 sm:grid-cols-3 md:grid-cols-6">
             {derived.map((d) => (
