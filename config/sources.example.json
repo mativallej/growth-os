@@ -1,0 +1,97 @@
+{
+  "_doc": "EJEMPLO. Copiar a config/sources.json y ajustar. Marcas y sus cuentas: n marcas × n redes (config/networks.json) × n cuentas por marca × n proyectos de índice derivado. Agregar cualquiera es agregar un objeto acá; el código no se toca. Las rutas van por un symlink estable (~/vaults/<nombre>), NUNCA la ruta real: un vault renombrado rompe toda ruta hardcodeada en silencio.",
+  "_campos": {
+    "vault": "raíz del repo del vault, vía ~/vaults/",
+    "content": "subcarpeta(s) con las piezas, relativas al vault. Puede ser una lista",
+    "accounts[].id": "lo que va en el campo `account` del footer de cada pieza",
+    "accounts[].url_contains": "cómo se reconoce una pieza de ESTA cuenta cuando dos comparten red y vault",
+    "notion.marca": "etiqueta EXACTA de la opción del select en el tablero. Ojo: se guarda como texto, así que renombrarla allá obliga a renombrarla acá y migrar las filas",
+    "notion.docs": "carpetas de documentación a espejar. Vacío = esta marca no publica docu",
+    "notion.ads": "prefijos donde viven los creativos de campañas. Salen del tablero de contenido: un ad no es un post",
+    "notion.operational_days": "una pieza publicada hace más de N días no sube al tablero. 0 = sin corte",
+    "growth.cadencia": "piso y techo de piezas por mes. Es TU objetivo, no un promedio de lo que viene pasando",
+    "supabase": "índice DERIVADO de esta marca, nunca la fuente de verdad. Uno por marca: un deploy se lleva solo los de las marcas que entraron a ese build"
+  },
+  "brands": [
+    {
+      "id": "marca-a",
+      "label": "Marca A",
+      "vault": "~/vaults/marca-a",
+      "content": "Content/Create",
+      "data": "Analytics",
+      "accounts": [
+        {
+          "id": "marca_a_x",
+          "network": "x",
+          "handle": "marca_a",
+          "url_contains": "x.com/marca_a/"
+        },
+        {
+          "id": "marca_a_ig",
+          "network": "instagram",
+          "handle": "marca_a",
+          "url_contains": "instagram.com/"
+        }
+      ],
+      "notify": {
+        "discord_env": "DISCORD_WEBHOOK_MARCA_A"
+      },
+      "notion": {
+        "marca": "Marca A",
+        "docs": [],
+        "ads": [],
+        "operational_days": 60
+      },
+      "growth": {
+        "cadencia": {
+          "piso": 10,
+          "techo": 14
+        }
+      },
+      "supabase": {
+        "ref": "",
+        "url": ""
+      }
+    },
+    {
+      "id": "marca-b",
+      "label": "Marca B",
+      "vault": "~/vaults/marca-b",
+      "content": [
+        "Create/Organic"
+      ],
+      "data": "Analytics",
+      "accounts": [
+        {
+          "id": "marca_b_ig",
+          "network": "instagram",
+          "handle": "marca_b",
+          "url_contains": "instagram.com/"
+        }
+      ],
+      "notify": {
+        "discord_env": "DISCORD_WEBHOOK_MARCA_B"
+      },
+      "notion": {
+        "marca": "Marca B",
+        "docs": [
+          "Foundations"
+        ],
+        "ads": [
+          "Create/Ads"
+        ],
+        "operational_days": 60
+      },
+      "growth": {
+        "cadencia": {
+          "piso": 6,
+          "techo": 10
+        }
+      },
+      "supabase": {
+        "ref": "",
+        "url": ""
+      }
+    }
+  ]
+}

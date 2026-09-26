@@ -8,7 +8,7 @@ context: |
   Producto: growth-loop. La capa de operación y medición del growth de DOS marcas
   que no se fusionan — `mativallej` (marca personal) y `tegu` (la empresa). No es
   un producto para terceros: es la herramienta con la que Matías opera su
-  distribución, más la CM que se sumó en septiembre 2026.
+  distribución, más una segunda persona que se sumó al equipo en 2026.
 
   LA FUENTE DE VERDAD SON LOS `.md` DE LOS VAULTS. No hay base de datos y no la va
   a haber. Los vaults son repos de Obsidian en disco, referenciados SIEMPRE por
@@ -45,7 +45,7 @@ context: |
   `docs/footer-contract.md` y las skills `brain-notion-sync` / `growth-notion-sync`.
 
   REGLA DURA 4 — LAS DOS CUENTAS NO SE MEZCLAN. No es estética, es privacidad: el
-  contenido personal incluye la historia del despido, y no puede viajar dentro del
+  contenido personal incluye material sensible sobre la vida del autor, y no puede viajar dentro del
   payload de una vista de Tegu. La separación SHALL ser estructural (segmento de
   ruta, deploys distintos), nunca un filtro en el cliente.
 

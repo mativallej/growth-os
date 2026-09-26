@@ -170,7 +170,7 @@ y es el canal con más días sin pieza.
 
 ## D-11 · Convergencia de los dos pipelines de Tegu — resuelta
 
-Convivían `Brand/Content/Create` (propio) y `Create/` (de Rocco, contractor externo).
+Convivían `Brand/Content/Create` (propio) y `Create/` (de un contractor externo).
 Se fusionaron el 2026-09-24 en `Create/Organic` y `Create/Ads` (commit `ba96059`).
 
 **Costo que dejó:** rompió la llave de emparejamiento de 57 filas del tablero. Ver

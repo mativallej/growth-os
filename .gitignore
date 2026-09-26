@@ -9,3 +9,5 @@ next-env.d.ts
 /dist
 .state/
 logs/
+__pycache__/
+*.pyc

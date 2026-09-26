@@ -12,7 +12,7 @@ ninguno donde se vea qué se puede hacer:
 
 Para correr cualquier cosa hay que acordarse de que existe, saber en qué repo vive,
 y recordar sus flags. **El conocimiento operativo está en la cabeza de una sola
-persona**, justo cuando se sumó alguien más al equipo.
+persona**, justo cuando el equipo dejó de ser una sola.
 
 Y la app hoy solo lee. Es un tablero de consulta cuando lo que hace falta es la
 pantalla desde la que se opera.

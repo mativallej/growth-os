@@ -5,7 +5,7 @@
 | Campo | Manda | Por qué |
 |---|---|---|
 | Cuerpo, fórmula, url, fecha, cortes | el `.md` | Lo escribe quien crea y quien mide |
-| Estado, después de crear la fila | Notion | Es coordinación: lo mueve quien planifica, incluida la CM |
+| Estado, después de crear la fila | Notion | Es coordinación: lo mueve quien planifica |
 | Estado con el que la fila nace | el `.md` | Notion no sabe nada de una pieza que todavía no existe ahí |
 | Marca, canal, formato, público, persona, dolor | el `.md` y la ruta | Derivados |
 | Cuerpo de un documento | el `.md`, siempre | La vuelta de Notion son los comentarios |

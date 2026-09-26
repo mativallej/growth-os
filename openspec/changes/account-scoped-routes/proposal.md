@@ -8,7 +8,7 @@ un filtro en el cliente: cargar todo y mostrar lo que corresponda.
 
 **Eso filtra contenido personal dentro de la vista de Tegu.** Con filtrado en
 cliente, el payload RSC de `/piezas` contendría el `body` de las dos cuentas: la
-historia del despido viajaría, en texto plano, dentro de una página que se le
+ese material viajaría, en texto plano, dentro de una página que se le
 comparte al socio. No es un problema de estilo; es el requisito que define este
 proyecto.
 

@@ -43,7 +43,7 @@ páginas estáticas. Antes buildeaba vacío y no se quejaba: `parse.ts:9` resolv
 
 ```
 tegu · Tegu
-  vault   /Users/matiasvallejos/vaults/tegu-growth
+  vault   ~/vaults/tegu-growth
   raíz    Create/Organic
   archivos .md          106
   con footer            100
@@ -53,7 +53,7 @@ tegu · Tegu
   sin metadata          6
 
 personal · Marca personal
-  vault   /Users/matiasvallejos/vaults/brain
+  vault   ~/vaults/brain
   raíz    Personal Brand/Content/Create
   archivos .md          152
   con footer            117

@@ -15,7 +15,7 @@ es captar una idea, que es materia prima y no trabajo creativo.
 
 Esa división hoy **no está escrita en ningún lado completo.** Vive repartida en los
 `Why` de seis changes, en dos `SKILL.md`, en un docstring y en la cabeza de una sola
-persona. Se sumó alguien al equipo en septiembre de 2026, y lo primero que necesita
+persona. El equipo dejó de ser una sola, y lo primero que necesita quien entra
 es entender qué se hace dónde — no la lista de features de cada capa.
 
 El síntoma de que falta: en las últimas dos semanas se intentó tres veces resolver

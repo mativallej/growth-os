@@ -18,7 +18,7 @@ Ese path está roto por **dos** motivos acumulados, y ninguno de los dos avisa:
 
 Tres problemas más del mismo bloque:
 
-- **Una sola fuente.** `VAULT` es un path único. Hoy hay dos marcas en cuatro raíces: `~/vaults/brain` en `Personal Brand/Content/Create`, y `~/vaults/tegu-growth` en `Brand/Content/Create` **y** `Create/` (dos pipelines conviviendo, el propio y el de Rocco).
+- **Una sola fuente.** `VAULT` es un path único. Hoy hay dos marcas en cuatro raíces: `~/vaults/brain` en `Personal Brand/Content/Create`, y `~/vaults/tegu-growth` en `Brand/Content/Create` **y** `Create/` (dos pipelines conviviendo, el propio y el del contractor externo).
 - **`npm install` nunca se corrió** — no hay `node_modules`. El repo no arranca.
 - **No hay runner de tests.** `package.json` no tiene script `test` ni ningún `*.test.ts`. La regla de specs de este proyecto exige que todo requirement sea chequeable; hoy no hay con qué.
 

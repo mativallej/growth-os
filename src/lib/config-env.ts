@@ -7,7 +7,7 @@ import { repoRoot } from './repo';
 // TRES REGLAS QUE NO SE NEGOCIAN:
 //
 // 1. UN SECRETO NUNCA VIAJA COMPLETO AL CLIENTE. Se manda una máscara
-//    (`ntn_1201…FmO`) que alcanza para reconocer cuál está puesto y no para
+//    (`ntn_…` con los extremos a la vista) que alcanza para reconocer cuál está puesto y no para
 //    usarlo. El campo de edición es de ESCRITURA: se pega uno nuevo o no se
 //    toca. Sin esto, abrir el inspector en la pantalla de configuración sería
 //    leer el `service_role`, que es acceso total a la base.

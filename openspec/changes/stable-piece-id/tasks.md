@@ -150,13 +150,14 @@ la deuda a la vista.
 ## El grep de privacidad
 
 Con el build completo, el contenido personal viaja (618 archivos con
-`Personal Brand`, 52 con `despido`). **No lo introdujo este change** — es la
+`Personal Brand`, 52 con una sonda del contenido personal). **No lo introdujo este change** — es la
 condición que documenta el README y que cierra `account-scoped-routes`.
 
 Con `GROWTH_SOURCES=tegu` baja a 2 y 4, y los residuos son benignos:
 
-- los 4 de `despido` son **una pieza de Tegu** cuya nota dice *"el despido/origen
-  de Mati va en marca personal, no acá"*. Es contenido de Tegu.
+- los 4 de la sonda personal son **una pieza de Tegu** cuya propia nota dice que
+  ese tema va en la marca personal y no ahí. O sea: contenido de Tegu hablando de
+  dónde NO va algo.
 - los 2 de `Personal Brand` son el registro de `config/sources.json` inlineado en
   el chunk de servidor — rutas de configuración, no contenido.
 

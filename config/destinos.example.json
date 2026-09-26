@@ -1,0 +1,49 @@
+{
+  "_doc": "EJEMPLO. Copiar a config/destinos.json y completar. Los destinos del workspace de coordinación (Notion). UN SOLO LUGAR: lo leen la app (src/lib/destinos.ts) y los scripts de Python. Un id de workspace no es un secreto, pero es la dirección de la casa de alguien: por eso vive en config y no en el código.",
+  "_campos": {
+    "id": "identificador interno, el que usan los scripts",
+    "tipo": "'data_source' para un tablero consultable por API, 'page' para una página",
+    "url": "la dirección para abrir desde la interfaz. Vacío = no se ofrece el acceso, sin enlace muerto",
+    "marcas": "qué marcas lo usan. null = todas"
+  },
+  "destinos": [
+    {
+      "id": "contenido",
+      "nombre": "Content Creator",
+      "descripcion": "El tablero de piezas de contenido orgánico",
+      "tipo": "data_source",
+      "ref": "",
+      "url": "",
+      "marcas": null
+    },
+    {
+      "id": "ads",
+      "nombre": "Ads Creator",
+      "descripcion": "Los creativos de campañas. Otro ciclo y otras métricas que el orgánico",
+      "tipo": "data_source",
+      "ref": "",
+      "url": "",
+      "marcas": [
+        "tegu"
+      ]
+    },
+    {
+      "id": "ideas",
+      "nombre": "Ideas",
+      "descripcion": "La bandeja donde caen las ideas captadas",
+      "tipo": "data_source",
+      "ref": "",
+      "url": "",
+      "marcas": null
+    },
+    {
+      "id": "growth",
+      "nombre": "Growth",
+      "descripcion": "La página que contiene todo lo demás",
+      "tipo": "page",
+      "ref": "",
+      "url": "",
+      "marcas": null
+    }
+  ]
+}
