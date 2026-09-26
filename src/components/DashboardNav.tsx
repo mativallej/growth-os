@@ -30,19 +30,24 @@ export default function DashboardNav({
   account,
   accounts,
   comandos,
-  local = false,
+  accionesLocales,
 }: {
   account: string;
   accounts: AccountOption[];
   comandos: Comando[];
   /**
-   * Resuelto EN EL SERVIDOR. En el build compartido es `false`, así que los
-   * accesos a operar y configurar no se renderizan — y las rutas tampoco
-   * existen, porque sus archivos son `.local.tsx` y esa extensión no entra en
-   * `pageExtensions` sin GROWTH_CONSOLE=1. No hay botón Y no hay ruta: si solo
-   * faltara el botón sería un `display:none`, que es lo que el gating evita.
+   * Los accesos a la consola, YA CONSTRUIDOS EN EL SERVIDOR.
+   *
+   * No es un booleano y el nav no arma esos links: si los armara, sus rutas
+   * quedarían escritas en el chunk de CLIENTE del build compartido aunque la
+   * condición fuera `false` — una condición de runtime no saca el JSX del
+   * bundle. Pasa como nodo: cuando el build no es local, el servidor no
+   * construye nada y no hay nada que serializar.
+   *
+   * Es el mismo error que las notas de `operations-console` ya habían anotado, y
+   * que se volvió a cometer al sumar estos accesos al nav.
    */
-  local?: boolean;
+  accionesLocales?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const base = `/${account}`;
@@ -88,25 +93,7 @@ export default function DashboardNav({
       })}
 
       <div className="mt-auto pt-4">
-        {local && (
-          <div className="mb-3 border-t border-border pt-3">
-            <div className="px-2.5 pb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground/60">
-              Solo local
-            </div>
-            <Link
-              href="/operar"
-              className="block rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              Operar
-            </Link>
-            <Link
-              href="/configuracion"
-              className="block rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              Configuración
-            </Link>
-          </div>
-        )}
+        {accionesLocales}
 
         {/* Decía "sin API", y dejó de ser cierto: hay Supabase como índice
             derivado y el puente con Notion. Lo que SÍ sigue siendo cierto —y es

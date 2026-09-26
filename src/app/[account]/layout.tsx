@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import DashboardNav from "@/components/DashboardNav";
+import Link from "next/link";
 import type { Comando } from "@/components/CommandPalette";
 import { findSource, listSources } from "@/lib/sources";
 import { loadPieces } from "@/lib/parse";
@@ -95,9 +96,41 @@ export default async function AccountLayout({
         account={account}
         accounts={sources.map((s) => ({ id: s.id, label: s.label }))}
         comandos={comandos}
-        local={process.env.GROWTH_CONSOLE === "1"}
+        accionesLocales={accionesLocales()}
       />
       <main className="max-w-[1080px] px-6 py-9 md:ml-[220px] md:px-10">{children}</main>
     </>
+  );
+}
+
+/**
+ * Los accesos que solo existen en el entorno local.
+ *
+ * Se construyen ACÁ, en un componente de servidor, y no en el nav: un
+ * `{local && <Link href="/operar">}` dentro de un componente de cliente deja esa
+ * ruta escrita en el bundle del navegador aunque la condición sea falsa. Armarlo
+ * del lado del servidor hace que, sin la variable, no exista nada que serializar.
+ */
+function accionesLocales() {
+  if (process.env.GROWTH_CONSOLE !== "1") return null;
+  const items = [
+    { href: "/operar", label: "Operar" },
+    { href: "/configuracion", label: "Configuración" },
+  ];
+  return (
+    <div className="mb-3 border-t border-border pt-3">
+      <div className="px-2.5 pb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground/60">
+        Solo local
+      </div>
+      {items.map((i) => (
+        <Link
+          key={i.href}
+          href={i.href}
+          className="block rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        >
+          {i.label}
+        </Link>
+      ))}
+    </div>
   );
 }
