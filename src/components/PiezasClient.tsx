@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 
 export type PiezaCard = {
   title: string;
-  slug: string;
+  /** Ruta completa a la pieza, ya con el segmento de marca adelante. */
+  href: string;
   canal: string;
   meta: string;
   verdict: string;
@@ -50,17 +51,17 @@ export default function PiezasClient({ cards, nets }: { cards: PiezaCard[]; nets
 
       {cards.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          No hay piezas con snapshots. Cargá métricas con la skill <code>x-analytics-ingest</code>.
+          Ninguna pieza tiene métricas cargadas todavía.
         </p>
       )}
 
       <div>
         {shown.map((c) => (
-          <Card key={c.slug} className="mb-4">
+          <Card key={c.href} className="mb-4">
             <CardContent className="p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <Link href={`/piezas/${c.slug}`} className="text-[17px] font-semibold tracking-tight hover:underline">
+                  <Link href={c.href} className="text-[17px] font-semibold tracking-tight hover:underline">
                     {c.title}
                   </Link>
                   <div className="mt-0.5 text-xs text-muted-foreground">{c.meta}</div>
@@ -87,7 +88,7 @@ export default function PiezasClient({ cards, nets }: { cards: PiezaCard[]; nets
                 ))}
               </div>
 
-              <Link href={`/piezas/${c.slug}`} className="mt-5 inline-block text-xs text-primary hover:underline">
+              <Link href={c.href} className="mt-5 inline-block text-xs text-primary hover:underline">
                 Ver detalle →
               </Link>
             </CardContent>

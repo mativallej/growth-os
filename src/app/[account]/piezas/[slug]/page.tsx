@@ -5,11 +5,34 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import PageHeader from "@/components/PageHeader";
 import { loadPieces } from "@/lib/parse";
-import { sortedSnaps, latest, engRate, pvRate, saveLike, num, pct } from "@/lib/metrics";
+import { sortedSnaps, latest, engRate, pvRate, saveLike, primaryReach, num, pct } from "@/lib/metrics";
 import { lineChart } from "@/lib/charts";
+import { findSource } from "@/lib/sources";
 
-export function generateStaticParams() {
-  return loadPieces().map((p) => ({ slug: p.slug }));
+/**
+ * Anidado: Next ejecuta esto UNA VEZ POR CADA `account` que emitió el layout
+ * padre, y le pasa ese param. Es lo que mantiene el aislamiento en el output:
+ * las rutas de una marca se generan leyendo solo su fuente, así que un build
+ * con `GROWTH_SOURCES=tegu` no emite un solo slug de la marca personal.
+ */
+/**
+ * NADA FUERA DE LO GENERADO. Es la mitad estructural del aislamiento, y sin
+ * esto el resto no alcanza.
+ *
+ * Por default Next renderiza bajo demanda un param que `generateStaticParams`
+ * no devolvió. Con `GROWTH_SOURCES=tegu` eso significaba que `/personal/piezas`
+ * daba 200 y servía el vault personal leído en el momento — el build no la
+ * emitía, pero el servidor la fabricaba igual. Verificado el 2026-09-26 contra
+ * `next start`: devolvía las sondas del contenido personal.
+ *
+ * En `false`, una marca que no entró al build es un 404.
+ */
+export const dynamicParams = false;
+
+export function generateStaticParams({ params }: { params: { account: string } }) {
+  const source = findSource(params.account);
+  if (!source) return [];
+  return loadPieces([source]).map((p) => ({ slug: p.slug }));
 }
 
 const verdictVariant = (v?: string): "success" | "destructive" | "secondary" => {
@@ -19,18 +42,28 @@ const verdictVariant = (v?: string): "success" | "destructive" | "secondary" => 
   return "secondary";
 };
 
-export default async function PiezaPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const p = loadPieces().find((x) => x.slug === slug);
+export default async function PiezaPage({
+  params,
+}: {
+  params: Promise<{ account: string; slug: string }>;
+}) {
+  const { account, slug } = await params;
+  const source = findSource(account);
+  if (!source) notFound();
+  const p = loadPieces([source]).find((x) => x.slug === slug);
   if (!p) notFound();
 
   const snaps = sortedSnaps(p);
   const l = latest(p);
-  const chart = snaps.length ? lineChart(snaps.map((s) => ({ label: s.t, value: s.impressions ?? 0 }))) : null;
+  // El eje es el ALCANCE, no impressions: en Instagram impressions no existe y
+  // el gráfico salía plano en cero.
+  const chart = snaps.length
+    ? lineChart(snaps.map((s) => ({ label: s.t, value: s.impressions ?? s.views ?? s.reach ?? 0 })))
+    : null;
 
   const derived = l
     ? [
-        { k: "Impressions", v: num(l.impressions) },
+        { k: "Alcance", v: num(primaryReach(p)) },
         { k: "Eng rate", v: pct(engRate(l)) },
         { k: "Profile visits", v: `${num(l.profileVisits)} · ${pct(pvRate(l))}` },
         { k: "Save / like", v: pct(saveLike(l)), good: true },
@@ -43,14 +76,14 @@ export default async function PiezaPage({ params }: { params: Promise<{ slug: st
     <>
       <PageHeader title={p.title} subtitle={[p.canal, p.cuenta, p.formato].filter(Boolean).join(" · ")} />
 
-      <Link href="/piezas" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
+      <Link href={`/${account}/piezas`} className="text-xs text-muted-foreground transition-colors hover:text-foreground">
         ← Piezas
       </Link>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {p.formula && <Badge variant="outline">{p.formula}</Badge>}
         {p.estado && (
-          <Badge variant={(p.estado ?? "").toLowerCase().includes("public") ? "success" : "secondary"}>{p.estado}</Badge>
+          <Badge variant={p.status === "published" ? "success" : "secondary"}>{p.estado}</Badge>
         )}
         {p.verdict && <Badge variant={verdictVariant(p.verdict)}>{p.verdict}</Badge>}
       </div>
@@ -66,7 +99,7 @@ export default async function PiezaPage({ params }: { params: Promise<{ slug: st
       {l && (
         <>
           <div className="mt-6 rounded-lg border border-border p-3">
-            <div className="mb-1 px-1 text-[11px] text-muted-foreground">Impressions en el tiempo</div>
+            <div className="mb-1 px-1 text-[11px] text-muted-foreground">Alcance en el tiempo</div>
             {chart && <div dangerouslySetInnerHTML={{ __html: chart }} />}
           </div>
 
@@ -83,6 +116,8 @@ export default async function PiezaPage({ params }: { params: Promise<{ slug: st
             <TableHeader>
               <TableRow>
                 <TableHead>corte</TableHead>
+                <TableHead className="text-right">views</TableHead>
+                <TableHead className="text-right">reach</TableHead>
                 <TableHead className="text-right">imp</TableHead>
                 <TableHead className="text-right">eng</TableHead>
                 <TableHead className="text-right">detail</TableHead>
@@ -96,6 +131,8 @@ export default async function PiezaPage({ params }: { params: Promise<{ slug: st
               {snaps.map((s, i) => (
                 <TableRow key={i}>
                   <TableCell className="text-primary">{s.t}</TableCell>
+                  <TableCell className="text-right">{num(s.views)}</TableCell>
+                  <TableCell className="text-right">{num(s.reach)}</TableCell>
                   <TableCell className="text-right">{num(s.impressions)}</TableCell>
                   <TableCell className="text-right">{num(s.engagements)}</TableCell>
                   <TableCell className="text-right">{num(s.detailExpands)}</TableCell>

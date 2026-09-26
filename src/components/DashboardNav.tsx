@@ -2,26 +2,45 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import AccountSwitcher, { type AccountOption } from "./AccountSwitcher";
 
 const nav = [
-  { href: "/", label: "Overview", match: (p: string) => p === "/" },
-  { href: "/piezas", label: "Piezas", match: (p: string) => p.startsWith("/piezas") },
-  { href: "/inventario", label: "Inventario", match: (p: string) => p.startsWith("/inventario") },
+  { sub: "", label: "Overview" },
+  { sub: "piezas", label: "Piezas" },
+  { sub: "inventario", label: "Inventario" },
 ];
 
-export default function DashboardNav() {
+/**
+ * La navegación cuelga de la cuenta activa. Recibe todo por props: los textos
+ * de una marca no se hardcodean acá, porque este mismo componente se renderiza
+ * dentro de las dos y en un build que puede tener una sola.
+ */
+export default function DashboardNav({
+  account,
+  accounts,
+}: {
+  account: string;
+  accounts: AccountOption[];
+}) {
   const pathname = usePathname();
+  const base = `/${account}`;
+  const actual = accounts.find((a) => a.id === account);
+
   return (
     <aside className="fixed inset-y-0 left-0 hidden w-[220px] flex-col gap-1 border-r border-border px-4 py-6 md:flex">
-      <div className="px-2.5 pb-6 text-[15px] font-semibold tracking-tight">
-        <span className="text-primary">◆</span> X Analytics
+      <div className="px-2.5 pb-5 text-[15px] font-semibold tracking-tight">
+        <span className="text-primary">◆</span> Growth Loop
       </div>
+
+      <AccountSwitcher accounts={accounts} current={account} />
+
       {nav.map((n) => {
-        const active = n.match(pathname);
+        const href = n.sub ? `${base}/${n.sub}` : base;
+        const active = n.sub ? pathname.startsWith(href) : pathname === base;
         return (
           <Link
-            key={n.href}
-            href={n.href}
+            key={href}
+            href={href}
             className={`rounded-md px-2.5 py-2 text-sm transition-colors ${
               active ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
@@ -30,8 +49,9 @@ export default function DashboardNav() {
           </Link>
         );
       })}
+
       <div className="mt-auto border-t border-border pt-3 text-[11px] leading-relaxed text-muted-foreground/70">
-        Fase 1 · lee <code>Brand/Content</code> · sin API
+        {actual?.label ?? account} · lee los <code>.md</code> del vault · sin API
       </div>
     </aside>
   );

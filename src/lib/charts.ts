@@ -1,4 +1,8 @@
 // Line chart minimalista, SVG server-rendered (sin librería, sin JS).
+//
+// Los colores son los del tema (ink + greys de --tg-*), no el violeta que venía
+// del tema anterior: un gráfico con una paleta que no existe en ningún otro
+// lado se lee como si midiera otra cosa.
 // Eje x = índice de snapshot (equiespaciado, etiquetado con `t`), y = valor.
 
 type Pt = { label: string; value: number };
@@ -26,21 +30,21 @@ export function lineChart(pts: Pt[]): string {
   const dots = pts
     .map(
       (p, i) =>
-        `<circle cx="${x(i).toFixed(1)}" cy="${y(p.value).toFixed(1)}" r="3" fill="hsl(250 14% 5%)" stroke="hsl(258 88% 66%)" stroke-width="1.5"/>` +
-        `<text x="${x(i).toFixed(1)}" y="${(y(p.value) - 10).toFixed(1)}" text-anchor="middle" fill="hsl(250 6% 58%)" font-size="10" font-family="ui-monospace,monospace">${fmt(p.value)}</text>`
+        `<circle cx="${x(i).toFixed(1)}" cy="${y(p.value).toFixed(1)}" r="3" fill="hsl(240 11% 98%)" stroke="hsl(253 26% 10%)" stroke-width="1.5"/>` +
+        `<text x="${x(i).toFixed(1)}" y="${(y(p.value) - 10).toFixed(1)}" text-anchor="middle" fill="hsl(258 11% 37%)" font-size="10" font-family="ui-monospace,monospace">${fmt(p.value)}</text>`
     )
     .join('');
 
   const labels = pts
     .map(
       (p, i) =>
-        `<text x="${x(i).toFixed(1)}" y="${h - 8}" text-anchor="middle" fill="hsl(250 6% 42%)" font-size="10">${p.label}</text>`
+        `<text x="${x(i).toFixed(1)}" y="${h - 8}" text-anchor="middle" fill="hsl(258 11% 37%)" font-size="10">${p.label}</text>`
     )
     .join('');
 
   return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;display:block" role="img">
-    <path d="${area}" fill="hsl(258 88% 66%)" fill-opacity="0.07"/>
-    <path d="${line}" fill="none" stroke="hsl(258 88% 66%)" stroke-width="1.75" stroke-linejoin="round"/>
+    <path d="${area}" fill="hsl(253 26% 10%)" fill-opacity="0.07"/>
+    <path d="${line}" fill="none" stroke="hsl(253 26% 10%)" stroke-width="1.75" stroke-linejoin="round"/>
     ${dots}${labels}
   </svg>`;
 }

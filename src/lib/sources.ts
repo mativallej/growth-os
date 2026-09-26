@@ -1,7 +1,7 @@
-import { statSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
-import rawConfig from '../../config/sources.json';
+import { repoRoot } from './repo';
 
 // De dónde salen las piezas.
 //
@@ -53,7 +53,39 @@ const REGISTRY: { id: SourceId; brand: string; envVar: string }[] = [
 
 export const ALL_SOURCE_IDS: SourceId[] = REGISTRY.map((e) => e.id);
 
-const BRANDS: BrandConfig[] = (rawConfig as { brands: BrandConfig[] }).brands;
+/**
+ * La config se LEE en runtime, no se importa.
+ *
+ * Un `import ... from '../../config/sources.json'` inlinea el archivo entero en
+ * el bundle de servidor, así que un build recortado a Tegu igual se llevaba
+ * adentro la ruta del vault personal y su etiqueta. No es contenido —eso ya no
+ * viaja— pero sigue siendo información de la otra marca dentro de un artefacto
+ * que se comparte, y la regla dura 4 pide que la separación sea estructural.
+ *
+ * Leerlo con `fs` deja el JSON afuera del bundle: solo entra a memoria lo que
+ * la fuente pedida necesita. Si el archivo falta, rompe — nunca devuelve una
+ * lista vacía de marcas (regla dura 1).
+ */
+let brandsCache: BrandConfig[] | null = null;
+
+function brands(): BrandConfig[] {
+  if (brandsCache) return brandsCache;
+  const ruta = join(repoRoot(), 'config/sources.json');
+  let parsed: { brands?: BrandConfig[] };
+  try {
+    parsed = JSON.parse(readFileSync(ruta, 'utf8')) as { brands?: BrandConfig[] };
+  } catch (err) {
+    throw new Error(
+      `No se pudo leer ${ruta}: ${err instanceof Error ? err.message : String(err)}. ` +
+        'Es el archivo que declara las marcas y sus vaults; sin él no hay de dónde leer.',
+    );
+  }
+  if (!Array.isArray(parsed.brands) || parsed.brands.length === 0) {
+    throw new Error(`${ruta} no declara ninguna marca en "brands".`);
+  }
+  brandsCache = parsed.brands;
+  return brandsCache;
+}
 
 function expandHome(p: string): string {
   return p === '~' || p.startsWith('~/') ? join(homedir(), p.slice(1)) : p;
@@ -73,11 +105,11 @@ function absolute(p: string): string {
 }
 
 function buildSource(entry: (typeof REGISTRY)[number], env: Env): ContentSource {
-  const brand = BRANDS.find((b) => b.id === entry.brand);
+  const brand = brands().find((b) => b.id === entry.brand);
   if (!brand) {
     throw new Error(
       `config/sources.json no declara la marca "${entry.brand}", que la fuente ` +
-        `"${entry.id}" necesita. Marcas configuradas: ${BRANDS.map((b) => b.id).join(', ')}.`,
+        `"${entry.id}" necesita. Marcas configuradas: ${brands().map((b) => b.id).join(', ')}.`,
     );
   }
 
@@ -167,4 +199,19 @@ export function assertRoots(sources: ContentSource[] = listSources()): void {
         'arreglá el symlink o la config — no las hardcodees.',
     );
   }
+}
+
+/**
+ * Busca una fuente ENTRE LAS QUE ENTRARON A ESTE BUILD.
+ *
+ * La diferencia con `getSource` es la que sostiene el aislamiento: `getSource`
+ * resuelve cualquier fuente del registro, mientras que esta solo ve las que
+ * `GROWTH_SOURCES` dejó entrar. Una ruta `/personal/...` en un build recortado a
+ * Tegu tiene que no existir, no estar escondida.
+ */
+export function findSource(
+  id: string,
+  sources: ContentSource[] = listSources(),
+): ContentSource | undefined {
+  return sources.find((s) => s.id === id);
 }

@@ -9,7 +9,8 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 
 export type InventarioRow = {
   title: string;
-  slug: string;
+  /** Ruta completa a la pieza, ya con el segmento de marca adelante. */
+  href: string;
   canal: string;
   formula: string;
   estado: string;
@@ -68,9 +69,9 @@ export default function InventarioClient({ rows, nets }: { rows: InventarioRow[]
             </TableHeader>
             <TableBody>
               {filtered.map((r) => (
-                <TableRow key={r.slug}>
+                <TableRow key={r.href}>
                   <TableCell className="font-medium">
-                    <Link href={`/piezas/${r.slug}`} className="hover:text-primary hover:underline">
+                    <Link href={r.href} className="hover:text-primary hover:underline">
                       {r.title}
                     </Link>
                   </TableCell>

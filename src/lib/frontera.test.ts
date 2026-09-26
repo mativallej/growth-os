@@ -71,7 +71,16 @@ describe('la plataforma no es donde se hace el trabajo creativo', () => {
   });
 
   it('la vista de una pieza la muestra, no la edita', () => {
-    const detalle = FUENTES.find((f) => f.rel === 'app/piezas/[slug]/page.tsx')!;
-    expect(detalle.txt).not.toMatch(/<textarea|<form|contentEditable/);
+    // Se busca por forma de ruta y no por una ruta literal: la vista se mudó a
+    // `[account]/piezas/[slug]` con account-scoped-routes, y un `find` literal
+    // que no encuentra nada haría pasar el assert sobre `undefined`.
+    const detalles = FUENTES.filter((f) => /piezas\/\[slug\]\/page\.tsx$/.test(f.rel));
+    expect(detalles.length).toBeGreaterThan(0);
+    for (const d of detalles) {
+      expect({ rel: d.rel, editable: /<textarea|<form|contentEditable/.test(d.txt) }).toEqual({
+        rel: d.rel,
+        editable: false,
+      });
+    }
   });
 });
