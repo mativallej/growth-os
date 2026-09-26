@@ -1,43 +1,44 @@
 import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
-import RankingClient, { type RankGroup } from "@/components/RankingClient";
+import RankingClient, { type RankFila } from "@/components/RankingClient";
+import type { Opcion } from "@/components/MultiSelect";
 import { loadPieces } from "@/lib/parse";
 import { findSource } from "@/lib/sources";
-import { rankBy, type RankMetric } from "@/lib/rollups";
-import { num, pct } from "@/lib/metrics";
+import { latest, primaryReach } from "@/lib/metrics";
+import { formulaCodeOf, loadFormulas } from "@/lib/formulas";
+import { loadCreatives } from "@/lib/ads";
 
-const METRICAS: { metric: RankMetric; label: string }[] = [
-  { metric: "reach", label: "Alcance" },
-  { metric: "engagements", label: "Engagements" },
-  { metric: "bookmarks", label: "Guardados" },
-  { metric: "likes", label: "Likes" },
-  { metric: "follows", label: "Follows" },
-];
-
-const TOPE = 30;
+const conteo = (vals: string[]): Opcion[] => {
+  const m = new Map<string, number>();
+  for (const v of vals) if (v) m.set(v, (m.get(v) ?? 0) + 1);
+  return [...m.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([value, count]) => ({ value, label: value, count }));
+};
 
 export default async function RankingPage({ params }: { params: Promise<{ account: string }> }) {
   const { account } = await params;
   const source = findSource(account);
   if (!source) notFound();
 
-  const pieces = loadPieces([source]);
-
-  const groups: RankGroup[] = METRICAS.map(({ metric, label }) => ({
-    metric,
-    label,
-    rows: rankBy(pieces, metric)
-      .slice(0, TOPE)
-      .map((r) => ({
-        title: r.piece.title,
-        href: `/${account}/piezas/${r.piece.slug}`,
-        channel: r.piece.channel,
-        value: num(r.value),
-        // La tasa sobre el alcance es `—` cuando falta cualquiera de los dos:
-        // dividir por un alcance que no se midió daría un número inventado.
-        rate: metric === "reach" ? "—" : pct(r.rate),
-      })),
-  }));
+  const catalogo = loadFormulas().formulas;
+  const filas: RankFila[] = loadPieces([source]).map((p) => {
+    const l = latest(p);
+    return {
+      title: p.title,
+      href: `/${account}/piezas/${p.slug}`,
+      canal: p.channel,
+      formulaCode: formulaCodeOf(p, catalogo) ?? "",
+      coverage: p.coverage,
+      publishedAt: p.publishedAt ?? "",
+      search: `${p.title} ${p.canal ?? ""} ${p.formula ?? ""}`.toLowerCase(),
+      alcance: primaryReach(p),
+      engagements: l?.engagements ?? null,
+      bookmarks: l?.bookmarks ?? null,
+      likes: l?.likes ?? null,
+      follows: l?.follows ?? null,
+    };
+  });
 
   return (
     <>
@@ -45,13 +46,13 @@ export default async function RankingPage({ params }: { params: Promise<{ accoun
         title="Ranking"
         subtitle={`${source.label} · en absoluto y en tasa sobre el alcance`}
       />
-      <RankingClient groups={groups} />
-      <p className="mt-4 max-w-[70ch] text-[11px] leading-relaxed text-muted-foreground/70">
-        Las dos columnas porque cada una sola miente: el absoluto premia a la pieza que
-        tuvo alcance y no movió a nadie, y la tasa premia a la que movió a los pocos que
-        la vieron. Una pieza de utilidad gana en guardados con alcance mediocre, y eso
-        solo se ve mirando las dos juntas.
-      </p>
+      <RankingClient
+        filas={filas}
+        canales={conteo(filas.map((r) => r.canal))}
+        formulas={conteo(filas.map((r) => r.formulaCode))}
+        creativos={loadCreatives([source]).length}
+        hrefCampanas={`/${account}/campanas`}
+      />
     </>
   );
 }

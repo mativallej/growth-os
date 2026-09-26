@@ -2,8 +2,9 @@ import { notFound } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import PageHeader from "@/components/PageHeader";
-import { findSource } from "@/lib/sources";
 import { CAPAS, DUENOS, marcasDelMapa, operacionesDelMapa } from "@/lib/mapa";
+import { destinosDe } from "@/lib/destinos";
+import { findSource as buscarFuente } from "@/lib/sources";
 
 const FORMA: Record<string, string> = {
   captura: "Captura — se guarda al instante, sin red",
@@ -13,7 +14,12 @@ const FORMA: Record<string, string> = {
 
 export default async function MapaPage({ params }: { params: Promise<{ account: string }> }) {
   const { account } = await params;
-  if (!findSource(account)) notFound();
+  const fuente = buscarFuente(account);
+  if (!fuente) notFound();
+
+  // Solo los destinos CON dirección configurada: un acceso a un destino sin
+  // configurar es un enlace muerto, y eso es peor que no tener el acceso.
+  const accesos = destinosDe(fuente.brand);
 
   const marcas = marcasDelMapa();
   const operaciones = operacionesDelMapa();
@@ -70,6 +76,33 @@ export default async function MapaPage({ params }: { params: Promise<{ account: 
           </Card>
         ))}
       </div>
+
+      {accesos.length > 0 && (
+        <>
+          <div className="mt-9 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
+            Abrir el destino de coordinación
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {accesos.map((d) => (
+              <a
+                key={d.id}
+                href={d.url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-border px-4 py-3 transition-colors hover:bg-secondary"
+              >
+                <div className="flex items-center justify-between gap-2 text-[13px] font-medium">
+                  {d.nombre}
+                  <span aria-hidden="true" className="text-muted-foreground">↗</span>
+                </div>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                  {d.descripcion}
+                </p>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
 
       <div className="mt-9 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
         Quién manda sobre cada campo

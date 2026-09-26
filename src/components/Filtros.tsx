@@ -35,6 +35,10 @@ export type EstadoFiltros = {
   canales: string[];
   formulas: string[];
   coberturas: string[];
+  /** Facetas de ads: persona, ángulo y ronda. Vacías cuando la materia es orgánico. */
+  personas: string[];
+  angulos: string[];
+  rondas: string[];
   desde: string;
   hasta: string;
   orden: string;
@@ -45,6 +49,9 @@ export const FILTROS_VACIOS: EstadoFiltros = {
   canales: [],
   formulas: [],
   coberturas: [],
+  personas: [],
+  angulos: [],
+  rondas: [],
   desde: "",
   hasta: "",
   orden: "",
@@ -64,6 +71,9 @@ export default function Filtros({
   ordenes,
   conFechas = true,
   conCobertura = true,
+  personas = [],
+  angulos = [],
+  rondas = [],
   resultados,
   total,
 }: {
@@ -74,6 +84,10 @@ export default function Filtros({
   ordenes: Opcion[];
   conFechas?: boolean;
   conCobertura?: boolean;
+  /** Facetas de ads. Vacías en orgánico, y un MultiSelect sin opciones no se dibuja. */
+  personas?: Opcion[];
+  angulos?: Opcion[];
+  rondas?: Opcion[];
   resultados: number;
   total: number;
 }) {
@@ -84,7 +98,10 @@ export default function Filtros({
     Boolean(estado.q || estado.desde || estado.hasta || estado.orden) ||
     estado.canales.length > 0 ||
     estado.formulas.length > 0 ||
-    estado.coberturas.length > 0;
+    estado.coberturas.length > 0 ||
+    estado.personas.length > 0 ||
+    estado.angulos.length > 0 ||
+    estado.rondas.length > 0;
 
   return (
     <div className="mb-4 space-y-2">
@@ -113,6 +130,12 @@ export default function Filtros({
             onChange={set("coberturas")}
           />
         )}
+
+        {/* Las de ads. `MultiSelect` no se dibuja sin opciones, así que en
+            orgánico desaparecen solas. */}
+        <MultiSelect titulo="Persona" opciones={personas} valor={estado.personas} onChange={set("personas")} />
+        <MultiSelect titulo="Ángulo" opciones={angulos} valor={estado.angulos} onChange={set("angulos")} />
+        <MultiSelect titulo="Ronda" opciones={rondas} valor={estado.rondas} onChange={set("rondas")} buscable />
 
         {/* Una lista se ordena por UN criterio: acá la opción única es correcta. */}
         <Select
@@ -170,17 +193,26 @@ export function aplicarFiltros<
     formulaCode: string;
     coverage: string;
     publishedAt: string;
+    persona?: string;
+    angulo?: string;
+    ronda?: string;
   },
 >(filas: T[], f: EstadoFiltros): T[] {
   const q = f.q.trim().toLowerCase();
   const canales = new Set(f.canales);
   const formulas = new Set(f.formulas);
   const coberturas = new Set(f.coberturas);
+  const personas = new Set(f.personas);
+  const angulos = new Set(f.angulos);
+  const rondas = new Set(f.rondas);
   return filas.filter((r) => {
     if (q && !r.search.includes(q)) return false;
     if (canales.size && !canales.has(r.canal)) return false;
     if (formulas.size && !formulas.has(r.formulaCode)) return false;
     if (coberturas.size && !coberturas.has(r.coverage)) return false;
+    if (personas.size && !personas.has(r.persona ?? "")) return false;
+    if (angulos.size && !angulos.has(r.angulo ?? "")) return false;
+    if (rondas.size && !rondas.has(r.ronda ?? "")) return false;
     if (f.desde && (!r.publishedAt || r.publishedAt < f.desde)) return false;
     if (f.hasta && (!r.publishedAt || r.publishedAt > f.hasta)) return false;
     return true;

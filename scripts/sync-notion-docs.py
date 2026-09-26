@@ -29,9 +29,31 @@ import argparse, hashlib, io, json, os, re, sys, urllib.error, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+
+def _destinos():
+    """Los destinos del workspace, de config/destinos.json.
+
+    Estaban hardcodeados acá y en sync-notion-docs.py, cada uno con su copia.
+    Dos copias de un id es una que se va a quedar vieja — y son lo que
+    `public-release` tiene que sacar del código antes de abrir el repo."""
+    ruta = os.path.join(ROOT, "config", "destinos.json")
+    try:
+        with io.open(ruta, encoding="utf-8") as f:
+            return {d["id"]: d for d in json.load(f).get("destinos", [])}
+    except Exception as e:
+        sys.exit("No se pudo leer %s: %s\nEs donde viven los ids de los tableros." % (ruta, e))
+
+
+def destino_ref(id_):
+    d = _destinos().get(id_)
+    if not d:
+        sys.exit("config/destinos.json no declara el destino '%s'." % id_)
+    return d["ref"]
+
+
 API = "https://api.notion.com/v1"
 VERSION = "2022-06-28"
-GROWTH_PAGE = "3e42cc30-dd28-8110-b80c-faa4316c7f57"   # página Growth en Notion
+# El id de la página Growth vive en config/destinos.json, no acá.
 LIMIT = 100        # bloques por request
 CHARS = 1900       # por fragmento de rich_text
 
@@ -257,7 +279,7 @@ def main():
 
     # raíz: una página por marca bajo Growth, y una página por carpeta
     if not state.get("root"):
-        state["root"] = page(GROWTH_PAGE, "Docs — %s" % brand["label"])
+        state["root"] = page(destino_ref("growth"), "Docs — %s" % brand["label"])
         print("  raíz creada: %s" % state["root"])
 
     def dir_page(rel_dir):

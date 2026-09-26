@@ -25,6 +25,8 @@ import Filtros, {
   type EstadoFiltros,
   type Opcion,
 } from "@/components/Filtros";
+import MateriaToggle from "@/components/MateriaToggle";
+import { facetas, type Materia, type Unidad } from "@/lib/unidades";
 
 /**
  * El inventario: TODAS las piezas, incluidas las que no tienen footer ni
@@ -40,19 +42,7 @@ import Filtros, {
  * quiere es mover una tarjeta de carril, eso se hace en Notion.
  */
 
-export type InventarioRow = {
-  title: string;
-  href: string;
-  canal: string;
-  formula: string;
-  formulaCode: string;
-  estado: string;
-  status: string;
-  coverage: string;
-  publishedAt: string;
-  cortes: number;
-  search: string;
-};
+export type InventarioRow = Unidad;
 
 const ORDENES: Opcion[] = [
   { value: "ruta", label: "Por ubicación" },
@@ -69,13 +59,18 @@ const COBERTURA: Record<string, { label: string; variant: "success" | "secondary
 };
 
 /** Las dimensiones por las que se puede agrupar el tablero. */
-type Agrupacion = "coverage" | "status" | "canal" | "formulaCode";
+type Agrupacion = "coverage" | "status" | "canal" | "formulaCode" | "persona" | "angulo" | "ronda";
 
-const AGRUPACIONES: { value: Agrupacion; label: string; orden: string[] }[] = [
-  { value: "coverage", label: "Cobertura", orden: ["tracked", "pending", "untracked"] },
-  { value: "status", label: "Estado", orden: ["published", "in-progress", "draft", "idea", "backlog", "unknown"] },
-  { value: "canal", label: "Red", orden: [] },
-  { value: "formulaCode", label: "Fórmula", orden: [] },
+const AGRUPACIONES: { value: Agrupacion; label: string; orden: string[]; materia: "organico" | "ads" | "ambas" }[] = [
+  { value: "coverage", label: "Cobertura", orden: ["tracked", "pending", "untracked"], materia: "organico" },
+  { value: "status", label: "Estado", orden: ["published", "in-progress", "draft", "idea", "backlog", "unknown"], materia: "organico" },
+  { value: "formulaCode", label: "Fórmula", orden: [], materia: "organico" },
+  { value: "canal", label: "Red", orden: [], materia: "ambas" },
+  // Las dimensiones de campañas: un creativo se organiza por persona × dolor ×
+  // ángulo, no por fórmula.
+  { value: "persona", label: "Persona", orden: [], materia: "ads" },
+  { value: "angulo", label: "Ángulo", orden: [], materia: "ads" },
+  { value: "ronda", label: "Ronda", orden: [], materia: "ads" },
 ];
 
 const ETIQUETA: Record<string, string> = {
@@ -93,19 +88,28 @@ const ETIQUETA: Record<string, string> = {
 
 export default function InventarioClient({
   rows,
-  canales,
-  formulas,
+  creativos = [],
 }: {
   rows: InventarioRow[];
-  canales: Opcion[];
-  formulas: Opcion[];
+  creativos?: InventarioRow[];
 }) {
   const [f, setF] = useState<EstadoFiltros>(FILTROS_VACIOS);
+  const [materia, setMateria] = useState<Materia>("organico");
   const [vista, setVista] = useState<"tabla" | "tablero">("tabla");
   const [agrupar, setAgrupar] = useState<Agrupacion>("coverage");
 
+  const esAds = materia === "ads";
+  const universo = esAds ? creativos : rows;
+  // Las facetas salen del conjunto ACTIVO: con ads no tiene sentido ofrecer
+  // fórmulas, y con orgánico no tiene sentido ofrecer personas.
+  const canales = facetas(universo, "canal");
+  const formulas = esAds ? [] : facetas(universo, "formulaCode");
+  const personas = esAds ? facetas(universo, "persona") : [];
+  const angulos = esAds ? facetas(universo, "angulo") : [];
+  const rondas = esAds ? facetas(universo, "ronda") : [];
+
   const filas = useMemo(() => {
-    const out = aplicarFiltros(rows, f);
+    const out = aplicarFiltros(universo, f);
     const porFecha = (a: InventarioRow, b: InventarioRow) =>
       (b.publishedAt || "").localeCompare(a.publishedAt || "");
     switch (f.orden) {
@@ -120,7 +124,7 @@ export default function InventarioClient({
       default:
         return out;
     }
-  }, [rows, f]);
+  }, [universo, f]);
 
   const columnas = useMemo(() => {
     const def = AGRUPACIONES.find((a) => a.value === agrupar)!;
@@ -143,6 +147,20 @@ export default function InventarioClient({
 
   return (
     <>
+      <MateriaToggle
+        valor={materia}
+        onChange={(m) => {
+          setMateria(m);
+          // Los filtros se limpian al cambiar de materia: una faceta de ads
+          // seleccionada no significa nada en orgánico, y dejarla puesta
+          // mostraría una lista vacía sin motivo visible.
+          setF(FILTROS_VACIOS);
+          if (m === "ads") setAgrupar("persona");
+          else setAgrupar("coverage");
+        }}
+        conteos={{ organico: rows.length, ads: creativos.length }}
+      />
+
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <ToggleGroup
           type="single"
@@ -159,7 +177,7 @@ export default function InventarioClient({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {AGRUPACIONES.map((a) => (
+              {AGRUPACIONES.filter((a) => a.materia === "ambas" || a.materia === materia).map((a) => (
                 <SelectItem key={a.value} value={a.value}>
                   Agrupar: {a.label}
                 </SelectItem>
@@ -174,9 +192,14 @@ export default function InventarioClient({
         onChange={setF}
         canales={canales}
         formulas={formulas}
+        personas={personas}
+        angulos={angulos}
+        rondas={rondas}
         ordenes={ORDENES}
+        conCobertura={!esAds}
+        conFechas={!esAds}
         resultados={filas.length}
-        total={rows.length}
+        total={universo.length}
       />
 
       {filas.length === 0 ? (
@@ -188,12 +211,24 @@ export default function InventarioClient({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>pieza</TableHead>
-                <TableHead className="hidden w-24 sm:table-cell">red</TableHead>
-                <TableHead className="hidden w-16 md:table-cell">fórmula</TableHead>
-                <TableHead className="hidden w-24 md:table-cell">fecha</TableHead>
-                <TableHead className="w-28">cobertura</TableHead>
-                <TableHead className="w-12 text-right">cortes</TableHead>
+                <TableHead>{esAds ? "creativo" : "pieza"}</TableHead>
+                {esAds ? (
+                  <>
+                    <TableHead className="hidden w-24 sm:table-cell">persona</TableHead>
+                    <TableHead className="hidden w-16 md:table-cell">dolor</TableHead>
+                    <TableHead className="hidden w-32 md:table-cell">ángulo</TableHead>
+                    <TableHead className="w-24">formato</TableHead>
+                    <TableHead className="w-28 text-right">ronda</TableHead>
+                  </>
+                ) : (
+                  <>
+                    <TableHead className="hidden w-24 sm:table-cell">red</TableHead>
+                    <TableHead className="hidden w-16 md:table-cell">fórmula</TableHead>
+                    <TableHead className="hidden w-24 md:table-cell">fecha</TableHead>
+                    <TableHead className="w-28">cobertura</TableHead>
+                    <TableHead className="w-12 text-right">cortes</TableHead>
+                  </>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -211,22 +246,47 @@ export default function InventarioClient({
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="hidden text-[13px] text-muted-foreground sm:table-cell">
-                      {r.canal}
-                    </TableCell>
-                    <TableCell className="hidden font-mono text-[13px] text-muted-foreground md:table-cell">
-                      {r.formulaCode || "—"}
-                    </TableCell>
-                    <TableCell className="hidden tabular-nums text-[13px] text-muted-foreground md:table-cell">
-                      {r.publishedAt || "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={cob.variant}>{cob.label}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-[13px] text-muted-foreground">
-                      {/* Cero cortes es raya: no se midió cero, no se midió. */}
-                      {r.cortes || "—"}
-                    </TableCell>
+                    {esAds ? (
+                      <>
+                        <TableCell className="hidden text-[13px] sm:table-cell">
+                          {r.persona || "—"}
+                          {r.publico && (
+                            <span className="ml-1.5 text-[11px] text-muted-foreground">{r.publico}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="hidden text-[13px] text-muted-foreground md:table-cell">
+                          {r.dolor || "—"}
+                        </TableCell>
+                        <TableCell className="hidden text-[13px] text-muted-foreground md:table-cell">
+                          {r.angulo || "—"}
+                        </TableCell>
+                        <TableCell className="text-[13px] text-muted-foreground">
+                          {r.formato || "—"}
+                        </TableCell>
+                        <TableCell className="text-right text-[11px] text-muted-foreground">
+                          {r.ronda || "—"}
+                        </TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell className="hidden text-[13px] text-muted-foreground sm:table-cell">
+                          {r.canal}
+                        </TableCell>
+                        <TableCell className="hidden font-mono text-[13px] text-muted-foreground md:table-cell">
+                          {r.formulaCode || "—"}
+                        </TableCell>
+                        <TableCell className="hidden tabular-nums text-[13px] text-muted-foreground md:table-cell">
+                          {r.publishedAt || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={cob.variant}>{cob.label}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-[13px] text-muted-foreground">
+                          {/* Cero cortes es raya: no se midió cero, no se midió. */}
+                          {r.cortes || "—"}
+                        </TableCell>
+                      </>
+                    )}
                   </TableRow>
                 );
               })}

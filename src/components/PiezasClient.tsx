@@ -9,6 +9,8 @@ import Filtros, {
   type EstadoFiltros,
   type Opcion,
 } from "@/components/Filtros";
+import MateriaToggle from "@/components/MateriaToggle";
+import type { Materia } from "@/lib/unidades";
 
 /**
  * Las piezas medidas, en filas densas.
@@ -60,12 +62,18 @@ export default function PiezasClient({
   cards,
   canales,
   formulas,
+  creativosSinMedir = 0,
+  hrefCampanas,
 }: {
   cards: PiezaCard[];
   canales: Opcion[];
   formulas: Opcion[];
+  /** Cuántos creativos hay. Ninguno tiene números: son briefs. */
+  creativosSinMedir?: number;
+  hrefCampanas?: string;
 }) {
   const [f, setF] = useState<EstadoFiltros>(FILTROS_VACIOS);
+  const [materia, setMateria] = useState<Materia>("organico");
 
   const filas = useMemo(() => {
     const out = aplicarFiltros(cards, f);
@@ -90,8 +98,44 @@ export default function PiezasClient({
   // cantidad de cortes ya vive en el title de la fila.
   const haySeries = filas.some((c) => c.sparkHtml);
 
+  if (materia === "ads") {
+    return (
+      <>
+        <MateriaToggle
+          valor={materia}
+          onChange={setMateria}
+          conteos={{ organico: cards.length, ads: creativosSinMedir }}
+        />
+        <div className="rounded-lg border border-border p-5">
+          <p className="text-sm">
+            Ningún creativo tiene números cargados: los {creativosSinMedir} son briefs.
+          </p>
+          <p className="mt-1.5 max-w-[70ch] text-[13px] leading-relaxed text-muted-foreground">
+            Y cuando los tengan, no se van a listar acá: un creativo no se mide con
+            alcance ni guardados — pesan hook-rate, CTR y costo por resultado, que son
+            derivadas que el contrato no escribe porque quién decide si algo es caro lo
+            decide una persona. Lo que sí se puede ver hoy es la{" "}
+            {hrefCampanas ? (
+              <Link href={hrefCampanas} className="text-primary hover:underline">
+                cobertura por persona × dolor × ángulo
+              </Link>
+            ) : (
+              "cobertura por persona × dolor × ángulo"
+            )}
+            .
+          </p>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
+      <MateriaToggle
+        valor={materia}
+        onChange={setMateria}
+        conteos={{ organico: cards.length, ads: creativosSinMedir }}
+      />
       <Filtros
         estado={f}
         onChange={setF}

@@ -7,6 +7,7 @@ import { latest, engRate, saveLike, primaryReach, num, pct } from "@/lib/metrics
 import { sparkline } from "@/lib/charts";
 import { findSource } from "@/lib/sources";
 import { loadFormulas } from "@/lib/formulas";
+import { loadCreatives } from "@/lib/ads";
 import { formulaCodeOf } from "@/lib/formulas";
 
 const conteo = (vals: string[]): Opcion[] => {
@@ -66,6 +67,8 @@ export default async function PiezasPage({ params }: { params: Promise<{ account
         cards={cards}
         canales={conteo(cards.map((c) => c.canal))}
         formulas={conteo(cards.map((c) => c.formulaCode))}
+        creativosSinMedir={loadCreatives([source]).length}
+        hrefCampanas={`/${account}/campanas`}
       />
     </>
   );

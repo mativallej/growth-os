@@ -9,6 +9,7 @@ import { sortedSnaps, latest, engRate, pvRate, saveLike, primaryReach, num, pct 
 import { lineChart } from "@/lib/charts";
 import { findSource } from "@/lib/sources";
 import { compararVariantes, variantesDe } from "@/lib/variantes";
+import { enlaceDePieza, leerCorrespondencia } from "@/lib/notion-links";
 
 /**
  * Anidado: Next ejecuta esto UNA VEZ POR CADA `account` que emitió el layout
@@ -60,6 +61,12 @@ export default async function PiezaPage({
   // formas; comparar dos piezas distintas de una serie no diría nada.
   const variantes = compararVariantes(variantesDe(p, piezas));
 
+  // El enlace a su fila del tablero. `null` NO significa que la pieza no esté
+  // allá: significa que esta app no sabe cuál es su fila. Decir "no está
+  // sincronizada" sería afirmar de más.
+  const { correspondencia, dias: diasEnlaces } = leerCorrespondencia(source.brand);
+  const enlaceTablero = enlaceDePieza(p, correspondencia);
+
   const snaps = sortedSnaps(p);
   const l = latest(p);
   // El eje es el ALCANCE, no impressions: en Instagram impressions no existe y
@@ -83,9 +90,28 @@ export default async function PiezaPage({
     <>
       <PageHeader title={p.title} subtitle={[p.canal, p.cuenta, p.formato].filter(Boolean).join(" · ")} />
 
-      <Link href={`/${account}/piezas`} className="text-xs text-muted-foreground transition-colors hover:text-foreground">
-        ← Piezas
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link href={`/${account}/piezas`} className="text-xs text-muted-foreground transition-colors hover:text-foreground">
+          ← Piezas
+        </Link>
+        {enlaceTablero ? (
+          <a
+            href={enlaceTablero}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-primary hover:underline"
+            title={diasEnlaces !== null ? `correspondencia de hace ${diasEnlaces} día(s)` : undefined}
+          >
+            Abrir en el tablero ↗
+          </a>
+        ) : (
+          <span className="text-xs text-muted-foreground/70">
+            {correspondencia
+              ? "Sin fila conocida en el tablero"
+              : "La correspondencia con el tablero todavía no se generó"}
+          </span>
+        )}
+      </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {p.formula && <Badge variant="outline">{p.formula}</Badge>}

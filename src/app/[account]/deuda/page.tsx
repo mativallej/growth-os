@@ -7,6 +7,7 @@ import { loadPieces } from "@/lib/parse";
 import { findSource } from "@/lib/sources";
 import { analyticsDebt } from "@/lib/rollups";
 import { num } from "@/lib/metrics";
+import { loadCreatives } from "@/lib/ads";
 
 export default async function DeudaPage({ params }: { params: Promise<{ account: string }> }) {
   const { account } = await params;
@@ -15,6 +16,10 @@ export default async function DeudaPage({ params }: { params: Promise<{ account:
 
   const pieces = loadPieces([source]);
   const filas = analyticsDebt(pieces);
+  // Los creativos tienen su propia deuda, y es de otra naturaleza: ninguno tiene
+  // números porque todavía no corrió una ronda medida. Mezclarlos con las piezas
+  // publicadas sin medir sumaría dos deudas que se pagan distinto.
+  const creativos = loadCreatives([source]).length;
   const sinEnlace = filas.filter((f) => f.sinEnlace).length;
   const masVieja = filas.find((f) => f.days !== null)?.days ?? null;
 
@@ -80,6 +85,25 @@ export default async function DeudaPage({ params }: { params: Promise<{ account:
               ))}
             </CardContent>
           </Card>
+
+          {creativos > 0 && (
+            <div className="mt-4 rounded-lg border border-border p-4">
+              <p className="text-[13px]">
+                Los <strong className="tabular-nums">{num(creativos)}</strong> creativos de
+                campañas <strong>no están en esta lista</strong>.
+              </p>
+              <p className="mt-1 max-w-[70ch] text-[11px] leading-relaxed text-muted-foreground">
+                Su deuda es de otra naturaleza: no es que se publicaron y nadie los midió,
+                es que todavía no corrió una ronda con números. Y se mide con otras
+                métricas —hook-rate, CTR, costo por resultado—, así que sumarlos acá sería
+                sumar dos deudas que se pagan distinto. Están en{" "}
+                <Link href={`/${account}/campanas`} className="text-primary hover:underline">
+                  Campañas
+                </Link>
+                .
+              </p>
+            </div>
+          )}
 
           <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground/70">
             <strong>pendiente</strong> = el footer declara que se va a medir y todavía no

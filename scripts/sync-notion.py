@@ -32,10 +32,31 @@ from datetime import date, datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+
+def _destinos():
+    """Los destinos del workspace, de config/destinos.json.
+
+    Estaban hardcodeados acá y en sync-notion-docs.py, cada uno con su copia.
+    Dos copias de un id es una que se va a quedar vieja — y son lo que
+    `public-release` tiene que sacar del código antes de abrir el repo."""
+    ruta = os.path.join(ROOT, "config", "destinos.json")
+    try:
+        with io.open(ruta, encoding="utf-8") as f:
+            return {d["id"]: d for d in json.load(f).get("destinos", [])}
+    except Exception as e:
+        sys.exit("No se pudo leer %s: %s\nEs donde viven los ids de los tableros." % (ruta, e))
+
+
+def destino_ref(id_):
+    d = _destinos().get(id_)
+    if not d:
+        sys.exit("config/destinos.json no declara el destino '%s'." % id_)
+    return d["ref"]
+
+
 API = "https://api.notion.com/v1"
 VERSION = "2022-06-28"
-CONTENT_DS = "f74f3fb7-4fe5-4e52-b683-c7d8eeefff0d"   # Content Creator
-ADS_DS = "d4b673e1-a79d-4b6f-b2f1-7de8e3e08e94"       # Ads Creator
+# Los ids de los tableros viven en config/destinos.json, no acá.
 ISO = re.compile(r"(20\d\d-\d\d-\d\d)")
 CANAL = {"x": "X", "twitter": "X", "instagram": "Instagram", "linkedin": "LinkedIn",
          "blog": "Blog", "tiktok": "TikTok"}
@@ -323,8 +344,41 @@ def remote_rows(ds):
 
 # ── un pase (posts o ads) ─────────────────────────────────────────────────────
 
+
+def guardar_enlaces(brand, filas, apply_):
+    """Guarda pieza -> id de fila en .state/, para que la app pueda enlazar.
+
+    SOLO CON --apply. Un dry-run no puede modificar la correspondencia guardada:
+    si lo hiciera, mirar sin aplicar dejaría enlaces a filas que no se crearon.
+
+    Es estado local y derivado: si se borra, la app sigue andando y lo único que
+    se pierde son los enlaces. Se llavea por el `id` de la pieza (D-9), no por su
+    ruta — la ruta cambia, y es lo que dejó 57 filas apuntando al vacío."""
+    if not apply_ or not filas:
+        return
+    import datetime
+    d = os.path.join(ROOT, ".state")
+    os.makedirs(d, exist_ok=True)
+    destino = os.path.join(d, "notion-links-%s.json" % brand)
+    previas = {}
+    try:
+        with io.open(destino, encoding="utf-8") as f:
+            previas = json.load(f).get("filas", {}) or {}
+    except Exception:
+        pass
+    previas.update(filas)
+    datos = {"actualizado": datetime.datetime.now(datetime.timezone.utc)
+                             .isoformat(timespec="seconds").replace("+00:00", "Z"),
+             "filas": previas}
+    tmp = destino + ".tmp"
+    with io.open(tmp, "w", encoding="utf-8") as f:
+        f.write(json.dumps(datos, ensure_ascii=False, indent=2) + "\n")
+    os.replace(tmp, destino)
+    print("  ✓ correspondencia guardada: %d filas en .state/" % len(previas))
+
+
 def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion, ads_root=""):
-    ds = ADS_DS if kind == "ads" else CONTENT_DS
+    ds = destino_ref("ads" if kind == "ads" else "contenido")
     titulo = "Creativo" if kind == "ads" else "Pieza"
     estado = estado_ad if kind == "ads" else estado_post
     remote, sin_llave = remote_rows(ds)
@@ -382,6 +436,10 @@ def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion, ads_root
         for k, nuevo, viejo in devuelta[:10]:
             print("     %s: %s → %s" % (os.path.basename(k)[:46], viejo or "(vacío)", nuevo))
 
+    # La correspondencia se arma con lo que YA se conoce: una fila existente
+    # también tiene id, y descartarlo era el bug — el puente lo veía y lo tiraba.
+    enlaces = {pid: remote[pid]["id"] for pid in existentes}
+
     if not apply_:
         return
 
@@ -414,10 +472,14 @@ def sync_rows(kind, brand, marca, vault, local, apply_, only_to_notion, ads_root
             m = ISO.search(f.get("date", ""))
             if m:
                 props["Fecha"] = {"date": {"start": m.group(1)}}
-        api("/pages", "POST", {"parent": {"type": "data_source_id", "data_source_id": ds},
-                               "properties": props})
+        creada = api("/pages", "POST", {"parent": {"type": "data_source_id", "data_source_id": ds},
+                                        "properties": props})
+        if creada.get("id"):
+            enlaces[pid] = creada["id"]
     if nuevas:
         print("  ✓ %d filas creadas." % len(nuevas))
+
+    guardar_enlaces(brand, enlaces, apply_)
 
     for pid, k in mudadas:
         api("/pages/%s" % remote[pid]["id"], "PATCH", {"properties": {"Archivo": txt(k)}})

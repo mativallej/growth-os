@@ -1,0 +1,47 @@
+{
+  "_doc": "Los destinos del workspace de coordinación (Notion). UN SOLO LUGAR: lo leen la app (src/lib/destinos.ts) y los scripts de Python. Estaban hardcodeados en scripts/sync-notion.py y scripts/sync-notion-docs.py, y eso también es lo que `public-release` tarea 1.1 tiene que sacar del código antes de abrir el repo.",
+  "_campos": {
+    "id": "identificador interno, el que usan los scripts",
+    "tipo": "'data_source' para un tablero consultable por API, 'page' para una página",
+    "url": "la dirección para abrir desde la interfaz. Vacío = no se ofrece el acceso, sin enlace muerto",
+    "marcas": "qué marcas lo usan. null = todas"
+  },
+  "destinos": [
+    {
+      "id": "contenido",
+      "nombre": "Content Creator",
+      "descripcion": "El tablero de piezas de contenido orgánico",
+      "tipo": "data_source",
+      "ref": "f74f3fb7-4fe5-4e52-b683-c7d8eeefff0d",
+      "url": "https://www.notion.so/64d2b45afac4428582c57a158ef1d0a9",
+      "marcas": null
+    },
+    {
+      "id": "ads",
+      "nombre": "Ads Creator",
+      "descripcion": "Los creativos de campañas. Otro ciclo y otras métricas que el orgánico",
+      "tipo": "data_source",
+      "ref": "d4b673e1-a79d-4b6f-b2f1-7de8e3e08e94",
+      "url": "https://www.notion.so/68e1958490de4ad3ac49cfd1a6e1c21b",
+      "marcas": ["tegu"]
+    },
+    {
+      "id": "ideas",
+      "nombre": "Ideas",
+      "descripcion": "La bandeja donde caen las ideas captadas",
+      "tipo": "data_source",
+      "ref": "fc5c35b2-409b-4afb-945d-72e9741b1e02",
+      "url": "https://www.notion.so/fc5c35b2409b4afb945d72e9741b1e02",
+      "marcas": null
+    },
+    {
+      "id": "growth",
+      "nombre": "Growth",
+      "descripcion": "La página que contiene todo lo demás",
+      "tipo": "page",
+      "ref": "3e42cc30-dd28-8110-b80c-faa4316c7f57",
+      "url": "https://www.notion.so/3e42cc30dd288110b80cfaa4316c7f57",
+      "marcas": null
+    }
+  ]
+}
