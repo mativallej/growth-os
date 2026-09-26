@@ -6,10 +6,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import PageHeader from "@/components/PageHeader";
 import BarList from "@/components/BarList";
 import RangoFechas, { RANGO_VACIO, type Rango } from "@/components/RangoFechas";
+import MultiSelect, { type Opcion } from "@/components/MultiSelect";
+import MateriaToggle from "@/components/MateriaToggle";
+import { Button } from "@/components/ui/button";
+import type { Materia } from "@/lib/unidades";
 import { BarrasPorMes, BarraCompuesta, Medidor } from "@/components/Graficos";
 
 /**
- * El overview, recalculado contra un rango de fechas.
+ * El overview, recalculado contra los filtros.
  *
  * El filtro vive en el cliente sobre una proyección mínima de cada pieza —fecha,
  * estado, cobertura, canal y los pocos números que suman—. Una `searchParams`
@@ -18,6 +22,17 @@ import { BarrasPorMes, BarraCompuesta, Medidor } from "@/components/Graficos";
  * lee el vault en el momento.
  *
  * Lo que NO viaja: el `body` de ninguna pieza.
+ *
+ * LOS FILTROS SON MULTI-SELECT salvo el rango. La pregunta real casi nunca es
+ * "Instagram o Twitter", es "Instagram y Twitter, sin Blog" — y cada recorte
+ * recalcula TODO lo que depende del conjunto: cadencia, deuda, alcance, la
+ * composición del mes. Lo que no se recalcula son las fórmulas sin estrenar, y
+ * eso está explicado abajo donde pasa.
+ *
+ * ADS NO ES UN FILTRO ACÁ, es un cambio de conjunto, y no hay conjunto: los
+ * creativos están en el `ignore` de la fuente, así que esta página nunca los vio.
+ * El toggle existe igual porque la pregunta es legítima; lo que hace es decir por
+ * qué la respuesta no está acá y mandar a donde sí está.
  */
 
 export type OverviewPiece = {
@@ -67,6 +82,30 @@ function Stat({ k, v, sub, good }: { k: string; v: string; sub?: string; good?: 
 
 const fmt = (n: number) => n.toLocaleString("es-AR");
 
+const COBERTURAS: Opcion[] = [
+  { value: "tracked", label: "Medidas" },
+  { value: "pending", label: "Pendientes" },
+  { value: "untracked", label: "Sin trackear" },
+];
+
+const ESTADOS: Opcion[] = [
+  { value: "published", label: "Publicadas" },
+  { value: "in-progress", label: "En curso" },
+  { value: "draft", label: "Draft" },
+  { value: "idea", label: "Idea" },
+  { value: "backlog", label: "Backlog" },
+  { value: "unknown", label: "Sin estado" },
+];
+
+/** Opciones de un campo con su conteo, sobre el conjunto SIN filtrar por ese campo. */
+function opciones(piezas: OverviewPiece[], campo: "canal" | "formulaCode"): Opcion[] {
+  const m = new Map<string, number>();
+  for (const p of piezas) if (p[campo]) m.set(p[campo], (m.get(p[campo]) ?? 0) + 1);
+  return [...m.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([value, count]) => ({ value, label: value, count }));
+}
+
 /** Piezas publicadas por mes, ordenadas. Fuera del componente: es una función
  *  pura sobre sus argumentos, y el compilador de React la memoiza sola. */
 function contarMeses(publicadas: OverviewPiece[]): [string, number][] {
@@ -94,6 +133,7 @@ export default function OverviewClient({
   dieta,
   formulasSinEstrenar,
   sinClasificar,
+  creativos = 0,
 }: {
   piezas: OverviewPiece[];
   account: string;
@@ -102,24 +142,55 @@ export default function OverviewClient({
   dieta: { piso: number; techo: number };
   formulasSinEstrenar: string[];
   sinClasificar: number;
+  /** Cuántos creativos tiene la marca. Solo para ofrecer el toggle y explicar. */
+  creativos?: number;
 }) {
   const { piso: PISO, techo: TECHO } = dieta;
   const [rango, setRango] = useState<Rango>(RANGO_VACIO);
-  const conRango = Boolean(rango.desde || rango.hasta);
+  const [canales, setCanales] = useState<string[]>([]);
+  const [formulas, setFormulas] = useState<string[]>([]);
+  const [coberturas, setCoberturas] = useState<string[]>([]);
+  const [estados, setEstados] = useState<string[]>([]);
+  const [materia, setMateria] = useState<Materia>("organico");
 
-  const vista = useMemo(
-    () =>
-      conRango
-        ? piezas.filter(
-            (p) =>
-              p.publishedAt &&
-              (!rango.desde || p.publishedAt >= rango.desde) &&
-              (!rango.hasta || p.publishedAt <= rango.hasta),
-          )
-        : piezas,
-    [piezas, rango.desde, rango.hasta, conRango],
-  );
-  const excluidasPorFecha = piezas.length - vista.length;
+  const conRango = Boolean(rango.desde || rango.hasta);
+  const sucio =
+    conRango ||
+    canales.length > 0 ||
+    formulas.length > 0 ||
+    coberturas.length > 0 ||
+    estados.length > 0;
+
+  const limpiar = () => {
+    setRango(RANGO_VACIO);
+    setCanales([]);
+    setFormulas([]);
+    setCoberturas([]);
+    setEstados([]);
+  };
+
+  const vista = useMemo(() => {
+    const cs = new Set(canales);
+    const fs = new Set(formulas);
+    const cb = new Set(coberturas);
+    const es = new Set(estados);
+    return piezas.filter((p) => {
+      // Una faceta vacía NO filtra: sin selección se ve todo, no nada.
+      if (cs.size && !cs.has(p.canal)) return false;
+      if (fs.size && !fs.has(p.formulaCode)) return false;
+      if (cb.size && !cb.has(p.coverage)) return false;
+      if (es.size && !es.has(p.status)) return false;
+      if (conRango) {
+        // Sin fecha, fuera del rango. Se dice abajo.
+        if (!p.publishedAt) return false;
+        if (rango.desde && p.publishedAt < rango.desde) return false;
+        if (rango.hasta && p.publishedAt > rango.hasta) return false;
+      }
+      return true;
+    });
+  }, [piezas, canales, formulas, coberturas, estados, conRango, rango.desde, rango.hasta]);
+
+  const excluidas = piezas.length - vista.length;
 
   const medidas = vista.filter((p) => p.coverage === "tracked");
   const publicadas = vista.filter((p) => p.status === "published");
@@ -152,15 +223,17 @@ export default function OverviewClient({
       titulo: `${fmt(sinFecha)} publicadas sin fecha`,
       detalle: "no entran en ninguna cadencia",
     },
-    // Las fórmulas y la clasificación NO dependen del rango: son del catálogo
-    // contra el total, y recortarlas por fecha daría "sin estrenar en los
-    // últimos 30 días", que es otra pregunta.
-    !conRango && formulasSinEstrenar.length > 0 && {
+    // Las fórmulas y la clasificación NO dependen de los filtros: son del
+    // catálogo contra el TOTAL, y recortarlas daría "sin estrenar en los últimos
+    // 30 días" o "sin estrenar en Instagram", que son otras preguntas. Como no se
+    // recalculan, con cualquier filtro puesto se esconden en vez de mostrar un
+    // número que no corresponde a lo que se está mirando.
+    !sucio && formulasSinEstrenar.length > 0 && {
       href: `/${account}/formulas`,
       titulo: `${fmt(formulasSinEstrenar.length)} fórmulas sin estrenar`,
       detalle: formulasSinEstrenar.slice(0, 6).join(" · "),
     },
-    !conRango && sinClasificar > 0 && {
+    !sucio && sinClasificar > 0 && {
       href: `/${account}/formulas`,
       titulo: `${fmt(sinClasificar)} sin fórmula asignada`,
       detalle: `de ${fmt(piezas.length)} piezas`,
@@ -180,15 +253,55 @@ export default function OverviewClient({
     <>
       <PageHeader
         title="Overview"
-        subtitle={`${label} · ${fmt(vista.length)} piezas${conRango ? " en el rango" : ""}`}
+        subtitle={`${label} · ${fmt(vista.length)} piezas${sucio ? ` de ${fmt(piezas.length)}` : ""}`}
         acciones={<RangoFechas valor={rango} onChange={setRango} />}
       />
 
-      {conRango && excluidasPorFecha > 0 && (
-        // Un rango deja afuera lo que no tiene fecha, y eso hay que decirlo: si
-        // no, una pieza sin fecha parece que no existe.
-        <p className="-mt-4 mb-5 text-[11px] text-muted-foreground/70">
-          {fmt(excluidasPorFecha)} piezas fuera del rango o sin fecha declarada.
+      {/* Ads no filtra este conjunto: lo cambia, y acá no existe. Ver el panel. */}
+      <MateriaToggle
+        valor={materia}
+        onChange={setMateria}
+        conteos={{ organico: piezas.length, ads: creativos }}
+      />
+
+      {materia === "ads" ? (
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-sm">
+              Este overview no incluye los {fmt(creativos)} creativos, y no es un olvido.
+            </p>
+            <p className="mt-1.5 max-w-[70ch] text-[13px] leading-relaxed text-muted-foreground">
+              Ninguno tiene números cargados —son briefs— y cuando los tengan no se van a
+              medir con esto: a un creativo le pesan hook-rate, CTR y costo por resultado,
+              no alcance ni guardados. Promediarlos con el orgánico daría una cadencia y
+              una deuda que no significan nada. Lo que sí se puede ver hoy es la{" "}
+              <Link href={`/${account}/campanas`} className="text-primary hover:underline">
+                cobertura por persona × dolor × ángulo
+              </Link>
+              .
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+      <>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <MultiSelect titulo="Red" opciones={opciones(piezas, "canal")} valor={canales} onChange={setCanales} />
+        <MultiSelect titulo="Fórmula" opciones={opciones(piezas, "formulaCode")} valor={formulas} onChange={setFormulas} buscable />
+        <MultiSelect titulo="Cobertura" opciones={COBERTURAS} valor={coberturas} onChange={setCoberturas} />
+        <MultiSelect titulo="Estado" opciones={ESTADOS} valor={estados} onChange={setEstados} />
+        {sucio && (
+          <Button variant="ghost" size="sm" onClick={limpiar}>
+            Limpiar
+          </Button>
+        )}
+      </div>
+
+      {sucio && excluidas > 0 && (
+        // Decir qué quedó afuera y por qué. Sin esto, una pieza sin fecha —o de
+        // una red deseleccionada— parece que no existe.
+        <p className="-mt-2 mb-5 text-[11px] text-muted-foreground/70">
+          {fmt(excluidas)} piezas fuera de estos filtros
+          {conRango ? ", incluidas las que no declaran fecha" : ""}.
         </p>
       )}
 
@@ -295,6 +408,8 @@ export default function OverviewClient({
           </CardContent>
         </Card>
       </div>
+      </>
+      )}
     </>
   );
 }

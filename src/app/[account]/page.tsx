@@ -6,6 +6,7 @@ import { findSource } from "@/lib/sources";
 import { formulaCodeOf, loadFormulas } from "@/lib/formulas";
 import { formulaUsage } from "@/lib/rollups";
 import { dietaDe } from "@/lib/cadencia";
+import { loadCreatives } from "@/lib/ads";
 
 // La antigüedad se congela al momento del BUILD, no del render: estas páginas
 // son estáticas, así que "hoy" es cuándo se generaron. Calcularlo en el cliente
@@ -50,6 +51,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ accou
       dieta={dietaDe(source.brand)}
       formulasSinEstrenar={unused.map((f) => f.code)}
       sinClasificar={unclassified}
+      creativos={loadCreatives([source]).length}
     />
   );
 }
