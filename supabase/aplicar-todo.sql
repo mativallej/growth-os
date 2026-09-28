@@ -1,6 +1,8 @@
 -- growth-os · índice derivado del vault
--- Pegar entero en el SQL Editor de Supabase (proyecto tegu-growth-os).
--- Generado de supabase/migrations/ el 2026-09-28.
+-- Pegar entero en el SQL Editor de Supabase.
+--
+-- GENERADO por scripts/armar-sql.mjs. No editar a mano: el próximo
+-- `node scripts/armar-sql.mjs` lo pisa. Se toca supabase/migrations/.
 
 -- ═══ 20260928000000_indice.sql ═══
 -- EL ÍNDICE DERIVADO DEL VAULT.
@@ -54,7 +56,7 @@ create table if not exists pieces (
   drivers         text[],
 
   -- Lo que el parser DESCARTA hoy. Es la worklist del validador de footer que
-  -- D-15 pide y que se sigue debiendo: 65 claves distintas al 2026-09-28.
+  -- D-15 pide y que se sigue debiendo: 50 claves distintas al 2026-09-28.
   unknown_keys    text[] not null default '{}'
 );
 
@@ -62,19 +64,33 @@ create index if not exists pieces_channel_status on pieces (channel, status);
 create index if not exists pieces_published      on pieces (published_at desc);
 create index if not exists pieces_formula        on pieces (formula_code);
 
--- Dónde se publicó cada pieza. Una fila por cuenta: el cross-post es la norma,
--- no la excepción — 23 de 129 piezas están en más de un lado.
+-- Dónde se publicó cada pieza. El cross-post es la norma, no la excepción.
 create table if not exists distribuciones (
   piece_id  text not null references pieces(id) on delete cascade,
   cuenta    text not null,
   url       text,
   date      date,
-  -- LLAVE NATURAL, sin `bigserial`. El contrato dice "una entrada por cuenta",
-  -- así que esa es la identidad de la fila. Y sin secuencia, dos rebuilds del
-  -- mismo vault producen la tabla IDÉNTICA byte a byte — que es lo que la
-  -- condición 2 de D-15 pide, y con un surrogate se cumplía solo de palabra.
-  -- Si el vault viola el contrato, el insert revienta y el rebuild aborta.
-  primary key (piece_id, cuenta)
+  -- Orden en el bloque `distribucion:` del footer.
+  ord       int  not null,
+
+  -- LA LLAVE ES (pieza, posición), NO (pieza, cuenta).
+  --
+  -- Fue `(piece_id, cuenta)`, apoyada en que `footer.ts` documenta el bloque como
+  -- "una entrada por cuenta". Medido contra el vault el 2026-09-28: DOS piezas lo
+  -- contradicen, y tienen razón.
+  --
+  --     post-005-hable-con-los-dos-lados.md
+  --       - blog_mati  url=https://matiasvallejos.com/hable-con-los-dos-lados
+  --       - blog_mati  url=https://matiasvallejos.com/es/hable-con-los-dos-lados
+  --
+  -- Es la misma pieza, en la misma cuenta, en dos idiomas. No es un footer roto:
+  -- son dos direcciones reales que hay que poder abrir, y colapsarlas perdería
+  -- una. Con la llave vieja el insert reventaba y el rebuild abortaba entero —
+  -- el índice nunca se habría podido construir contra este vault.
+  --
+  -- Sin secuencia, por lo mismo que en `snapshots`: dos rebuilds del mismo vault
+  -- producen la tabla idéntica, que es lo que la condición 2 de D-15 pide.
+  primary key (piece_id, ord)
 );
 
 create table if not exists snapshots (
@@ -300,10 +316,10 @@ begin
     verdict, why, lesson, drivers, coalesce(unknown_keys, '{}')
   from jsonb_populate_recordset(null::pieces, payload -> 'pieces');
 
-  insert into distribuciones (piece_id, cuenta, url, date)
-  select piece_id, cuenta, url, date
+  insert into distribuciones (piece_id, cuenta, url, date, ord)
+  select piece_id, cuenta, url, date, ord
     from jsonb_to_recordset(coalesce(payload -> 'distribuciones', '[]'::jsonb))
-      as x(piece_id text, cuenta text, url text, date date);
+      as x(piece_id text, cuenta text, url text, date date, ord int);
 
   insert into snapshots (
     piece_id, t, date, account, ord,
@@ -358,4 +374,3 @@ $$;
 revoke execute on function rebuild_index(jsonb) from public;
 revoke execute on function rebuild_index(jsonb) from anon;
 revoke execute on function rebuild_index(jsonb) from authenticated;
-

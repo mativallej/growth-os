@@ -7,6 +7,7 @@ function pieza(title: string, relPath: string, snaps: Partial<Snapshot>[] = []):
     title, path: `/v/${relPath}`, relPath, slug: title, source: 'personal',
     tldr: '', body: '', channel: 'instagram', channelDerived: false,
     status: 'published', coverage: snaps.length ? 'tracked' : 'untracked',
+    unknownKeys: [],
     snapshots: snaps.map((s) => ({ t: '+1d', ...s })),
   };
 }

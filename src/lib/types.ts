@@ -97,5 +97,16 @@ export type Piece = {
   drivers?: string[];
   why?: string;
   lesson?: string;
+
+  /**
+   * Claves del footer que el parser NO entiende, tal cual se escribieron.
+   *
+   * `tokenizeFooter` siempre las detectó y hasta hoy se descartaban acá. Se
+   * conservan porque son la worklist del validador de footer que D-15 pide y que
+   * este repo sigue debiendo: cada una es o un campo que falta implementar, o un
+   * typo que está haciendo que un dato declarado no se lea. Sin llevarlas a la
+   * vista, las dos posibilidades se ven igual: el campo simplemente no aparece.
+   */
+  unknownKeys: string[];
   snapshots: Snapshot[];
 };

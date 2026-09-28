@@ -71,7 +71,7 @@ function parseFile(path: string, source: ContentSource, root: string): Piece {
   }
 
   const footerLines = sep === -1 ? [] : lines.slice(sep + 1);
-  const { fields, snapshotLines, analyticsNote, distribucion } = tokenizeFooter(footerLines);
+  const { fields, snapshotLines, analyticsNote, distribucion, unknownKeys } = tokenizeFooter(footerLines);
 
   const snapshots: Snapshot[] = parseSnapshots(snapshotLines);
   // Las métricas escritas como bullets sueltos se colapsan en un corte implícito,
@@ -146,6 +146,7 @@ function parseFile(path: string, source: ContentSource, root: string): Piece {
     drivers: fields.drivers ? fields.drivers.split(',').map((s) => s.trim()).filter(Boolean) : undefined,
     why: fields.why || undefined,
     lesson: fields.lesson || undefined,
+    unknownKeys,
     snapshots,
   };
 }

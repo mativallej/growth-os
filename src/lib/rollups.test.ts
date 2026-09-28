@@ -13,7 +13,7 @@ function pieza(over: Partial<Piece> = {}): Piece {
   return {
     title: 't', path: '/v/t.md', relPath: 't.md', slug: 't', source: 'tegu',
     tldr: '', body: '', channel: 'x', channelDerived: false, status: 'published',
-    coverage: 'untracked', snapshots: [], ...over,
+    coverage: 'untracked', unknownKeys: [], snapshots: [], ...over,
   };
 }
 

@@ -65,10 +65,10 @@ begin
     verdict, why, lesson, drivers, coalesce(unknown_keys, '{}')
   from jsonb_populate_recordset(null::pieces, payload -> 'pieces');
 
-  insert into distribuciones (piece_id, cuenta, url, date)
-  select piece_id, cuenta, url, date
+  insert into distribuciones (piece_id, cuenta, url, date, ord)
+  select piece_id, cuenta, url, date, ord
     from jsonb_to_recordset(coalesce(payload -> 'distribuciones', '[]'::jsonb))
-      as x(piece_id text, cuenta text, url text, date date);
+      as x(piece_id text, cuenta text, url text, date date, ord int);
 
   insert into snapshots (
     piece_id, t, date, account, ord,
