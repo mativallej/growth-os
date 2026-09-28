@@ -109,8 +109,8 @@ async function todas<T>(recurso: string, select: string, orden: string): Promise
   const cfg = configSupabase();
   if (!cfg) {
     throw new Error(
-      'Falta la config de Supabase: NEXT_PUBLIC_SUPABASE_URL y ' +
-        'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY. Sin índice no hay dashboard (D-17).',
+      'Falta la config de Supabase: SUPABASE_URL y ' +
+        'SUPABASE_PUBLISHABLE_KEY. Sin índice no hay dashboard (D-17).',
     );
   }
 

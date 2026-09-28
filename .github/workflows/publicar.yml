@@ -194,7 +194,7 @@ jobs:
         env:
           MARCA: ${{ matrix.marca.id }}
           VAULT_REPO: ${{ matrix.marca.repo }}
-          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         run: |
           python3 - <<'PY'
           import json, os, pathlib, sys
@@ -232,7 +232,7 @@ jobs:
               sys.exit(f'FALLA: la marca declara el proyecto {ref} y el build apunta '
                        f'a {url}. El deploy leería el vault de una y la base de otra.')
           if ref and not url:
-              print(f'::warning::NEXT_PUBLIC_SUPABASE_URL no está: no se pudo '
+              print(f'::warning::SUPABASE_URL no está: no se pudo '
                     f'verificar que el deploy apunte al proyecto {ref}.')
 
           print(f'OK: marca "{marca}" · vault {repo_declarado} ({len(mds)} .md) · base {ref}')

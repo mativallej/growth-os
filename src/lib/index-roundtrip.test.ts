@@ -56,8 +56,8 @@ function respuestaPostgrest(payload: ReturnType<typeof construirPayload>) {
 let leerPiezas: typeof import('./index-read').leerPiezas;
 
 beforeEach(async () => {
-  vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://proyecto.supabase.co');
-  vi.stubEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'sb_publishable_test');
+  vi.stubEnv('SUPABASE_URL', 'https://proyecto.supabase.co');
+  vi.stubEnv('SUPABASE_PUBLISHABLE_KEY', 'sb_publishable_test');
   ({ leerPiezas } = await import('./index-read'));
 });
 
@@ -190,6 +190,6 @@ describe('el vault entra al índice y sale igual', () => {
     vi.unstubAllEnvs();
     vi.resetModules();
     const { leerPiezas: sinConfig } = await import('./index-read');
-    await expect(sinConfig()).rejects.toThrow(/NEXT_PUBLIC_SUPABASE_URL/);
+    await expect(sinConfig()).rejects.toThrow(/SUPABASE_URL/);
   });
 });

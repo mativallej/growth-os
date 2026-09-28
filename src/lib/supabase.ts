@@ -1,5 +1,13 @@
 // EL CLIENTE DE SUPABASE, Y ES `fetch` PELADO.
 //
+// SOLO CORRE EN EL SERVIDOR. Las variables perdieron el prefijo `NEXT_PUBLIC_`
+// el 2026-09-28, y eso es el cambio de seguridad y no un detalle de nombres: con
+// el prefijo, Next las inlinea en el bundle de cliente, así que la URL y la clave
+// del proyecto viajaban al navegador de cualquiera que abriera la página. La RLS
+// aguantaba eso —no le da nada a `anon`— pero que lo aguante no es motivo para
+// publicarlo. Ahora el navegador habla con este origen y con nadie más: las
+// lecturas son componentes de servidor y los favoritos pasan por /api/favoritos.
+//
 // Sin `@supabase/supabase-js`, por el mismo argumento con el que D-15 eligió
 // `urllib.request` sobre un SDK para hablar con Notion: PostgREST es REST plano
 // y lo que necesitamos son tres verbos. Un SDK acá agrega superficie, peso al
@@ -11,8 +19,8 @@
 
 /** La URL y la clave pública, o `null` si esta instalación no tiene base. */
 export function configSupabase(): { url: string; key: string } | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
   // Las dos o ninguna. Una sola es una config a medias, y adivinar la otra
   // llevaría a un 401 sin explicación en runtime.
   return url && key ? { url: url.replace(/\/$/, ''), key } : null;
@@ -30,8 +38,13 @@ export type Credenciales = {
  *
  * `apikey` identifica al proyecto; `Authorization` identifica a la PERSONA. Con
  * la clave publishable en los dos lugares, Supabase te trata como `anon` — y
- * ninguna de nuestras policies le da nada a `anon`, a propósito: esa clave viaja
- * al navegador de cualquiera que abra la página.
+ * ninguna de nuestras policies le da nada a `anon`, a propósito.
+ *
+ * NUNCA LA SECRET KEY. El servidor la tiene a mano y sería más simple —con ella
+ * Supabase no discute nada— pero eso apaga la RLS: la única barrera entre una
+ * persona y los datos de otra pasaría a ser un `if` nuestro. Con el JWT, ese
+ * mismo bug es un 403 del motor. La secret existe para UNA cosa, el rebuild, y
+ * vive como secret del repo del vault: no llega a este deploy.
  *
  * El JWT lo emite Clerk y Supabase lo acepta por la integración de Third-Party
  * Auth. Si esa integración no está configurada, el token llega pero Supabase no
