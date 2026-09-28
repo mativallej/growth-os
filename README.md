@@ -1,4 +1,4 @@
-# Growth Loop
+# growth-os
 
 La capa de **medición** del growth de una marca, construida sobre un vault de
 Obsidian.
@@ -7,8 +7,6 @@ Lee los `.md` del vault, los cruza contra el catálogo de fórmulas, y responde 
 que un tablero de coordinación no puede: cuánto se publicó contra el objetivo,
 qué se publicó sin medir, **qué fórmula nunca se estrenó**, y qué combinación de
 campaña no tiene un solo creativo.
-
-> El nombre es provisorio. Ver `openspec/DECISIONS.md`, D-14.
 
 ## El problema que resuelve
 
