@@ -120,4 +120,8 @@ Los cambios entran por un change de OpenSpec. Ver [CONTRIBUTING.md](CONTRIBUTING
 
 ## Licencia
 
-> **Pendiente.** Ver `openspec/DECISIONS.md`, D-14.
+MIT — ver [LICENSE](LICENSE).
+
+**Cubre el código de este repositorio y nada más.** El contenido vive en los
+vaults, que son repositorios aparte: acá no hay una sola pieza. La licencia no
+dice nada sobre los `.md` de nadie.

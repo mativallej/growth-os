@@ -19,7 +19,7 @@ reconstruir el razonamiento desde cero.
 | D-11 | Convergencia de los dos pipelines de contenido de Tegu | **resuelta** | 2026-09-24 |
 | D-12 | Deploy compartido con el socio | **abierta** | — |
 | D-13 | El proyecto pasa a ser open source | **decidida** | 2026-09-24 |
-| D-14 | Nombre definitivo, remote y licencia | **abierta** | — |
+| D-14 | Nombre definitivo, remote y licencia | **licencia decidida · nombre y remote abiertos** | 2026-09-28 |
 | D-15 | Supabase como índice derivado del vault | **decidida — con condiciones** | 2026-09-24 |
 | D-16 | Supabase es una dimensión por marca, no dos proyectos fijos | **decidida** | 2026-09-26 |
 
@@ -203,15 +203,40 @@ sobre archivos locales de otra gente convierte los recaudos que ya existen —dr
 por defecto, nunca borrar, fallar si falta una raíz— en responsabilidad hacia
 terceros. Hay que decirlos en el README, no dejarlos en el código.
 
-## D-14 · Nombre definitivo, remote y licencia — abierta
+## D-14 · Nombre definitivo, remote y licencia — licencia decidida, lo demás abierto
 
-Hoy el directorio se llama `growth-loop-obsidian`, `package.json` dice `tegu-growth`
-y el remote apunta a un repositorio de la organización de la empresa. Los tres tienen
-que converger, y la elección es del autor.
+### La licencia: MIT (2026-09-28)
 
-La licencia también: el proyecto opera sobre archivos personales de quien lo use, lo
-que hace que la cláusula de ausencia de garantía sea más relevante que en una
-librería cualquiera.
+Cuatro razones, y ninguna es "MIT es el default":
+
+1. **La estrategia de contenido de este proyecto ES building in public.** La familia
+   B1 del catálogo es literalmente post-mortems públicos. Una licencia cerrada
+   contradice lo que el proyecto publica.
+2. **Lo valioso del repo no es el código, son los comentarios de doctrina y `docs/`** —
+   el contrato del footer, por qué nada corre solo, por qué las marcas no se mezclan.
+   Eso se va a publicar igual.
+3. **No se cobra por una instancia hosteada.** Los externos son colaboradores que ven
+   UNA marca, no clientes de un SaaS. No hay ingreso que proteger.
+4. **El valor de fork es bajo.** El código está pegado a las convenciones del footer
+   y a `config/sources.json`; quien lo clone reescribe la mitad para que le sirva.
+
+**Cuándo habría que cambiarla.** Si algún día se cobra por una instancia hosteada, la
+que corresponde es **AGPL-3.0**: cierra el agujero del SaaS —quien corra una versión
+modificada como servicio de red tiene que publicar sus cambios— que es exactamente el
+escenario que MIT deja abierto. BSL y las "source available" se descartaron: mucha
+fricción, poca ganancia, y matan el efecto de building in public.
+
+La cláusula de ausencia de garantía pesa más acá que en una librería cualquiera,
+porque el proyecto opera sobre archivos personales de quien lo use. MIT la trae.
+
+**La licencia cubre el código y nada más.** El contenido vive en los vaults, que son
+repositorios aparte.
+
+### Lo que sigue abierto
+
+Hoy el directorio se llama `growth-loop-obsidian`, `package.json` dice `growth-loop`
+y el remote apunta a `tegu-labs/tegu-distribution`. Los tres tienen que converger, y
+la elección es del autor.
 
 ## D-15 · Supabase como índice derivado del vault — decidida, con condiciones
 

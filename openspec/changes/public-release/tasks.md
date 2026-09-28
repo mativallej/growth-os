@@ -26,7 +26,7 @@
 
 ## 3. Lo formal
 
-- [ ] 3.1 `LICENSE`. Elegir cuál es decisión del autor.
+- [x] 3.1 `LICENSE`. **MIT**, 2026-09-28. El criterio: la estrategia de contenido de este proyecto ES building in public (la familia B1 del catálogo), lo valioso del repo son los comentarios de doctrina y `docs/` —que igual se van a publicar—, no se cobra por una instancia hosteada, y el código está tan pegado a las convenciones del footer que su valor de fork es bajo. Si algún día se cobra por hosting, la que corresponde es AGPL-3.0, que cierra el agujero del SaaS.
 - [x] 3.2 `README.md` siguiendo la estructura estándar del autor para repos abiertos (la de `building-in-public-template`). Tiene que responder: qué problema resuelve, qué supone del entorno, qué **no** hace.
 - [x] 3.3 Advertir en el README qué operaciones escriben en los archivos del usuario y cómo previsualizarlas. Los recaudos existen; hay que decirlos.
 - [x] 3.4 `CONTRIBUTING.md`, con el flujo de OpenSpec: los cambios entran por un change, no por un PR suelto.
