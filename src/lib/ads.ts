@@ -26,7 +26,8 @@ import { tokenizeFooter } from './footer';
 export type Creative = {
   /** Nombre del archivo sin .md. */
   title: string;
-  path: string;
+  /** Ruta absoluta. Vacía cuando vino del índice — ver `Piece.path`. */
+  path?: string;
   relPath: string;
   slug: string;
   /** Marca a la que pertenece. */

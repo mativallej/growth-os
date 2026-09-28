@@ -24,6 +24,16 @@ import type { Piece } from './types';
  * Esto reordena. Si algo está mal, está mal en el vault y tiene que verse así.
  */
 
+/**
+ * La versión del esquema que este payload sabe llenar.
+ *
+ * Sube junto con `esquema_esperado` de `rebuild_index`, en el mismo commit, cada
+ * vez que una migración agrega o saca una columna. Están a propósito en dos
+ * archivos: si se desincronizan es porque uno de los dos deploys no llegó, y el
+ * rebuild aborta en vez de escribir un índice al que le falta una columna.
+ */
+export const VERSION_ESQUEMA = 1;
+
 export type PiezaFila = {
   id: string;
   title: string;
@@ -103,6 +113,7 @@ export type CreativoFila = {
 export type FormulaFila = { code: string; nombre: string | null; channel: string | null };
 
 export type Payload = {
+  schema_version: number;
   pieces: PiezaFila[];
   distribuciones: DistribucionFila[];
   snapshots: SnapshotFila[];
@@ -219,6 +230,7 @@ export function construirPayload(
   );
 
   return {
+    schema_version: VERSION_ESQUEMA,
     pieces,
     distribuciones,
     snapshots,

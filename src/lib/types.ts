@@ -37,7 +37,16 @@ export type Snapshot = {
 
 export type Piece = {
   title: string; // nombre de archivo sin .md
-  path: string; // ruta absoluta al .md
+  /**
+   * Ruta absoluta al `.md`. OPCIONAL, y está vacía cuando la pieza vino del
+   * índice: la plataforma lee la API y no tiene el vault montado, así que no
+   * existe una ruta absoluta que sea cierta. Inventarla —pegando la raíz
+   * configurada con `relPath`— daría una ruta que no abre nada.
+   *
+   * Nada de la app la lee; el parser la sigue llenando porque los scripts que
+   * corren AL LADO del vault (el backfill, la auditoría) sí abren el archivo.
+   */
+  path?: string;
   relPath: string; // ruta relativa a la raíz del vault de su fuente
   slug: string; // id URL-safe para /piezas/[slug] — relativo al content root
   source: SourceId; // de qué fuente vino (ver src/lib/sources.ts) = la marca

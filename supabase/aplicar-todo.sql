@@ -210,6 +210,13 @@ create index if not exists favoritos_user on favoritos (user_id);
 --   2. `anon` no lee NADA. La anon key viaja al navegador de cualquiera que
 --      abra la página; sin un JWT de Clerk en `Authorization` no debe volver una
 --      sola fila. Todas las policies son `to authenticated`.
+--
+-- SE PUEDE CORRER DOS VECES. Cada policy va precedida de su `drop ... if exists`,
+-- porque `create policy` no tiene `if not exists` y revienta contra una que ya
+-- está. Las tablas ya usaban `create table if not exists`, así que el archivo
+-- parecía re-aplicable y no lo era: el segundo `psql -f` moría acá. Importa
+-- porque este SQL se aplica desde CI en cada merge y se pega a mano en el SQL
+-- Editor — las dos cosas pasan más de una vez.
 
 alter table pieces         enable row level security;
 alter table distribuciones enable row level security;
@@ -221,12 +228,18 @@ alter table favoritos      enable row level security;
 
 -- ── el índice: leer y nada más ───────────────────────────────────────────────
 
-create policy leer_pieces         on pieces         for select to authenticated using (true);
+drop policy if exists leer_pieces on pieces;
+create policy leer_pieces on pieces for select to authenticated using (true);
+drop policy if exists leer_distribuciones on distribuciones;
 create policy leer_distribuciones on distribuciones for select to authenticated using (true);
-create policy leer_snapshots      on snapshots      for select to authenticated using (true);
-create policy leer_creatives      on creatives      for select to authenticated using (true);
-create policy leer_formulas       on formulas       for select to authenticated using (true);
-create policy leer_builds         on builds         for select to authenticated using (true);
+drop policy if exists leer_snapshots on snapshots;
+create policy leer_snapshots on snapshots for select to authenticated using (true);
+drop policy if exists leer_creatives on creatives;
+create policy leer_creatives on creatives for select to authenticated using (true);
+drop policy if exists leer_formulas on formulas;
+create policy leer_formulas on formulas for select to authenticated using (true);
+drop policy if exists leer_builds on builds;
+create policy leer_builds on builds for select to authenticated using (true);
 
 -- ── favoritos: todos ven, cada uno marca lo suyo ─────────────────────────────
 --
@@ -235,13 +248,16 @@ create policy leer_builds         on builds         for select to authenticated 
 -- pueda escribir los suyos elimina la guerra de ediciones sin necesidad de
 -- bloqueos ni de resolver conflictos.
 
+drop policy if exists favoritos_ver on favoritos;
 create policy favoritos_ver on favoritos
   for select to authenticated using (true);
 
+drop policy if exists favoritos_marcar on favoritos;
 create policy favoritos_marcar on favoritos
   for insert to authenticated
   with check (user_id = auth.jwt() ->> 'sub');
 
+drop policy if exists favoritos_desmarcar on favoritos;
 create policy favoritos_desmarcar on favoritos
   for delete to authenticated
   using (user_id = auth.jwt() ->> 'sub');
@@ -271,9 +287,32 @@ security definer
 set search_path = public
 as $$
 declare
+  -- LA VERSIÓN DEL ESQUEMA QUE ESTA FUNCIÓN SABE ESCRIBIR.
+  --
+  -- Existe por un modo de falla mudo. El rebuild se dispara desde el repo del
+  -- VAULT y las migraciones desde el repo del CÓDIGO: son dos merges distintos y
+  -- nada garantiza el orden. Si el rebuild corre con un esquema viejo,
+  -- `jsonb_populate_recordset` NO se queja de una clave que la tabla no tiene —
+  -- la descarta—. Una columna recién agregada quedaría en NULL para todas las
+  -- filas, el dashboard mostraría el campo vacío, y se leería como "el vault no
+  -- lo declara" en vez de "la migración no se aplicó".
+  --
+  -- Se sube ACÁ y en `VERSION_ESQUEMA` de src/lib/index-payload.ts, en el mismo
+  -- commit. Que estén en archivos distintos es el punto: si se desincronizan, es
+  -- porque uno de los dos deploys no llegó, y entonces el rebuild aborta.
+  esquema_esperado constant int := 1;
+  esquema_recibido int;
+
   n_pieces int;
   build_id bigint;
 begin
+  esquema_recibido := coalesce((payload ->> 'schema_version')::int, 0);
+  if esquema_recibido <> esquema_esperado then
+    raise exception
+      'el payload dice esquema v%, esta base tiene v%. Falta aplicar las migraciones (o el indexador está viejo). No se escribe: las columnas que falten se descartarían en silencio.',
+      esquema_recibido, esquema_esperado;
+  end if;
+
   n_pieces := coalesce(jsonb_array_length(payload -> 'pieces'), 0);
 
   -- REGLA DURA 1. Un vault que no se pudo leer devuelve cero piezas, y escribir

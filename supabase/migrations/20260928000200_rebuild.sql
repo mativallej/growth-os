@@ -20,9 +20,32 @@ security definer
 set search_path = public
 as $$
 declare
+  -- LA VERSIÓN DEL ESQUEMA QUE ESTA FUNCIÓN SABE ESCRIBIR.
+  --
+  -- Existe por un modo de falla mudo. El rebuild se dispara desde el repo del
+  -- VAULT y las migraciones desde el repo del CÓDIGO: son dos merges distintos y
+  -- nada garantiza el orden. Si el rebuild corre con un esquema viejo,
+  -- `jsonb_populate_recordset` NO se queja de una clave que la tabla no tiene —
+  -- la descarta—. Una columna recién agregada quedaría en NULL para todas las
+  -- filas, el dashboard mostraría el campo vacío, y se leería como "el vault no
+  -- lo declara" en vez de "la migración no se aplicó".
+  --
+  -- Se sube ACÁ y en `VERSION_ESQUEMA` de src/lib/index-payload.ts, en el mismo
+  -- commit. Que estén en archivos distintos es el punto: si se desincronizan, es
+  -- porque uno de los dos deploys no llegó, y entonces el rebuild aborta.
+  esquema_esperado constant int := 1;
+  esquema_recibido int;
+
   n_pieces int;
   build_id bigint;
 begin
+  esquema_recibido := coalesce((payload ->> 'schema_version')::int, 0);
+  if esquema_recibido <> esquema_esperado then
+    raise exception
+      'el payload dice esquema v%, esta base tiene v%. Falta aplicar las migraciones (o el indexador está viejo). No se escribe: las columnas que falten se descartarían en silencio.',
+      esquema_recibido, esquema_esperado;
+  end if;
+
   n_pieces := coalesce(jsonb_array_length(payload -> 'pieces'), 0);
 
   -- REGLA DURA 1. Un vault que no se pudo leer devuelve cero piezas, y escribir

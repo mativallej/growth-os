@@ -60,13 +60,13 @@ describe('un creativo no es una pieza', () => {
     const piezas = loadPieces([source]);
     expect(piezas).toHaveLength(1);
     expect(piezas[0].title).toBe('post');
-    expect(piezas.some((p) => p.path.includes('/Ads/'))).toBe(false);
+    expect(piezas.some((p) => p.relPath.includes('/Ads/'))).toBe(false);
 
     expect(loadCreatives([source])).toHaveLength(1);
   });
 
   it('en los vaults reales tampoco se cuela ninguno', () => {
-    expect(loadPieces(listSources()).filter((p) => /[\\/]Ads[\\/]/.test(p.path))).toEqual([]);
+    expect(loadPieces(listSources()).filter((p) => /[\\/]Ads[\\/]/.test(p.relPath))).toEqual([]);
   });
 });
 
