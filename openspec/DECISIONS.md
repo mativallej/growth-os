@@ -14,7 +14,7 @@ reconstruir el razonamiento desde cero.
 | D-6 | La unidad de medición de ads es el creativo | **decidida** | 2026-09-24 |
 | D-7 | `spend` de ads: acumulado o por ventana | **abierta** | — |
 | D-8 | `nonfoll`: derivada prohibida o excepción documentada | **abierta — la decide Matías** | — |
-| D-9 | Identificador propio dentro de cada `.md` | **decidida** | 2026-09-26 |
+| D-9 | Identificador propio dentro de cada `.md` | **descartada** | 2026-09-28 |
 | D-10 | Adapter de LinkedIn | **abierta — bloqueada** | — |
 | D-11 | Convergencia de los dos pipelines de contenido de Tegu | **resuelta** | 2026-09-24 |
 | D-12 | Deploy compartido con el socio | **abierta** | — |
@@ -109,57 +109,29 @@ contrato prohíbe escribir derivadas, pero `growth-analytics` y `src/lib/types.t
 usan hoy. Opciones: guardar los crudos y calcularla, o aceptarla como excepción
 documentada. **Hasta que se decida, no se escribe.**
 
-## D-9 · Identificador propio dentro de cada `.md` — decidida
+## D-9 · Identificador propio dentro de cada `.md` — descartada
 
-Resolvería de raíz el problema de llave de `move-resilient-keys`. Se descartó el
-2026-09-24 porque implica escribir en más de 200 archivos del vault para resolver un
-problema del otro lado del puente, y contradice la regla de que el dashboard se adapta
-al vault. La condición de reapertura que quedó escrita fue: *"que la reconciliación por
-evidencia resulte insuficiente en la práctica."*
+Historial: propuesta y descartada el 2026-09-24 por el costo de escribir en ~265
+archivos · reabierta el mismo día, cuando re-llavear las 57 filas por evidencia escribió
+14 rutas que estaban muertas minutos después · marcada **decidida** el 2026-09-26 ·
+**descartada el 2026-09-28**, que es como queda.
 
-**Se cumplió el mismo día.** El intento de re-llavear las 57 filas por evidencia
-escribió 14 rutas que estaban muertas minutos después, porque otra sesión seguía
-reorganizando el vault (ver `move-resilient-keys/tasks.md`, nota del 17:40). El
-criterio de emparejamiento funcionó; lo que falló es que **no hay nada estable contra
-qué emparejar**: la identidad de una pieza es su ruta, y la ruta cambia.
+**Por qué se descarta, verificado en el código.** El id nunca se implementó, y no hizo
+falta: el índice llavea por `slug` derivado de la ruta (`src/lib/index-payload.ts`) y
+**se reconstruye entero en cada corrida**. Una pieza que cambia de ruta genera un slug
+nuevo y la fila vieja desaparece en el mismo pase. No hay huérfanas que reconciliar
+porque no hay nada que reconciliar: se rehace.
 
-**Lo que costó no tenerlo.** Una sola reorganización del vault (D-11) dejó 57 filas
-huérfanas, invalidó 14 escrituras de reparación, y bloqueó el sync de Tegu con
-`--apply` por tiempo indefinido. Escribir un id en ~265 archivos es un pase de script
-que corre una vez.
+**Dónde sigue existiendo el problema.** En Notion, y solo ahí. Sus filas no se
+reconstruyen: se actualizan una por una contra la ruta del archivo, y por eso una
+reorganización del vault dejó 57 apuntando al vacío (`move-resilient-keys`).
 
-**Lo que la mantiene incómoda.** Sigue contradiciendo *"el dashboard se adapta al
-vault, no al revés"*. La contradicción es real y hay que aceptarla explícitamente: un
-id no es una normalización de estilo, es la condición para que cualquier cosa afuera
-del vault pueda referirse a una pieza sin romperse.
+**La conclusión que deja.** La identidad estable no es un requisito del sistema: es un
+requisito de tener un store persistente que se actualiza fila por fila. Un índice que se
+rehace no lo necesita. **Si el puente con Notion se corta, este problema se va con él** —
+y eso convierte a D-9 en un argumento más para esa discusión, no en trabajo pendiente.
 
-**Bloquea a D-15.** Un índice derivado construido sobre la ruta hereda exactamente el
-mismo problema, una capa más abajo.
-
-### La forma que se eligió — 2026-09-26
-
-La decidió Matías. **Ocho caracteres de un alfabeto de 31**, sin los que se
-confunden al transcribir a mano o al dictar: sin `0`/`O`, sin `1`/`l`/`i`.
-
-```
-alfabeto: 23456789abcdefghjkmnpqrstuvwxyz   (8 dígitos + 23 letras = 31)
-ejemplo:  - id: k7m2p9qx
-```
-
-31⁸ ≈ 8,5 × 10¹¹ combinaciones. Con las ~265 piezas de hoy la probabilidad de
-colisión por azar es del orden de 10⁻⁸: el riesgo real no es el azar, es que
-alguien duplique un archivo para partir de él, y eso se resuelve abajo.
-
-**Por qué opaco y no algo legible.** Un id que codifique red, fecha o fórmula
-vuelve a envejecer en cuanto la pieza cambia de red o se re-fechea — que es el
-mismo defecto que la ruta, disfrazado. El id no dice nada de la pieza a propósito.
-
-**Qué pasa con los repetidos: se reportan y se corta.** No se renumera solo. Si
-dos piezas declaran el mismo id, la app nombra las dos rutas y no resuelve
-ninguna referencia externa hacia ellas. Elegir una en silencio es exactamente la
-clase de decisión que dejó 57 filas apuntando al vault equivocado; y renumerar
-automáticamente haría que la app decida sobre la identidad de una pieza, que es
-criterio del humano. Coherente con la REGLA DURA 1.
+**Se elimina el change `stable-piece-id`**, que ya no tiene objeto.
 
 ## D-10 · Adapter de LinkedIn — abierta, bloqueada
 
@@ -289,8 +261,8 @@ comparables entre sí, y un `.md` no se consulta así.
 2. **Rebuild completo, nunca incremental.** Borrar y reconstruir tiene que reproducir
    la tabla idéntica. Con ~265 piezas entre los dos vaults tarda segundos, y el sync
    incremental es de donde sale la deriva.
-3. **Depende de D-9.** Si la fila se identifica por la ruta, el índice hereda la llave
-   rota. **No arrancar antes de que D-9 cierre.**
+3. ~~Depende de D-9.~~ **Resuelto de otro modo** (2026-09-28): el índice llavea por
+   slug y se reconstruye entero, así que una ruta que cambia no deja huérfanas.
 4. **Se dispara con el ingest, pero reconstruye todo.** Las piezas se crean y se editan
    en Obsidian sin ingest de por medio; un sync que solo toque lo que el ingest tocó
    queda al día en números y viejo en todo lo demás.
@@ -299,7 +271,6 @@ comparables entre sí, y un `.md` no se consulta así.
 
 ### Orden de implementación
 
-1. D-9 — id estable en cada `.md`.
 2. Validador de footer que corra al guardar. Al 2026-09-24, **0 de 112** piezas de
    tegu-growth cumplen el contrato, y el campo `cuenta:` tenía 13 valores distintos en
    las 33 piezas de Instagram. La evidencia de que el enforcement funciona está al
@@ -356,7 +327,7 @@ en las dos capas, y ninguna de las dos es un filtro.
 dashboard lee los `.md`; nunca consulta Supabase. Si el índice se cae o queda
 viejo, el dashboard anda igual.
 
-**Sigue bloqueada por D-9** hasta que corra el backfill de ids: un índice
+**Ya no está bloqueada por D-9** (descartada el 2026-09-28): un índice
 llaveado por ruta reproduce el problema de `move-resilient-keys`.
 
 **Estado al 2026-09-26.** Los dos proyectos existen y responden (`tegu-growth`
