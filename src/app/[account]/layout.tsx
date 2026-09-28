@@ -68,15 +68,6 @@ export default async function AccountLayout({
       href: v.sub ? `/${account}/${v.sub}` : `/${account}`,
       grupo: "Ir a",
     })),
-    ...sources
-      .filter((s) => s.id !== account)
-      .map((s) => ({
-        id: `marca:${s.id}`,
-        titulo: s.label,
-        detalle: "cambiar de marca",
-        href: `/${s.id}`,
-        grupo: "Marcas",
-      })),
     ...loadPieces([source]).map((p) => ({
       id: `pieza:${p.slug}`,
       titulo: p.title,
@@ -90,7 +81,6 @@ export default async function AccountLayout({
     <>
       <DashboardNav
         account={account}
-        accounts={sources.map((s) => ({ id: s.id, label: s.label }))}
         comandos={comandos}
         accionesLocales={accionesLocales()}
       />

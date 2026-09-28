@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 
 // Dónde está el repo, para el estado local (`.state/`) y para los ejecutables que

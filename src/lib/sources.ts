@@ -176,33 +176,27 @@ function buildSource(entry: Registro, env: Env): ContentSource {
 }
 
 /**
- * Las fuentes que entran a este build. `GROWTH_SOURCES` es un CSV de ids; vacío
- * o ausente = todas. Nombrar una fuente que no existe rompe, con la lista de las
- * válidas al lado.
+ * Las fuentes declaradas. Con D-17 hay UNA.
  *
- * Es la palanca que `account-scoped-routes` va a usar para que el contenido
- * personal no viaje dentro de un deploy de Tegu. Hasta ese change el aislamiento
- * NO está garantizado.
+ * Hasta el 2026-09-28 esto recortaba por `GROWTH_SOURCES`, y ese recorte era la
+ * frontera de privacidad del proyecto: un build de Tegu no emitía las rutas de la
+ * marca personal porque su fuente nunca entraba. **Un vault es una marca** (D-17),
+ * así que no hay nada que recortar — `growth-os` se INSTALA una vez por marca,
+ * apuntando a su vault y a su base, y las instalaciones no se conocen entre sí.
+ *
+ * El aislamiento no se perdió, cambió de lugar: antes era "la otra marca no entra
+ * al build", ahora es "la otra marca no está en esta instalación". Sigue siendo
+ * estructural; lo que ya no existe es el caso de dos marcas conviviendo.
+ *
+ * Si `config/sources.json` declarara más de una, esto las devuelve todas y el
+ * `findSource` de cada ruta decide. Pero eso es una config mal armada, y el
+ * chequeo de coherencia del workflow la reporta.
  */
 export function listSources(
-  spec: string | undefined = process.env.GROWTH_SOURCES,
+  _spec?: string | undefined,
   env: Env = process.env,
 ): ContentSource[] {
-  const named = (spec ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const ids = named.length ? [...new Set(named)] : allSourceIds();
-
-  const unknown = ids.filter((id) => !allSourceIds().includes(id));
-  if (unknown.length) {
-    throw new Error(
-      `GROWTH_SOURCES nombra fuentes que no existen: ${unknown.join(', ')}. ` +
-        `Las fuentes válidas son: ${allSourceIds().join(', ')}.`,
-    );
-  }
-
-  return registro().filter((e) => ids.includes(e.id)).map((e) => buildSource(e, env));
+  return registro().map((e) => buildSource(e, env));
 }
 
 export function getSource(id: SourceId, env: Env = process.env): ContentSource {

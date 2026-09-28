@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { loadPieces, loadPiecesBySource } from './parse';
 import type { ContentSource } from './sources';
-import { allSourceIds, findSource, listSources } from './sources';
+import { allSourceIds, findSource, getSource, listSources } from './sources';
 
 const temps: string[] = [];
 afterAll(() => {
@@ -88,24 +88,35 @@ describe('aislamiento entre marcas — vaults reales', () => {
   });
 });
 
-describe('el recorte de fuentes es la frontera del build', () => {
-  it('con una sola fuente declarada, la otra no existe', () => {
-    const soloTegu = listSources('tegu');
-    expect(soloTegu.map((s) => s.id)).toEqual(['tegu']);
-    // `findSource` busca entre las que ENTRARON al build: una ruta /personal en
-    // un build recortado tiene que no existir, no estar escondida.
-    expect(findSource('mativallej', soloTegu)).toBeUndefined();
-    expect(findSource('tegu', soloTegu)).toBeDefined();
+describe('una instalación es una marca', () => {
+  // ESTE BLOQUE CAMBIÓ DE SENTIDO EL 2026-09-28 (D-17), y vale decir por qué.
+  //
+  // Antes probaba el RECORTE: `GROWTH_SOURCES=tegu` hacía que la marca personal
+  // no entrara al build, y eso era la frontera de privacidad. Con un vault por
+  // marca no hay recorte que hacer — `growth-os` se instala una vez por marca,
+  // apuntando a su vault y a su base, y las instalaciones no se conocen.
+  //
+  // El aislamiento no se debilitó: cambió de lugar. Antes era "la otra marca no
+  // entra al build"; ahora es "la otra marca no está en esta instalación, ni su
+  // vault ni sus credenciales". Lo que SÍ hay que seguir probando es que una URL
+  // de otra marca no devuelva contenido.
+
+  it('la config declara UNA marca', () => {
+    // Si algún día declara dos, esto se cae y hay que reabrir D-17: el
+    // aislamiento volvería a depender de un chequeo en runtime.
+    expect(allSourceIds()).toHaveLength(1);
   });
 
-  it('sin recorte entran TODAS las declaradas', () => {
-    // No se comparan contra una lista escrita acá: las marcas salen de la
-    // config, y sumar una no puede romper un test de aislamiento.
-    expect(listSources('').map((s) => s.id).sort()).toEqual([...allSourceIds()].sort());
+  it('una marca que no es la instalada no existe', () => {
+    const instalada = listSources();
+    expect(findSource('marca-de-otro', instalada)).toBeUndefined();
+    expect(findSource(instalada[0].id, instalada)).toBeDefined();
   });
 
-  it('una fuente inventada rompe en vez de devolver vacío', () => {
-    expect(() => listSources('marte')).toThrow(/no existen/i);
+  it('pedir una fuente inventada rompe en vez de devolver vacío', () => {
+    // Fallar ruidoso: un `undefined` que después se lee como "sin piezas" es el
+    // cero que parece información.
+    expect(() => getSource('marte')).toThrow(/marte/i);
   });
 });
 

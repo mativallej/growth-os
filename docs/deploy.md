@@ -8,11 +8,12 @@ No es una preferencia de infraestructura, es la **regla dura 4** hecha
 infraestructura: las marcas no se mezclan.
 
 ```
-tegu-distribution ──┬── GROWTH_SOURCES=tegu ──→ proyecto Vercel "tegu"
-                    │                            contiene: /tegu/*
-                    │                            0 bytes de cualquier otra marca
-                    │
-                    └── (otra marca) ────────→ su propio proyecto Vercel
+growth-os (el código, MIT)
+   │
+   ├── instalación "tegu"       → vault tegu-growth  + su Supabase + su Vercel
+   └── instalación "otra marca" → su vault           + su Supabase + su Vercel
+
+   las instalaciones no se conocen entre sí
 ```
 
 Un externo entra a un deploy donde la otra marca **no existe**: no está

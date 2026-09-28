@@ -108,44 +108,71 @@ jobs:
 
       - name: Build de ${{ matrix.marca.id }}
         env:
-          GROWTH_SOURCES: ${{ matrix.marca.id }}
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
         run: |
           export ${{ matrix.marca.env }}="$GITHUB_WORKSPACE/.vaults/${{ matrix.marca.id }}"
           npm run build
 
-      # EL PASO QUE HACE QUE EL AISLAMIENTO SEA UNA GARANTÍA Y NO UNA INTENCIÓN.
-      - name: Verificar que no se coló otra marca
+      # EL CHEQUEO QUE REEMPLAZA AL DE AISLAMIENTO, y por qué hizo falta cambiarlo.
+      #
+      # Hasta el 2026-09-28 este paso inspeccionaba `.next/server/app/<marca>/`
+      # buscando rutas de OTRA marca, porque un deploy podía servir a varias y el
+      # recorte de `GROWTH_SOURCES` era la frontera. Con un vault por marca
+      # (D-17) no hay otra marca en el build: ese chequeo no tendría nada que
+      # inspeccionar y DARÍA VERDE SIN PROBAR NADA, que es peor que no tenerlo.
+      #
+      # El riesgo que sí existe ahora es otro: que el deploy lea el vault de una
+      # marca y apunte a la base de otra. Eso no lo pesca ningún test — es
+      # configuración— y el resultado sería un dashboard mostrando el contenido
+      # de alguien con las credenciales de otro.
+      - name: Verificar que marca, vault y base son la misma
+        env:
+          MARCA: ${{ matrix.marca.id }}
+          VAULT_REPO: ${{ matrix.marca.repo }}
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
         run: |
           python3 - <<'PY'
           import json, os, pathlib, sys
+
           marca = os.environ['MARCA']
-          otras = [b['id'] for b in json.load(open('config/sources.json'))['brands']
-                   if b['id'] != marca]
-          if not otras:
-              print('Una sola marca declarada: nada con qué mezclarse.'); sys.exit(0)
+          declaradas = [b['id'] for b in json.load(open('config/sources.json'))['brands']]
 
-          salida = pathlib.Path('.next/server/app')
-          # 1. Ninguna RUTA de otra marca fue emitida.
-          rutas = [d.name for d in salida.iterdir() if d.is_dir()]
-          coladas = [o for o in otras if o in rutas]
-          if coladas:
-              sys.exit(f'FALLA: el build emitió rutas de {coladas}. '
-                       f'GROWTH_SOURCES={marca} tendría que haberlas dejado afuera.')
+          # 1. UNA marca declarada. Si un día son dos, D-17 hay que reabrirla: el
+          #    aislamiento volvería a depender de un chequeo en runtime.
+          if declaradas != [marca]:
+              sys.exit(f'FALLA: config/sources.json declara {declaradas}, y este build '
+                       f'es de "{marca}". Una instalación es una marca (D-17).')
 
-          # 2. Y el bundle de cliente no nombra ninguna. Es la mitad que se
-          #    olvida: una ruta puede no emitirse y su nombre quedar igual en un
-          #    chunk, que es cómo se filtró /operar una vez.
-          for chunk in pathlib.Path('.next/static').rglob('*.js'):
-              t = chunk.read_text(errors='ignore')
-              for o in otras:
-                  if f'/{o}/' in t:
-                      sys.exit(f'FALLA: {chunk} nombra la ruta /{o}/.')
-          print(f'OK: ni rutas ni chunks de {otras}.')
+          # 2. El vault clonado es el que la config dice.
+          repo_declarado = next(b.get('vault_repo', {}).get('repo')
+                                for b in json.load(open('config/sources.json'))['brands'])
+          if repo_declarado != os.environ['VAULT_REPO']:
+              sys.exit(f'FALLA: se clonó {os.environ["VAULT_REPO"]} pero la config '
+                       f'declara {repo_declarado}.')
+
+          # 3. El vault tiene contenido. Un vault vacío que igual buildea es la
+          #    regla dura 1 con otro disfraz.
+          raiz = pathlib.Path('.vaults') / marca
+          mds = list(raiz.rglob('*.md'))
+          if not mds:
+              sys.exit(f'FALLA: no hay un solo .md en {raiz}.')
+
+          # 4. La base configurada es la que la marca declara. Sin esto, un secret
+          #    mal puesto manda el deploy de una marca contra los datos de otra —
+          #    y ningún test lo pesca, porque es configuración y no código.
+          url = os.environ.get('SUPABASE_URL', '')
+          ref = next((b.get('supabase', {}).get('ref') for b in
+                      json.load(open('config/sources.json'))['brands']), None)
+          if ref and url and ref not in url:
+              sys.exit(f'FALLA: la marca declara el proyecto {ref} y el build apunta '
+                       f'a {url}. El deploy leería el vault de una y la base de otra.')
+          if ref and not url:
+              print(f'::warning::NEXT_PUBLIC_SUPABASE_URL no está: no se pudo '
+                    f'verificar que el deploy apunte al proyecto {ref}.')
+
+          print(f'OK: marca "{marca}" · vault {repo_declarado} ({len(mds)} .md) · base {ref}')
           PY
-        env:
-          MARCA: ${{ matrix.marca.id }}
 
       - name: Deploy a Vercel
         env:

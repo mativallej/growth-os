@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import AccountSwitcher, { type AccountOption } from "./AccountSwitcher";
 import CommandPalette, { type Comando } from "./CommandPalette";
 import Logo from "./Logo";
 import SesionControles from "./SesionControles";
@@ -26,12 +25,10 @@ const nav = [
  */
 export default function DashboardNav({
   account,
-  accounts,
   comandos,
   accionesLocales,
 }: {
   account: string;
-  accounts: AccountOption[];
   comandos: Comando[];
   /**
    * Los accesos a la consola, YA CONSTRUIDOS EN EL SERVIDOR.
@@ -115,8 +112,6 @@ export default function DashboardNav({
       <div className="hidden px-2.5 pb-5 md:block">
         <Logo />
       </div>
-
-      <AccountSwitcher accounts={accounts} current={account} />
 
       <button
         type="button"

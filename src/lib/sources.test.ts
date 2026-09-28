@@ -53,8 +53,12 @@ describe('listSources', () => {
   });
 
   it('una fuente inexistente rompe listando las válidas', () => {
-    expect(() => listSources('tegu,marketing')).toThrow(/marketing/);
-    expect(() => listSources('marketing')).toThrow(new RegExp(allSourceIds().join(', ')));
+    // El chequeo se mudó de `listSources` a `getSource` cuando se quitó el
+    // recorte por GROWTH_SOURCES (D-17): ya no hay una lista que validar contra
+    // la config, hay una marca instalada. Lo que sí sigue teniendo que romper
+    // ruidoso es pedir una que no existe.
+    expect(() => getSource('marketing')).toThrow(/marketing/);
+    expect(() => getSource('marketing')).toThrow(new RegExp(allSourceIds().join(', ')));
   });
 
   it('las raíces son absolutas y no dependen del cwd', () => {

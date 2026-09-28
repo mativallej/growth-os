@@ -23,7 +23,7 @@ Esta app es el nexo. No reemplaza a ninguna de las dos.
 ## Qué supone de tu entorno
 
 - **Los `.md` son la fuente de verdad.** No hay base de datos y no va a haber.
-- **El vault es un repo de git** en disco, referenciado por un symlink estable
+- **Un vault es UNA marca**, y es un repo de git en disco, referenciado por un symlink estable
   (`~/vaults/<nombre>`). Nunca por la ruta real: un vault renombrado rompe toda
   ruta hardcodeada en silencio, y eso ya pasó.
 - **Cada pieza tiene un footer** después del último `---`. Las dos gramáticas
@@ -109,12 +109,16 @@ está allá.
 ## Publicar
 
 ```bash
-GROWTH_SOURCES=<una marca> npm run build
+npm run build
 ```
 
-El build **no emite las rutas de las otras marcas**, no sirve su contenido bajo
-demanda y no lleva su configuración. El workflow lo verifica antes de subir nada,
-y el gate de sesión vive en `src/proxy.ts`. Todo en
+**Una instalación es una marca** (D-17): `growth-os` es el código, y cada marca lo
+instala apuntando a su vault y a su base. Las instalaciones no se conocen entre sí.
+
+El workflow verifica antes de subir que la marca declarada, el vault clonado y el
+proyecto de Supabase configurado sean el mismo — un secret mal puesto mandaría el
+deploy de una marca contra los datos de otra, y eso no lo pesca ningún test porque
+es configuración y no código. El gate de sesión vive en `src/proxy.ts`. Todo en
 [`docs/deploy.md`](docs/deploy.md).
 
 ## Cómo está organizado

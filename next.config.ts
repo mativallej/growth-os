@@ -1,10 +1,12 @@
 import { readFileSync } from "node:fs";
 import type { NextConfig } from "next";
 
-// El dashboard lee los .md de los vaults con fs en build/RSC. Sin API ni DB.
-// Las fuentes se declaran en src/lib/sources.ts sobre config/sources.json; si
-// una raíz falta, el build rompe (regla dura 1). GROWTH_SOURCES recorta cuáles
-// entran.
+// UNA INSTALACIÓN, UNA MARCA (D-17). La fuente se declara en config/sources.json;
+// si su raíz falta, el build rompe (regla dura 1).
+//
+// `GROWTH_SOURCES` se fue el 2026-09-28: recortaba cuáles marcas entraban al
+// build, y era la frontera de privacidad cuando un deploy servía a varias. Con
+// un vault por marca no hay nada que recortar.
 // LA CONSOLA NO EXISTE FUERA DEL ENTORNO LOCAL, y su ausencia es estructural.
 //
 // Esconder el botón no alcanza: un manejador que prepara operaciones y abre
@@ -76,25 +78,23 @@ const nextConfig: NextConfig = {
 };
 
 /**
- * La marca a la que van a parar las rutas viejas: la primera del registro que
- * haya entrado al build, con el mismo orden que usa src/lib/sources.ts.
+ * La marca de esta instalación, para los redirects de links viejos.
  *
- * Lee config/sources.json con `fs` en vez de importarlo: next.config.ts se evalúa
- * antes del pipeline de TypeScript del proyecto y no puede usar `@/lib/sources`,
- * pero el JSON sí se puede leer. Antes acá había una lista de ids repetida a mano
- * —`['tegu', 'personal']`— que ya estaba desactualizada: decía `personal` cuando
- * el id de la marca pasó a ser `mativallej`.
+ * Con D-17 hay UNA: `growth-os` se instala una vez por marca. Antes esto
+ * recortaba por `GROWTH_SOURCES` para elegir "la primera que entró al build";
+ * ahora es la única que hay, y si la config declarara dos, la primera es tan
+ * arbitraria como cualquiera — pero eso sería una config mal armada y el
+ * workflow lo reporta.
+ *
+ * Lee `config/sources.json` con `fs` en vez de importarlo: next.config.ts se
+ * evalúa antes del pipeline de TypeScript del proyecto y no puede usar
+ * `@/lib/sources`, pero el JSON sí se puede leer.
  */
 function cuentaPorDefecto(): string {
   const { brands } = JSON.parse(
     readFileSync(new URL('./config/sources.json', import.meta.url), 'utf8'),
   ) as { brands: { id: string }[] };
-  const orden = brands.map((b) => b.id);
-  const enBuild = (process.env.GROWTH_SOURCES ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return orden.find((id) => enBuild.length === 0 || enBuild.includes(id)) ?? orden[0];
+  return brands[0]?.id ?? '';
 }
 
 export default nextConfig;
