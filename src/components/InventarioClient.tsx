@@ -135,19 +135,47 @@ function Enlaces({ url, driveUrl }: { url: string; driveUrl: string }) {
 }
 
 /** La estrella de favorito. Es un botón y no un Link: la fila entera ya navega. */
-function Estrella({ on, onClick }: { on: boolean; onClick: () => void }) {
+/**
+ * La estrella de favorito, que ahora es COMPARTIDA.
+ *
+ * `otros` es quién más la marcó. Que se vea es el punto de haberlos movido a una
+ * base: una estrella privada es una nota personal, una que dice "esto también lo
+ * marcó tu socio" es una señal. Se dibuja distinto de la propia —un punto al lado,
+ * no la estrella llena— para no confundir "la marqué yo" con "la marcó alguien".
+ */
+function Estrella({
+  on,
+  otros,
+  onClick,
+}: {
+  on: boolean;
+  otros?: string[];
+  onClick: () => void;
+}) {
+  const deOtros = otros?.length ?? 0;
+  const titulo = on
+    ? "Quitar de favoritos"
+    : deOtros > 0
+      ? `Marcar como favorito · también la marcó ${otros!.join(", ")}`
+      : "Marcar como favorito";
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      aria-label={on ? "Quitar de favoritos" : "Marcar como favorito"}
-      title={on ? "Quitar de favoritos" : "Marcar como favorito"}
-      className={`shrink-0 rounded px-1 text-[13px] leading-none transition-colors hover:bg-muted ${
+      aria-label={titulo}
+      title={titulo}
+      className={`relative shrink-0 rounded px-1 text-[13px] leading-none transition-colors hover:bg-muted ${
         on ? "text-[var(--tg-green)]" : "text-muted-foreground/30"
       }`}
     >
       <span aria-hidden="true">{on ? "★" : "☆"}</span>
+      {deOtros > 0 && (
+        <span
+          aria-hidden="true"
+          className="absolute right-0 top-0 size-1.5 rounded-full bg-primary"
+        />
+      )}
     </button>
   );
 }
@@ -202,7 +230,7 @@ export default function InventarioClient({
   const [materia, setMateria] = useState<Materia>("organico");
   const [vista, setVista] = useState<Vista>("tabla");
   const [agrupar, setAgrupar] = useState<Agrupacion>("coverage");
-  const { favoritos, alternar } = useFavoritos(account);
+  const { favoritos, alternar, quienes, error: errorFavoritos } = useFavoritos(account);
 
   const esAds = materia === "ads";
   const universo = esAds ? creativos : rows;
@@ -290,6 +318,12 @@ export default function InventarioClient({
         }}
         conteos={{ organico: rows.length, ads: creativos.length }}
       />
+
+      {errorFavoritos && (
+        <p className="mb-3 rounded-md border border-[var(--tg-red)]/30 bg-[var(--tg-red)]/5 px-3 py-2 text-[12px] leading-relaxed">
+          {errorFavoritos}
+        </p>
+      )}
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <ToggleGroup
@@ -388,7 +422,7 @@ export default function InventarioClient({
                   <TableRow key={r.llave}>
                     <TableCell className="max-w-0">
                       <div className="flex items-center gap-1.5">
-                        <Estrella on={favoritos.has(r.llave)} onClick={() => alternar(r.llave)} />
+                        <Estrella on={favoritos.has(r.llave)} otros={quienes.get(r.llave)} onClick={() => alternar(r.llave)} />
                         <Link href={r.href} className="min-w-0 flex-1 truncate text-[13px] hover:underline">
                           {r.title}
                         </Link>
@@ -465,7 +499,7 @@ export default function InventarioClient({
                 className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 md:flex-nowrap"
               >
                 <div className="flex min-w-0 flex-1 items-start gap-1.5">
-                  <Estrella on={favoritos.has(r.llave)} onClick={() => alternar(r.llave)} />
+                  <Estrella on={favoritos.has(r.llave)} otros={quienes.get(r.llave)} onClick={() => alternar(r.llave)} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <Link href={r.href} className="min-w-0 truncate text-[13px] font-medium hover:underline">
@@ -547,7 +581,7 @@ export default function InventarioClient({
                     className="rounded-md border border-border bg-background px-2.5 py-2 transition-colors hover:bg-secondary"
                   >
                     <div className="flex items-start gap-1.5">
-                      <Estrella on={favoritos.has(r.llave)} onClick={() => alternar(r.llave)} />
+                      <Estrella on={favoritos.has(r.llave)} otros={quienes.get(r.llave)} onClick={() => alternar(r.llave)} />
                       <Link href={r.href} className="line-clamp-2 min-w-0 flex-1 text-[13px] leading-snug hover:underline">
                         {r.title}
                       </Link>
