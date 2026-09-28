@@ -217,20 +217,17 @@ const ETIQUETA: Record<string, string> = {
 export default function InventarioClient({
   rows,
   creativos = [],
-  account,
   umbrales = {},
 }: {
   rows: InventarioRow[];
   creativos?: InventarioRow[];
-  /** La marca, para que los favoritos de una no aparezcan en otra. */
-  account: string;
   umbrales?: Umbrales;
 }) {
   const [f, setF] = useState<EstadoFiltros>(FILTROS_VACIOS);
   const [materia, setMateria] = useState<Materia>("organico");
   const [vista, setVista] = useState<Vista>("tabla");
   const [agrupar, setAgrupar] = useState<Agrupacion>("coverage");
-  const { favoritos, alternar, quienes, error: errorFavoritos } = useFavoritos(account);
+  const { favoritos, alternar, quienes, error: errorFavoritos } = useFavoritos();
 
   const esAds = materia === "ads";
   const universo = esAds ? creativos : rows;

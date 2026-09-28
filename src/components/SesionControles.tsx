@@ -1,28 +1,19 @@
 "use client";
 
-import { ClerkProvider, Show, SignInButton, UserButton, useUser } from "@clerk/nextjs";
+import { Show, SignInButton, UserButton, useUser } from "@clerk/nextjs";
 
 /**
- * Los controles de sesión, en una ISLA DE CLIENTE con su propio ClerkProvider.
+ * Los controles de sesión: avatar, menú, y el botón de entrar.
  *
- * POR QUÉ NO VA EN EL LAYOUT RAÍZ COMO SERVER COMPONENT. Medido: `<ClerkProvider>`
- * en el layout servidor vuelve DINÁMICAS las 10 rutas de contenido del build —lee
- * el estado de sesión durante el render, así que ninguna puede prerenderizarse— y
- * eso acá cuesta caro:
+ * TUVO SU PROPIO `<ClerkProvider>`, Y YA NO. La isla existía para que el provider
+ * no viviera en el layout raíz, porque ahí volvía dinámicas las 10 rutas y eso
+ * costaba el prerender: el vault horneado en el build, y `dynamicParams = false`
+ * sosteniendo el aislamiento entre marcas. D-17 sacó del medio a las dos —el
+ * contenido viene de la API, y una instalación es una marca— así que el provider
+ * volvió al raíz y acá quedaría anidado sin motivo.
  *
- *  - Una página dinámica lee los .md del vault EN CADA REQUEST, así que el vault
- *    tiene que estar presente en el servidor de producción. Prerenderizadas, el
- *    contenido queda horneado en el build y el deploy no necesita los vaults.
- *  - `generateStaticParams` + `dynamicParams = false` es lo que impide que una
- *    marca que no entró al build se sirva bajo demanda. Con todo dinámico, esa
- *    garantía pasa a depender de otra cosa.
- *
- * El `proxy.ts` solo NO tiene ese costo: verificado, deja las 10 prerenderizadas.
- * Y el proxy es el que de verdad protege — corre antes de que la respuesta salga.
- *
- * Así que la división es: EL GATE ES EL PROXY, ESTO ES DECORACIÓN. Nadie sin
- * sesión llega a ver este componente. Que hidrate un instante después de la
- * página no le cuesta nada a nadie.
+ * ESTO ES DECORACIÓN, EL GATE ES EL PROXY. `proxy.ts` corre antes de que salga la
+ * respuesta; nadie sin sesión llega a ver este componente.
  *
  * `Show when="signed-out"` queda como defensa en profundidad: si alguna vez se ve
  * ese botón, significa que el matcher del proxy dejó de cubrir esa ruta, y es
@@ -71,7 +62,7 @@ export default function SesionControles({
   conDatos?: boolean;
 }) {
   return (
-    <ClerkProvider>
+    <>
       <Show when="signed-in">
         {conDatos ? (
           // Un bloque, no dos elementos sueltos: el avatar y la identidad son la
@@ -97,6 +88,6 @@ export default function SesionControles({
           </button>
         </SignInButton>
       </Show>
-    </ClerkProvider>
+    </>
   );
 }

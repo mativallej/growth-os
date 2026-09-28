@@ -1,15 +1,16 @@
 "use client";
 
-import { ClerkProvider, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import SesionControles from "./SesionControles";
 
 /**
  * El saludo de la raíz, con el nombre de quien entró.
  *
  * VIENE DEL CLIENTE Y NO DEL SERVIDOR. `currentUser()` en la página lo resolvería
- * en el render, pero volvería DINÁMICA la raíz —y por arrastre el resto— y eso
- * cuesta el prerender, que es lo que permite que el deploy no necesite los vaults.
- * El nombre de quien mira no vale ese precio: aparece un instante después.
+ * en el render, y ahora que todo es dinámico eso ya no cuesta el prerender. Sigue
+ * siendo del cliente por otra razón: el saludo es lo primero que se pinta, y
+ * hacerlo esperar a un ida y vuelta con Clerk retrasa TODA la página por un
+ * nombre. Del cliente, la página llega enseguida y el nombre un instante después.
  *
  * MIENTRAS CARGA NO DICE "Hola undefined" ni parpadea un nombre falso: dice
  * "Hola" solo. Y si la cuenta no tiene nombre cargado —se puede entrar con un
@@ -28,13 +29,11 @@ function Nombre() {
 
 export default function Saludo() {
   return (
-    <ClerkProvider>
-      {/* En fila: el avatar es de quien saluda, así que va al lado del nombre y
-          no debajo, donde parecía un elemento suelto. */}
-      <div className="flex items-center justify-center gap-3">
-        <Nombre />
-        <SesionControles />
-      </div>
-    </ClerkProvider>
+    // En fila: el avatar es de quien saluda, así que va al lado del nombre y no
+    // debajo, donde parecía un elemento suelto.
+    <div className="flex items-center justify-center gap-3">
+      <Nombre />
+      <SesionControles />
+    </div>
   );
 }

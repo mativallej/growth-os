@@ -39,12 +39,7 @@ export default async function InventarioPage({ params }: { params: Promise<{ acc
           (creativos.length ? ` · ${creativos.length} creativos` : "")
         }
       />
-      <InventarioClient
-        rows={rows}
-        creativos={creativos}
-        account={account}
-        umbrales={umbrales}
-      />
+      <InventarioClient rows={rows} creativos={creativos} umbrales={umbrales} />
     </>
   );
 }

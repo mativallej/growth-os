@@ -38,7 +38,11 @@ type Fila = { piece_id: string; user_id: string; user_label: string | null };
 
 const RECURSO = "favoritos";
 
-export function useFavoritos(_account: string): Favoritos {
+// SIN PARÁMETRO DE MARCA. Lo tenía —`useFavoritos(account)`— porque con
+// `localStorage` la clave se prefijaba con la marca para que dos no se pisaran en
+// el mismo navegador. Ahora la marca es la instalación: la base a la que apunta
+// este deploy tiene una sola, y pasarle el `account` sugeriría que puede haber otra.
+export function useFavoritos(): Favoritos {
   const { getToken, userId, isLoaded } = useAuth();
   const cfg = useMemo(() => configSupabase(), []);
 
