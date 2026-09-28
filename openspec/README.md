@@ -1,4 +1,4 @@
-# OpenSpec — growth-loop
+# OpenSpec — growth-os
 
 **177 de 211 tareas al 2026-09-26.** Los catorce changes se tocaron; cinco
 cerraron completos y los nueve restantes tienen su parte bloqueada anotada, con
@@ -12,7 +12,7 @@ Tres capas, y la división entre ellas es la decisión de fondo:
 ```
 vaults de Obsidian + agentes   →   CREAR. La verdad vive acá
 el destino de colaboración     →   COORDINAR con el equipo
-growth-loop                    →   MEDIR: captar, sincronizar, exportar, ingerir
+growth-os                      →   MEDIR: captar, sincronizar, exportar, ingerir
 ```
 
 Un verbo por capa. **Nada corre solo:** toda operación la dispara una persona

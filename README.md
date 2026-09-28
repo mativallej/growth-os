@@ -1,18 +1,19 @@
-# growth-loop
+# Growth Loop
 
-La capa de operación y medición del growth de varias marcas que **no se
-fusionan**, construida sobre vaults de Obsidian.
+La capa de **medición** del growth de una marca, construida sobre un vault de
+Obsidian.
 
-Lee los `.md` de cada vault, cruza lo que dicen contra el catálogo de fórmulas, y
-responde las preguntas que un tablero de coordinación no puede responder: cuánto
-se publicó contra el objetivo, qué se publicó sin medir, **qué fórmula nunca se
-estrenó**, y qué combinación de campaña no tiene un solo creativo.
+Lee los `.md` del vault, los cruza contra el catálogo de fórmulas, y responde lo
+que un tablero de coordinación no puede: cuánto se publicó contra el objetivo,
+qué se publicó sin medir, **qué fórmula nunca se estrenó**, y qué combinación de
+campaña no tiene un solo creativo.
+
+> El nombre es provisorio. Ver `openspec/DECISIONS.md`, D-14.
 
 ## El problema que resuelve
 
-Si coordinás contenido en un tablero (Notion, Linear, lo que sea) y lo escribís
-en archivos, tenés los datos partidos en dos y ninguna de las dos mitades
-responde lo que importa:
+Si coordinás contenido en un tablero y lo escribís en archivos, tenés los datos
+partidos y ninguna mitad responde lo que importa:
 
 - El **tablero** sabe qué está en qué carril, y no tiene el histórico ni el
   catálogo. Una fórmula que nunca se usó no tiene fila en ninguna base: solo
@@ -24,84 +25,99 @@ Esta app es el nexo. No reemplaza a ninguna de las dos.
 ## Qué supone de tu entorno
 
 - **Los `.md` son la fuente de verdad.** No hay base de datos y no va a haber.
-- **Cada vault es un repo de git** en disco, referenciado por un symlink estable
+- **El vault es un repo de git** en disco, referenciado por un symlink estable
   (`~/vaults/<nombre>`). Nunca por la ruta real: un vault renombrado rompe toda
   ruta hardcodeada en silencio, y eso ya pasó.
-- **Cada pieza tiene un footer** después del último `---`, con sus metadatos y
-  sus cortes de métricas. Las dos gramáticas —un dato por línea, o varios
-  separados por ` · `— se leen las dos. Ver `docs/footer-contract.md`.
-- Node 22+, y Python 3 de librería estándar para los scripts operativos.
+- **Cada pieza tiene un footer** después del último `---`. Las dos gramáticas
+  —un dato por línea, o varios separados por ` · `— se leen las dos, más el
+  bloque `distribucion:`. Ver [`docs/footer-contract.md`](docs/footer-contract.md).
+- Node 22+. Python 3 solo para el backfill de ids.
 
 ## Qué NO hace
 
-- **No escribe ni edita el cuerpo de una pieza.** Eso es el vault, con sus
-  agentes. Lo único que la app escribe de contenido es captar una idea, que es
-  materia prima. Hay un test que lo verifica.
-- **No duplica el tablero de coordinación.** Si una vista se puede resolver allá,
-  va allá.
-- **No corre sola.** Ninguna operación es agendada ni diferida: la dispara una
-  persona, que ve el resultado en el momento.
-- **No afirma causalidad, no fija umbrales y no define objetivos.** Junta la
-  evidencia y la muestra separada.
+- **No escribe ni edita contenido.** Ni el cuerpo de una pieza, ni una idea, ni
+  nada: desde el 2026-09-26 esta app no tiene un solo campo de texto libre, y hay
+  un test que compara el conjunto exacto de módulos que escriben en disco — son
+  tres, y los tres escriben configuración del repo.
+- **No duplica el tablero de coordinación.** Si una vista se resuelve allá, va allá.
+- **No sincroniza con Notion.** Eso vive en el repo del vault, que es donde está
+  el contenido y de donde sale el disparador.
+- **No corre sola.** Ninguna operación es agendada ni diferida.
+- **No afirma causalidad, no fija umbrales y no define objetivos.** El objetivo de
+  cadencia y el umbral de viralidad se DECLARAN en `config/`; derivarlos del
+  promedio garantizaría no estar nunca por debajo de ellos.
 
 ## Arrancar
 
 ```bash
 npm install
-cp config/sources.example.json config/sources.json     # tus marcas y sus vaults
+cp config/sources.example.json config/sources.json     # tu marca y su vault
 cp config/destinos.example.json config/destinos.json   # tu tablero, si usás uno
 npm run audit                                          # read-only: qué ve el parser
-npm run dev                                            # → /<marca>
+npm run dev                                            # → / y /<marca>
 ```
 
 Si una raíz de contenido no existe, **el build se cae nombrándola**. Es a
 propósito: un dashboard que muestra cero cuando no encontró nada parece
 información.
 
-## ⚠️ Las operaciones que escriben en tus archivos
+### Las credenciales
 
-Una cosa de este repo puede modificar tu vault, y es **dry-run por defecto**:
+`.env.local` (git lo ignora). Lo mínimo para arrancar es Clerk:
 
-| script | qué escribe | cómo previsualizarlo |
-|---|---|---|
-| `scripts/backfill-piece-id.py` | un `id` en el footer de cada pieza que no lo tiene | corré sin `--apply` |
-
-**Aborta si el vault tiene cambios sin commitear**, y no es una precaución: se
-intentó una vez contra un vault que otra sesión estaba reorganizando, y las 14
-escrituras estaban muertas minutos después.
-
-Los scripts del sync con el tablero —`sync-notion.py`, `sync-notion-docs.py`,
-`reconciliar-llaves.py`— **se mudaron a `tegu-labs/tegu-growth`** el 2026-09-26.
-El disparador de un sync es que cambió el contenido, y el contenido está allá.
-
-**Commiteá tu vault antes de correr cualquiera con `--apply`**, y revisá el diff
-allá antes de quedártelo.
-
-## La pantalla de configuración
-
-Las credenciales, las conexiones, qué cuenta como viral en cada red, y agregar o
-quitar vaults. **No existe fuera del entorno local**: su archivo usa una
-extensión que solo entra en `pageExtensions` con la variable puesta, así que en
-un build compartido no hay ruta ni manejador.
-
-```bash
-npm run dev:local     # → /configuracion
+```
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_…
+CLERK_SECRET_KEY=sk_…
 ```
 
-> La consola de operaciones (`/operar`) se quitó el 2026-09-26. Una pantalla que
-> abre sesiones y ejecuta comandos en la máquina no puede vivir en algo que se
-> deploya con autenticación, y mantener dos modos del mismo producto costaba más
-> que mover esas operaciones a los scripts y a CI.
+El resto —Notion, Supabase, las rutas de los vaults— se edita desde
+`/configuracion`, que existe en desarrollo y **no se compila** en un build que se
+publica. Ver [`docs/deploy.md`](docs/deploy.md).
 
-## Compartir un build sin compartirlo todo
+## Las vistas
+
+| | |
+|---|---|
+| `/` | saludo y la marca de este build |
+| `/<marca>` | overview, filtrable por red, fórmula, cobertura y estado |
+| `/<marca>/inventario` | todas las piezas en tres vistas: tabla, métricas y tablero |
+| `/<marca>/cadencia` | publicado por semana, mes, trimestre o año contra la dieta |
+| `/<marca>/deuda` | publicado sin medir, y los creativos sin ronda, en tablas que no se suman |
+| `/<marca>/formulas` | uso del catálogo, con las que nunca se estrenaron |
+| `/<marca>/ranking` | por métrica, en absoluto y en tasa |
+| `/<marca>/campanas` | cobertura persona × ángulo, donde los filtros recalculan la matriz |
+| `/<marca>/piezas/<slug>` | una pieza: su cuerpo en Markdown, sus cortes, y dónde se publicó |
+
+## ⚠️ Lo único que escribe en tu vault
+
+```bash
+python3 scripts/backfill-piece-id.py --brand <marca>    # dry-run
+python3 scripts/backfill-piece-id.py --brand <marca> --apply
+```
+
+Escribe un `id` en el footer de cada pieza que no lo tiene. **Aborta si el vault
+tiene cambios sin commitear**, y no es una precaución: se intentó una vez contra
+un vault que otra sesión estaba reorganizando, y las 14 escrituras estaban
+muertas minutos después.
+
+Los scripts del sync con el tablero se mudaron a **`tegu-labs/tegu-growth`** el
+2026-09-26: el disparador de un sync es que cambió el contenido, y el contenido
+está allá.
+
+> El contrato del footer quedó **espejado en los dos repos**. `KNOWN_KEYS` de
+> `src/lib/footer.ts` y `CLAVES` de `sync-notion.py` tienen que decir lo mismo.
+> Agregar una clave es tocar los dos: si se toca uno solo, ninguno falla.
+
+## Publicar
 
 ```bash
 GROWTH_SOURCES=<una marca> npm run build
 ```
 
-El build resultante **no emite las rutas de las otras marcas**, no sirve su
-contenido bajo demanda y no lleva su configuración. Está verificado con tests y
-con sondas sobre el output, no deducido.
+El build **no emite las rutas de las otras marcas**, no sirve su contenido bajo
+demanda y no lleva su configuración. El workflow lo verifica antes de subir nada,
+y el gate de sesión vive en `src/proxy.ts`. Todo en
+[`docs/deploy.md`](docs/deploy.md).
 
 ## Cómo está organizado
 
@@ -109,9 +125,9 @@ con sondas sobre el output, no deducido.
 |---|---|
 | `src/lib/` | el parser, los rollups y los modelos. Puro, testeado |
 | `src/app/[account]/` | las vistas, una ruta por marca |
-| `scripts/` | las operaciones, en Python de librería estándar |
-| `config/` | marcas, redes y destinos. Agregar una marca es agregar un objeto |
-| `docs/` | los contratos: footer y atribución |
+| `src/app/configuracion/` | solo local: `.local.tsx` no entra en `pageExtensions` sin la variable |
+| `config/` | marca, redes, destinos y umbrales. Agregar una marca es agregar un objeto |
+| `docs/` | los contratos: [footer](docs/footer-contract.md) · [atribución](docs/attribution.md) · [método](docs/metodo.md) · [deploy](docs/deploy.md) |
 | `openspec/` | por qué cada cosa es como es |
 
 ## Contribuir

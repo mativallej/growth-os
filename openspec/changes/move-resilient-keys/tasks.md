@@ -33,8 +33,10 @@
 ## 2. La reconciliación
 
 - [x] 2.1 Definir la evidencia que basta para afirmar que dos elementos son la misma pieza. Empezar por lo más fuerte —la pieza publicada con la misma url, o el mismo nombre de archivo con el mismo contenido— antes que por heurísticas flojas.
-- [ ] 2.2 Emparejar solo lo inequívoco; listar lo ambiguo con sus candidatos. Verifica: test con dos candidatos plausibles → no empareja.
-- [ ] 2.3 Informar cada cambio de llave con origen y destino.
+- [x] 2.2 Emparejar solo lo inequívoco; listar lo ambiguo con sus candidatos. Verifica: test con dos candidatos plausibles → no empareja.
+  > **MUDADA a `tegu-labs/tegu-growth` (2026-09-26).** Los scripts del sync se fueron a ese repo, porque el disparador de un sync es que cambió el contenido y el contenido está allá. La tarea no está hecha: dejó de ser de ESTE repositorio.
+- [x] 2.3 Informar cada cambio de llave con origen y destino.
+  > **MUDADA a `tegu-labs/tegu-growth` (2026-09-26).** Los scripts del sync se fueron a ese repo, porque el disparador de un sync es que cambió el contenido y el contenido está allá. La tarea no está hecha: dejó de ser de ESTE repositorio.
 - [x] 2.4 Dry-run por defecto, como el resto.
 
 ## 3. Reparar lo que ya está roto
@@ -46,7 +48,8 @@
 
 ## 4. El mismo problema en la documentación
 
-- [ ] 4.1 `scripts/sync-notion-docs.py` indexa su estado por ruta en `.state/`. Una carpeta de docu que se mueva duplicaría páginas. Aplicar el mismo freno.
+- [x] 4.1 `scripts/sync-notion-docs.py` indexa su estado por ruta en `.state/`. Una carpeta de docu que se mueva duplicaría páginas. Aplicar el mismo freno.
+  > **MUDADA a `tegu-labs/tegu-growth` (2026-09-26).** Los scripts del sync se fueron a ese repo, porque el disparador de un sync es que cambió el contenido y el contenido está allá. La tarea no está hecha: dejó de ser de ESTE repositorio.
 - [ ] 4.2 Verificar contra la reorganización que ya ocurrió: `Brand/Identity` y compañía ya no existen, y la docu todavía no se subió nunca — así que acá el daño no llegó a producirse. Confirmarlo antes de la primera subida.
 
 ## 5. Cerrar

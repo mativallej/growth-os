@@ -203,7 +203,7 @@ sobre archivos locales de otra gente convierte los recaudos que ya existen —dr
 por defecto, nunca borrar, fallar si falta una raíz— en responsabilidad hacia
 terceros. Hay que decirlos en el README, no dejarlos en el código.
 
-## D-14 · Nombre definitivo, remote y licencia — licencia decidida, lo demás abierto
+## D-14 · Nombre definitivo, remote y licencia — decidida
 
 ### La licencia: MIT (2026-09-28)
 
@@ -232,11 +232,31 @@ porque el proyecto opera sobre archivos personales de quien lo use. MIT la trae.
 **La licencia cubre el código y nada más.** El contenido vive en los vaults, que son
 repositorios aparte.
 
-### Lo que sigue abierto
+### El nombre: `growth-os` (2026-09-28)
 
-Hoy el directorio se llama `growth-loop-obsidian`, `package.json` dice `growth-loop`
-y el remote apunta a `tegu-labs/tegu-distribution`. Los tres tienen que converger, y
-la elección es del autor.
+Se descartó seguir con `growth-loop` por dos razones, y la primera pesa más: **un
+repositorio abierto vive de que lo encuentren**, y *growth loop* es el término
+canónico de la teoría de growth — quien lo busca quiere leer la teoría, no instalar
+una herramienta. *growth os* lo busca quien busca una herramienta.
+
+La segunda es de honestidad. Un growth loop es un mecanismo de **distribución**,
+donde el output de un ciclo alimenta el input del siguiente. Esto no distribuye
+nada: mide. El nombre prometía una mecánica que el repo no tiene.
+
+**El costo asumido:** `-os` es un sufijo de moda y data el proyecto. Se acepta
+porque la legibilidad inmediata vale más que la originalidad en un repo que se
+descubre buscando.
+
+### El remote: `mativallej/growth-os`
+
+En la cuenta personal, no en la organización de la empresa. El proyecto opera
+también sobre el vault personal, y abrirlo bajo la org dejaría la propiedad en un
+lugar que no le corresponde.
+
+**Lo que deliberadamente NO converge: el directorio local.** Sigue siendo
+`growth-loop-obsidian`. Renombrarlo rompe las rutas absolutas que viven fuera del
+repo —launchd, los workspaces— y eso ya costó una tarde el 2026-09-23. El
+directorio no se publica; el nombre que se ve es el del remote.
 
 ## D-15 · Supabase como índice derivado del vault — decidida, con condiciones
 

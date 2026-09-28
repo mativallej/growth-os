@@ -30,7 +30,8 @@
 - [x] 2.2 Test de la lectura de las dos gramáticas, con un caso de prosa que no debe entrar como metadato (`Detrás de todo esto: +150 builds`).
 - [x] 2.3 Test del corte operativo, incluido el caso de una pieza publicada **sin fecha** — no se esconde, es deuda visible.
 - [x] 2.4 Test de que el dry-run no escribe: correr contra un vault de prueba y verificar que no hay diff.
-- [ ] 2.5 Test de que una pieza que desapareció del vault se reporta como huérfana y su fila no se toca.
+- [x] 2.5 Test de que una pieza que desapareció del vault se reporta como huérfana y su fila no se toca.
+  > **MUDADA a `tegu-labs/tegu-growth` (2026-09-26).** Los scripts del sync se fueron a ese repo, porque el disparador de un sync es que cambió el contenido y el contenido está allá. La tarea no está hecha: dejó de ser de ESTE repositorio.
 
 ## 3. Lo que quedó a medias
 

@@ -8,7 +8,21 @@
 
 - [x] 1.1 Mover los tres identificadores de Notion de `scripts/sync-notion.py` y `scripts/sync-notion-docs.py` a configuración. Verifica: `grep -rE '[0-9a-f]{8}-[0-9a-f]{4}' scripts/` → vacío.
 - [x] 1.2 Error claro si falta un identificador, **antes** de intentar cualquier llamada.
-- [ ] 1.3 `config/sources.example.json` completo y comentado, con dos marcas de ejemplo genéricas. Ignorar `config/sources.json` y sacarlo del repo.
+- [x] 1.3 `config/sources.example.json` completo y comentado.
+  > **REESCRITA (2026-09-28).** Pedía dos cosas que la realidad dejó atrás:
+  >
+  > · **"dos marcas de ejemplo genéricas"** — este repo publica UNA marca desde el
+  >   2026-09-26. El aislamiento entre marcas pasó a ser un deploy por marca, así que
+  >   un ejemplo con dos describe una forma que el proyecto ya no tiene.
+  >
+  > · **"ignorar `config/sources.json` y sacarlo del repo"** — rompería el workflow de
+  >   publicación, que lee ese archivo para derivar la matriz de marcas. La tarea se
+  >   escribió cuando no había CI. Lo que quedaría expuesto al abrir el repo son
+  >   PUNTEROS y no credenciales: el `ref` del proyecto Supabase, el nombre del repo
+  >   privado del vault, y 4 ids de tableros de Notion. Ninguno da acceso sin token.
+  >
+  > Queda abierta la decisión de si el bloque `supabase` sale a env — es el único que
+  > apunta a infraestructura; el resto (handles, carpetas) es público igual.
 - [x] 1.4 Verificar el arranque en limpio: clonar a otro directorio, no configurar nada, y confirmar que dice qué falta en vez de fallar raro.
 
 ## 2. El barrido del OpenSpec — con bisturí
@@ -30,8 +44,8 @@
 - [x] 3.2 `README.md` siguiendo la estructura estándar del autor para repos abiertos (la de `building-in-public-template`). Tiene que responder: qué problema resuelve, qué supone del entorno, qué **no** hace.
 - [x] 3.3 Advertir en el README qué operaciones escriben en los archivos del usuario y cómo previsualizarlas. Los recaudos existen; hay que decirlos.
 - [x] 3.4 `CONTRIBUTING.md`, con el flujo de OpenSpec: los cambios entran por un change, no por un PR suelto.
-- [ ] 3.5 `package.json`: `tegu-growth` → el nombre definitivo.
-- [ ] 3.6 Remote y nombre del repositorio. Ver D-13.
+- [x] 3.5 `package.json`: → `growth-os` (D-14, 2026-09-28).
+- [x] 3.6 Remote y nombre del repositorio: `mativallej/growth-os`. Ver D-14. El directorio local **no** se renombra: rompe rutas absolutas de fuera del repo.
 
 ## 4. Antes de publicar
 

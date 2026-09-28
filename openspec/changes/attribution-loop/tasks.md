@@ -13,7 +13,8 @@
 ## 2. Generar
 
 - [x] 2.1 `src/lib/attribution.ts`: construcción del enlace a partir de la pieza. Función pura. Verifica: test de determinismo — dos llamadas, el mismo enlace.
-- [ ] 2.2 Operación en el catálogo: el enlace de una pieza, y el de un lote filtrado.
+- [x] 2.2 Operación en el catálogo: el enlace de una pieza, y el de un lote filtrado.
+  > **OBSOLETA (2026-09-28).** El catálogo de operaciones se borró con `/operar` el 2026-09-26, al volver esto un visualizador que se deploya. `enlaceRastreable` también se fue; está en el historial. La doctrina sigue en `docs/attribution.md`.
 - [x] 2.3 Caso Instagram: el enlace no puede ir en el cuerpo del post, va en bio o en story. Anotar la consecuencia — es el canal donde más se pierde el clic.
 
 ## 3. Las tres señales

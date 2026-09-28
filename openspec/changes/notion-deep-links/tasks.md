@@ -10,7 +10,8 @@
 
 ## 2. La correspondencia
 
-- [ ] 2.1 `scripts/sync-notion.py` guarda ruta → identificador de registro en `.state/`, tanto al crear como al reconocer uno existente. Verifica: correr con `--apply` y confirmar que el archivo se escribe.
+- [x] 2.1 `scripts/sync-notion.py` guarda ruta → identificador de registro en `.state/`, tanto al crear como al reconocer uno existente. Verifica: correr con `--apply` y confirmar que el archivo se escribe.
+  > **MUDADA a `tegu-labs/tegu-growth` (2026-09-26).** Los scripts del sync se fueron a ese repo, porque el disparador de un sync es que cambió el contenido y el contenido está allá. La tarea no está hecha: dejó de ser de ESTE repositorio.
 - [x] 2.2 Confirmar que un dry-run **no** modifica la correspondencia guardada.
 - [x] 2.3 Verificar que ningún `.md` quedó tocado por esto: `git -C <vault> status --short` sin cambios.
 - [x] 2.4 Guardar cuándo se actualizó, para poder mostrar la antigüedad.

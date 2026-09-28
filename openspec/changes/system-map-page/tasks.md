@@ -19,12 +19,14 @@
 - [x] 3.1 Las tres capas, qué se hace en cada una, y la dirección de la información.
 - [x] 3.2 Para cada capa, qué **no** le corresponde.
 - [x] 3.3 La prosa del porqué: corta, y sin repetir lo que se deriva.
-- [ ] 3.4 Verificar en ancho de teléfono.
+- [x] 3.4 Verificar en ancho de teléfono.
+  > **OBSOLETA (2026-09-28).** La página se borró el 2026-09-26: con varios vaults repetía la misma explicación por marca. Su doctrina vive en `docs/metodo.md`.
 
 ## 4. Cerrar
 
 - [x] 4.1 Test de que la vista no contiene contenido de piezas ni creativos.
-- [ ] 4.2 Que una persona ajena al proyecto lo lea y diga qué no se entiende. Anotar acá qué cambió después de esa lectura.
+- [x] 4.2 Que una persona ajena al proyecto lo lea y diga qué no se entiende. Anotar acá qué cambió después de esa lectura.
+  > **OBSOLETA (2026-09-28).** Misma razón: no hay página que leer. Lo que sí necesita un lector externo es el README — eso es `public-release` 4.3, y sigue abierta.
 
 ---
 

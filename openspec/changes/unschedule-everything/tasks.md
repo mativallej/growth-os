@@ -27,8 +27,10 @@
 
 ## 3. Idempotencia
 
-- [ ] 3.1 Verificar que el sync se puede interrumpir y repetir sin duplicar filas: el estado en `.state/` ya lo cubre para docu; confirmar el caso de filas.
-- [ ] 3.2 Escribir el test de la interrupción: aplicar parte, cortar, repetir, y confirmar que no hay duplicados.
+- [x] 3.1 Verificar que el sync se puede interrumpir y repetir sin duplicar filas: el estado en `.state/` ya lo cubre para docu; confirmar el caso de filas.
+  > **MUDADA a `tegu-labs/tegu-growth` (2026-09-26).** Los scripts del sync se fueron a ese repo, porque el disparador de un sync es que cambió el contenido y el contenido está allá. La tarea no está hecha: dejó de ser de ESTE repositorio.
+- [x] 3.2 Escribir el test de la interrupción: aplicar parte, cortar, repetir, y confirmar que no hay duplicados.
+  > **MUDADA a `tegu-labs/tegu-growth` (2026-09-26).** Los scripts del sync se fueron a ese repo, porque el disparador de un sync es que cambió el contenido y el contenido está allá. La tarea no está hecha: dejó de ser de ESTE repositorio.
 
 ## 4. La marca de última corrida
 
