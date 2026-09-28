@@ -20,6 +20,21 @@ import type { Nivel } from './viralidad';
 
 export type Materia = 'organico' | 'ads';
 
+/** Un corte de métricas, listo para dibujar. Todo string: ya pasó por `num`/`pct`. */
+export type Corte = {
+  /** El horizonte: `+1h`, `+24h`, `+7d`. Libre, el vault no usa una escalera fija. */
+  t: string;
+  fecha: string;
+  /** La cuenta, cuando el corte la declara. Una pieza cross-posteada tiene varias. */
+  cuenta: string;
+  alcance: string;
+  engagements: string;
+  engRate: string;
+  likes: string;
+  guardados: string;
+  follows: string;
+};
+
 export type Unidad = {
   tipo: Materia;
   /**
@@ -81,6 +96,19 @@ export type Unidad = {
   verdict: string;
   /** Sparkline ya renderizado. `null` con menos de dos cortes: un punto no es una serie. */
   sparkHtml: string | null;
+
+  /**
+   * LOS CORTES, uno por uno, ya formateados.
+   *
+   * La columna decía `4` y no había forma de ver cuáles cuatro sin abrir la
+   * pieza. El número solo no deja comparar dos mediciones de la misma pieza, que
+   * es para lo que se toman cortes: `+1h` contra `+24h` contra `+7d`.
+   *
+   * Formateados acá por lo mismo que el resto: `num` y `pct` deciden qué se ve
+   * cuando el dato FALTA —una raya, nunca un cero— y esa decisión se toma en un
+   * solo lugar. Un `0` y un `—` en esta tabla significan cosas distintas.
+   */
+  cortesDetalle: Corte[];
   alcanceFmt: string;
   engRate: string;
   saveLike: string;

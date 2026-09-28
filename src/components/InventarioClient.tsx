@@ -28,7 +28,8 @@ import Filtros, {
 } from "@/components/Filtros";
 import MateriaToggle from "@/components/MateriaToggle";
 import { useFavoritos, type Favoritos } from "@/components/useFavoritos";
-import { facetas, type Materia, type Unidad } from "@/lib/unidades";
+import { facetas, type Corte, type Materia, type Unidad } from "@/lib/unidades";
+import { cn } from "@/lib/utils";
 import { NIVELES, describir, type Umbrales } from "@/lib/viralidad";
 import { esHttp } from "@/lib/enlaces";
 
@@ -285,7 +286,11 @@ function FilaInventario({
   fav: Favoritos;
 }) {
   const cob = COBERTURA[r.coverage] ?? COBERTURA.untracked;
+  const [abierto, setAbierto] = useState(false);
+  const hayCortes = r.cortesDetalle.length > 0;
+
   return (
+    <>
     <TableRow>
       <TableCell className="max-w-0">
         <div className="flex items-center gap-1.5">
@@ -336,13 +341,97 @@ function FilaInventario({
           <TableCell>
             <Badge variant={cob.variant}>{cob.label}</Badge>
           </TableCell>
-          <TableCell className="text-right tabular-nums text-[13px] text-muted-foreground">
-            {/* Cero cortes es raya: no se midió cero, no se midió. */}
-            {r.cortes || "—"}
+          <TableCell className="p-0 text-right">
+            {/* El número abre los cortes. Antes decía `4` y no había forma de ver
+                cuáles cuatro sin abrir la pieza — y el sentido de tomar cortes es
+                justamente comparar el +1h con el +24h. */}
+            {hayCortes ? (
+              <button
+                type="button"
+                onClick={() => setAbierto((v) => !v)}
+                aria-expanded={abierto}
+                className="flex w-full items-center justify-end gap-1 px-2 py-2 text-[13px] tabular-nums text-muted-foreground hover:text-foreground"
+                title={abierto ? "Ocultar los cortes" : `Ver los ${r.cortes} cortes`}
+              >
+                {r.cortes}
+                <svg
+                  viewBox="0 0 12 12"
+                  aria-hidden="true"
+                  className={cn("size-2.5 transition-transform", abierto && "rotate-90")}
+                >
+                  <path d="M4.5 2 8.5 6 4.5 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            ) : (
+              // Cero cortes es raya: no se midió cero, no se midió. Y sin cortes
+              // no hay nada que desplegar, así que tampoco es un botón.
+              <span className="block px-2 py-2 text-[13px] tabular-nums text-muted-foreground">—</span>
+            )}
           </TableCell>
         </>
       )}
     </TableRow>
+
+    {abierto && (
+      <TableRow className="hover:bg-transparent">
+        <TableCell colSpan={6} className="bg-secondary/40 p-0">
+          <Cortes cortes={r.cortesDetalle} />
+        </TableCell>
+      </TableRow>
+    )}
+    </>
+  );
+}
+
+/**
+ * Los cortes de una pieza, adentro de su fila.
+ *
+ * Una tabla propia y no una lista: son la misma medición repetida en el tiempo, y
+ * lo que se hace con ellos es leer la columna para abajo —cuánto creció el
+ * alcance entre el +1h y el +24h—. Una lista obliga a saltar de renglón.
+ *
+ * La CUENTA aparece solo si algún corte la declara. Una pieza cross-posteada
+ * lleva un corte por cuenta y sin esa columna dos mediciones de redes distintas
+ * se leen como la misma pieza medida dos veces; en una pieza de una sola cuenta,
+ * la columna sería seis veces el mismo valor.
+ */
+function Cortes({ cortes }: { cortes: Corte[] }) {
+  const hayCuenta = cortes.some((c) => c.cuenta);
+  return (
+    <div className="overflow-x-auto px-3 py-2">
+      <table className="w-full text-[12px]">
+        <thead>
+          <tr className="text-left text-[10px] uppercase tracking-wide text-muted-foreground/70">
+            <th className="py-1 pr-3 font-normal">corte</th>
+            <th className="py-1 pr-3 font-normal">fecha</th>
+            {hayCuenta && <th className="py-1 pr-3 font-normal">cuenta</th>}
+            <th className="py-1 pr-3 text-right font-normal">alcance</th>
+            <th className="py-1 pr-3 text-right font-normal">eng</th>
+            <th className="hidden py-1 pr-3 text-right font-normal sm:table-cell">eng %</th>
+            <th className="hidden py-1 pr-3 text-right font-normal sm:table-cell">likes</th>
+            <th className="hidden py-1 pr-3 text-right font-normal md:table-cell">guard.</th>
+            <th className="hidden py-1 text-right font-normal md:table-cell">follows</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/60">
+          {cortes.map((c, i) => (
+            <tr key={`${c.t}-${i}`}>
+              <td className="py-1.5 pr-3 font-mono">{c.t}</td>
+              <td className="py-1.5 pr-3 tabular-nums text-muted-foreground">{c.fecha}</td>
+              {hayCuenta && (
+                <td className="py-1.5 pr-3 text-muted-foreground">{c.cuenta || "—"}</td>
+              )}
+              <td className="py-1.5 pr-3 text-right tabular-nums">{c.alcance}</td>
+              <td className="py-1.5 pr-3 text-right tabular-nums text-muted-foreground">{c.engagements}</td>
+              <td className="hidden py-1.5 pr-3 text-right tabular-nums text-muted-foreground sm:table-cell">{c.engRate}</td>
+              <td className="hidden py-1.5 pr-3 text-right tabular-nums text-muted-foreground sm:table-cell">{c.likes}</td>
+              <td className="hidden py-1.5 pr-3 text-right tabular-nums text-muted-foreground md:table-cell">{c.guardados}</td>
+              <td className="hidden py-1.5 text-right tabular-nums text-muted-foreground md:table-cell">{c.follows}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

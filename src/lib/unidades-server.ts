@@ -3,7 +3,7 @@ import type { Creative } from './ads';
 import { engRate, latest, num, pct, primaryReach, saveLike } from './metrics';
 import { sparkline } from './charts';
 import { formulaCodeOf, type Formula } from './formulas';
-import type { Unidad } from './unidades';
+import type { Corte, Unidad } from './unidades';
 import { nivelDe, type Nivel, type Umbrales } from './viralidad';
 
 // Los constructores de `Unidad`, SEPARADOS del tipo.
@@ -36,6 +36,7 @@ const VACIO = {
   cuenta: '',
   verdict: '',
   sparkHtml: null,
+  cortesDetalle: [] as Corte[],
   alcanceFmt: '—',
   engRate: '—',
   saveLike: '—',
@@ -88,6 +89,22 @@ export function dePieza(
     sparkHtml: sparkline(
       p.snapshots.map((s) => ({ label: s.t, value: s.impressions ?? s.views ?? s.reach ?? 0 })),
     ),
+    // EN EL ORDEN DEL ARCHIVO, que es el orden en que se midió. Ordenarlos por
+    // fecha rompería los cortes sin fecha —hay 35 piezas así— mandándolos todos
+    // al mismo lugar, y el orden del vault ya es cronológico por construcción.
+    cortesDetalle: p.snapshots.map<Corte>((sn) => ({
+      t: sn.t,
+      fecha: sn.date ?? '—',
+      cuenta: sn.account ?? '',
+      // El alcance primario del canal: en Instagram `impressions` no existe, y
+      // leer solo esa clave dejaba la columna en blanco para media biblioteca.
+      alcance: num(sn.impressions ?? sn.views ?? sn.reach),
+      engagements: num(sn.engagements),
+      engRate: pct(engRate(sn)),
+      likes: num(sn.likes),
+      guardados: num(sn.bookmarks),
+      follows: num(sn.follows),
+    })),
     alcanceFmt: num(alcance),
     engRate: l ? pct(engRate(l)) : '—',
     saveLike: l ? pct(saveLike(l)) : '—',
