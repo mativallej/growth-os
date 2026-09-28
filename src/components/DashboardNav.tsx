@@ -27,6 +27,7 @@ export default function DashboardNav({
   account,
   comandos,
   accionesLocales,
+  configHref = null,
 }: {
   account: string;
   comandos: Comando[];
@@ -43,6 +44,8 @@ export default function DashboardNav({
    * que se volvió a cometer al sumar estos accesos al nav.
    */
   accionesLocales?: React.ReactNode;
+  /** La ruta de Configuración, o null si no está compilada. Ver SesionControles. */
+  configHref?: string | null;
 }) {
   const pathname = usePathname();
   const base = `/${account}`;
@@ -149,7 +152,7 @@ export default function DashboardNav({
             del vault"— decía algo cierto en un lugar donde nadie lo leía dos
             veces; vive en docs/metodo.md, que es donde se va a buscar. */}
         <div className="flex items-center border-t border-border pt-3">
-          <SesionControles conDatos />
+          <SesionControles conDatos configHref={configHref} />
         </div>
       </div>
       </aside>

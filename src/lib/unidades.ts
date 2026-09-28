@@ -34,6 +34,25 @@ export type Unidad = {
   title: string;
   href: string;
   canal: string;
+
+  /**
+   * LA CARPETA QUE LA CONTIENE, que es la campaña.
+   *
+   * El vault ya organiza así y el inventario no lo veía: las piezas de una misma
+   * carpeta son la misma tanda —los reels de un lanzamiento, los carruseles de
+   * una serie— y se publican juntas. Comparar dos de ellas dice algo; comparar
+   * dos piezas de carpetas distintas es comparar temas distintos.
+   *
+   * Es la ruta completa y no solo el último tramo, porque dos campañas de redes
+   * distintas pueden llamarse igual (`A - Storytelling de tercero` existe en
+   * Story y en Carrusel). El nombre corto se saca para mostrar; la llave de
+   * agrupación tiene que ser única.
+   *
+   * `variantes.ts` ya usaba esta noción para el detalle de una pieza. Acá es la
+   * misma carpeta, un nivel más arriba: allá compara el MISMO post contado de
+   * dos formas, acá agrupa la tanda entera.
+   */
+  carpeta: string;
   publishedAt: string;
   search: string;
 

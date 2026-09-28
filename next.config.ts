@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import type { NextConfig } from "next";
+import { consolaLocal } from "./src/lib/consola";
 
 // UNA INSTALACIÓN, UNA MARCA (D-17). La fuente se declara en config/sources.json;
 // si su raíz falta, el build rompe (regla dura 1).
@@ -16,18 +17,10 @@ import type { NextConfig } from "next";
 // cuando GROWTH_CONSOLE=1. Sin esa variable, Next ni siquiera los reconoce como
 // rutas: no hay ruta, no hay manejador, y nada de lo que importan entra al bundle.
 //
-// EN DESARROLLO ESTÁ PRENDIDA POR DEFECTO. Antes hacía falta `GROWTH_CONSOLE=1`
-// siempre, y el resultado era que un `npm run dev` normal no tenía
-// `/configuracion` — la pantalla existía, el botón del nav estaba escrito, y no
-// aparecía. Quien no supiera de la variable concluía que faltaba implementarla.
-//
-// Lo que importa gatear es el build QUE SE PUBLICA, y ese nunca corre en
-// desarrollo: el workflow de CI no define la variable, así que sigue sin
-// compilarse. `GROWTH_CONSOLE=0` la apaga en dev, para poder probar en local
-// exactamente lo que ve un externo.
-const consolaLocal =
-  process.env.GROWTH_CONSOLE === '1' ||
-  (process.env.NODE_ENV === 'development' && process.env.GROWTH_CONSOLE !== '0');
+// EN DESARROLLO ESTÁ PRENDIDA POR DEFECTO, y la regla vive en `src/lib/consola.ts`
+// porque estaba escrita DOS VECES y las dos copias se separaron: acá prendía la
+// consola en dev, y el layout la gateaba con `GROWTH_CONSOLE === '1'` a secas.
+// La ruta se compilaba y no había un link hacia ella en ningún lado.
 
 // POR QUÉ ESTE REPO NO SE PUBLICA COMO EXPORT ESTÁTICO.
 //
@@ -51,7 +44,7 @@ const nextConfig: NextConfig = {
   // `/configuracion` y `/operar` andan. Poniendo las específicas primero, las
   // cuatro dan 307. Las extensiones compuestas van ANTES que las que son su
   // sufijo: `local.tsx` antes de `tsx`.
-  pageExtensions: consolaLocal
+  pageExtensions: consolaLocal()
     ? ['local.tsx', 'local.ts', 'tsx', 'ts', 'jsx', 'js']
     : ['tsx', 'ts', 'jsx', 'js'],
 

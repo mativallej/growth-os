@@ -3,6 +3,7 @@ import DashboardNav from "@/components/DashboardNav";
 import Link from "next/link";
 import type { Comando } from "@/components/CommandPalette";
 import { findSource, listSources } from "@/lib/sources";
+import { consolaLocal } from "@/lib/consola";
 import { loadPieces } from "@/lib/parse";
 
 const VISTAS = [
@@ -83,6 +84,7 @@ export default async function AccountLayout({
         account={account}
         comandos={comandos}
         accionesLocales={accionesLocales()}
+        configHref={consolaLocal() ? "/configuracion" : null}
       />
       <main className="max-w-[1080px] px-4 py-6 sm:px-6 md:ml-[220px] md:px-10 md:py-9">{children}</main>
     </>
@@ -104,7 +106,12 @@ export default async function AccountLayout({
  * sobre una pantalla que no se está buscando.
  */
 function accionesLocales() {
-  if (process.env.GROWTH_CONSOLE !== "1") return null;
+  // `consolaLocal()` y no `GROWTH_CONSOLE === "1"`: esta condición era una copia
+  // de la de `next.config.ts` y se separó de ella. En un `npm run dev` normal la
+  // consola SÍ se compila —la regla prende en desarrollo— pero acá se leía que
+  // no, así que `/configuracion` existía sin un solo link hacia ella. Se veía
+  // igual que si la pantalla no estuviera implementada.
+  if (!consolaLocal()) return null;
   return (
     <div className="mb-3 border-t border-border pt-3">
       {/* Decía "Solo local", que se lee como "esta app es local" — y no lo es:

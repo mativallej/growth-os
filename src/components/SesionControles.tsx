@@ -55,11 +55,56 @@ function Identidad() {
   );
 }
 
+/**
+ * Lo que se agrega al menú que abre el avatar, debajo de lo que trae Clerk.
+ *
+ * Acá va Configuración porque es donde se la busca: es una preferencia de quien
+ * mira, no una vista de la marca, y en el nav competía con las siete vistas por
+ * atención. Devuelve `null` cuando no hay nada que agregar — un
+ * `<UserButton.MenuItems>` vacío dibuja un separador que no separa nada.
+ */
+function menu(configHref: string | null) {
+  if (!configHref) return null;
+  return (
+    <UserButton.MenuItems>
+      <UserButton.Link
+        label="Configuración"
+        href={configHref}
+        labelIcon={
+          <svg viewBox="0 0 16 16" aria-hidden="true" className="size-full">
+            <circle cx="8" cy="8" r="2.4" fill="none" stroke="currentColor" strokeWidth="1.4" />
+            <path
+              d="M8 1.4v1.8M8 12.8v1.8M14.6 8h-1.8M3.2 8H1.4M12.7 3.3l-1.3 1.3M4.6 11.4l-1.3 1.3M12.7 12.7l-1.3-1.3M4.6 4.6 3.3 3.3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
+          </svg>
+        }
+      />
+    </UserButton.MenuItems>
+  );
+}
+
 export default function SesionControles({
   conDatos = false,
+  configHref = null,
 }: {
   /** Muestra nombre y mail junto al avatar. En la raíz alcanza con el avatar. */
   conDatos?: boolean;
+  /**
+   * A dónde va "Configuración" en el menú del avatar, o `null` para no mostrarla.
+   *
+   * VIENE COMO PROP Y NO SE DECIDE ACÁ, por la misma razón por la que el acceso a
+   * la consola se arma del lado del servidor: un `{hayConsola && <Link
+   * href="/configuracion">}` deja esa ruta escrita en el bundle del navegador
+   * aunque la condición sea falsa, y el gating de `pageExtensions` existe
+   * justamente para que en un build compartido esa pantalla no exista. Si la
+   * ruta llega como string desde el servidor, cuando está apagada no hay nada
+   * que serializar.
+   */
+  configHref?: string | null;
 }) {
   return (
     <>
@@ -71,11 +116,11 @@ export default function SesionControles({
           // que el contenedor NO es un <button>: anidar botones es HTML inválido
           // y rompe la navegación por teclado.
           <div className="flex w-full items-center gap-2 rounded-md border border-border px-2 py-1.5">
-            <UserButton />
+            <UserButton>{menu(configHref)}</UserButton>
             <Identidad />
           </div>
         ) : (
-          <UserButton />
+          <UserButton>{menu(configHref)}</UserButton>
         )}
       </Show>
       <Show when="signed-out">

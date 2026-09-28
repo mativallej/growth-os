@@ -12,6 +12,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Desplegable } from "@/components/ui/accordion";
 import {
   Select,
   SelectContent,
@@ -26,7 +27,7 @@ import Filtros, {
   type Opcion,
 } from "@/components/Filtros";
 import MateriaToggle from "@/components/MateriaToggle";
-import { useFavoritos } from "@/components/useFavoritos";
+import { useFavoritos, type Favoritos } from "@/components/useFavoritos";
 import { facetas, type Materia, type Unidad } from "@/lib/unidades";
 import { NIVELES, describir, type Umbrales } from "@/lib/viralidad";
 import { esHttp } from "@/lib/enlaces";
@@ -64,7 +65,60 @@ const ORDENES: Opcion[] = [
   { value: "cortes", label: "Más medida" },
 ];
 
-type Vista = "tabla" | "metricas" | "tablero";
+type Vista = "tabla" | "metricas" | "tablero" | "campanas";
+
+/**
+ * Una campaña: las piezas que comparten carpeta.
+ *
+ * El vault ya las agrupa así —los reels de un lanzamiento, los carruseles de una
+ * serie viven juntos— y hasta ahora el inventario las mostraba como 126 filas
+ * sueltas. Comparar dos piezas de la misma tanda dice algo; dos de carpetas
+ * distintas son temas distintos.
+ */
+type Campana = {
+  carpeta: string;
+  nombre: string;
+  filas: InventarioRow[];
+  medidas: number;
+  /** Suma del alcance DE LAS MEDIDAS. Ver el comentario de `agrupadas`. */
+  alcance: number;
+  desde: string;
+  hasta: string;
+  canales: string[];
+};
+
+/** Agrupa las filas por carpeta y resume cada grupo. */
+function porCampana(filas: InventarioRow[]): Campana[] {
+  const m = new Map<string, InventarioRow[]>();
+  for (const r of filas) m.set(r.carpeta, [...(m.get(r.carpeta) ?? []), r]);
+
+  return [...m.entries()]
+    .map(([carpeta, rs]) => {
+      const fechas = rs.map((r) => r.publishedAt).filter(Boolean).sort();
+      return {
+        carpeta,
+        // El último tramo es el nombre; la ruta entera queda como detalle. Dos
+        // campañas de redes distintas pueden llamarse igual —`A - Storytelling
+        // de tercero` está en Story y en Carrusel— así que la llave es la ruta.
+        nombre: carpeta.split("/").pop() || "Raíz",
+        filas: rs,
+        medidas: rs.filter((r) => r.coverage === "tracked").length,
+        // SOLO LAS MEDIDAS. Sumar tratando el `null` como 0 diría que la campaña
+        // alcanzó menos de lo que alcanzó, y ese número se leería como un dato.
+        // Por eso al lado siempre va cuántas de cuántas están medidas.
+        alcance: rs.reduce((t, r) => t + (r.alcance ?? 0), 0),
+        desde: fechas[0] ?? "",
+        hasta: fechas[fechas.length - 1] ?? "",
+        canales: [...new Set(rs.map((r) => r.canal))].sort(),
+      };
+    })
+    .sort((a, b) => {
+      // Lo más reciente arriba: una campaña de esta semana importa más que una
+      // de hace un año. Las sin fecha al final, no primero.
+      if (a.hasta !== b.hasta) return a.hasta && b.hasta ? b.hasta.localeCompare(a.hasta) : a.hasta ? -1 : 1;
+      return a.nombre.localeCompare(b.nombre);
+    });
+}
 
 /** Las opciones del filtro de viralidad, con el conteo de lo que hay. */
 function facetaNiveles(filas: Unidad[]): Opcion[] {
@@ -214,6 +268,112 @@ const ETIQUETA: Record<string, string> = {
   "": "Sin asignar",
 };
 
+/**
+ * Una fila de la tabla. Vive afuera del componente grande porque ahora se dibuja
+ * en dos lugares: la tabla plana y, adentro de cada campaña, la tabla de esa
+ * tanda. Definirla durante el render —como una función adentro del padre— es lo
+ * que el React Compiler rechaza y además remontaría el subárbol en cada cambio
+ * de filtro.
+ */
+function FilaInventario({
+  r,
+  esAds,
+  fav,
+}: {
+  r: InventarioRow;
+  esAds: boolean;
+  fav: Favoritos;
+}) {
+  const cob = COBERTURA[r.coverage] ?? COBERTURA.untracked;
+  return (
+    <TableRow>
+      <TableCell className="max-w-0">
+        <div className="flex items-center gap-1.5">
+          <Estrella
+            on={fav.favoritos.has(r.llave)}
+            otros={fav.quienes.get(r.llave)}
+            onClick={() => fav.alternar(r.llave)}
+          />
+          <Link href={r.href} className="min-w-0 flex-1 truncate text-[13px] hover:underline">
+            {r.title}
+          </Link>
+          <Enlaces url={r.url} driveUrl={r.driveUrl} />
+        </div>
+        {r.estado && (
+          <span className="block truncate text-[11px] text-muted-foreground">{r.estado}</span>
+        )}
+      </TableCell>
+      {esAds ? (
+        <>
+          <TableCell className="hidden text-[13px] sm:table-cell">
+            {r.persona || "—"}
+            {r.publico && (
+              <span className="ml-1.5 text-[11px] text-muted-foreground">{r.publico}</span>
+            )}
+          </TableCell>
+          <TableCell className="hidden text-[13px] text-muted-foreground md:table-cell">
+            {r.dolor || "—"}
+          </TableCell>
+          <TableCell className="hidden text-[13px] text-muted-foreground md:table-cell">
+            {r.angulo || "—"}
+          </TableCell>
+          <TableCell className="text-[13px] text-muted-foreground">{r.formato || "—"}</TableCell>
+          <TableCell className="text-right text-[11px] text-muted-foreground">
+            {r.ronda || "—"}
+          </TableCell>
+        </>
+      ) : (
+        <>
+          <TableCell className="hidden text-[13px] text-muted-foreground sm:table-cell">
+            {r.canal}
+          </TableCell>
+          <TableCell className="hidden font-mono text-[13px] text-muted-foreground md:table-cell">
+            {r.formulaCode || "—"}
+          </TableCell>
+          <TableCell className="hidden tabular-nums text-[13px] text-muted-foreground md:table-cell">
+            {r.publishedAt || "—"}
+          </TableCell>
+          <TableCell>
+            <Badge variant={cob.variant}>{cob.label}</Badge>
+          </TableCell>
+          <TableCell className="text-right tabular-nums text-[13px] text-muted-foreground">
+            {/* Cero cortes es raya: no se midió cero, no se midió. */}
+            {r.cortes || "—"}
+          </TableCell>
+        </>
+      )}
+    </TableRow>
+  );
+}
+
+/** El encabezado de la tabla, que también se repite adentro de cada campaña. */
+function CabeceraInventario({ esAds }: { esAds: boolean }) {
+  return (
+    <TableHeader>
+      <TableRow>
+        <TableHead>{esAds ? "creativo" : "pieza"}</TableHead>
+        {esAds ? (
+          <>
+            <TableHead className="hidden w-24 sm:table-cell">persona</TableHead>
+            <TableHead className="hidden w-16 md:table-cell">dolor</TableHead>
+            <TableHead className="hidden w-32 md:table-cell">ángulo</TableHead>
+            <TableHead className="w-24">formato</TableHead>
+            <TableHead className="w-28 text-right">ronda</TableHead>
+          </>
+        ) : (
+          <>
+            <TableHead className="hidden w-24 sm:table-cell">red</TableHead>
+            <TableHead className="hidden w-16 md:table-cell">fórmula</TableHead>
+            <TableHead className="hidden w-24 md:table-cell">fecha</TableHead>
+            <TableHead className="w-28">cobertura</TableHead>
+            <TableHead className="w-12 text-right">cortes</TableHead>
+          </>
+        )}
+      </TableRow>
+    </TableHeader>
+  );
+}
+
 export default function InventarioClient({
   rows,
   creativos = [],
@@ -227,7 +387,8 @@ export default function InventarioClient({
   const [materia, setMateria] = useState<Materia>("organico");
   const [vista, setVista] = useState<Vista>("tabla");
   const [agrupar, setAgrupar] = useState<Agrupacion>("coverage");
-  const { favoritos, alternar, quienes, error: errorFavoritos } = useFavoritos();
+  const fav = useFavoritos();
+  const { favoritos, alternar, quienes, error: errorFavoritos } = fav;
 
   const esAds = materia === "ads";
   const universo = esAds ? creativos : rows;
@@ -296,6 +457,8 @@ export default function InventarioClient({
     return claves.map((k) => ({ clave: k, label: ETIQUETA[k] ?? (k || "Sin asignar"), filas: grupos.get(k)! }));
   }, [filas, agrupar]);
 
+  const campanas = useMemo(() => porCampana(filas), [filas]);
+
   return (
     <>
       <MateriaToggle
@@ -334,6 +497,10 @@ export default function InventarioClient({
           {!esAds && (
             <ToggleGroupItem value="metricas" aria-label="Vista de métricas">Métricas</ToggleGroupItem>
           )}
+          {/* Las piezas de una misma carpeta son una tanda: se planearon y se
+              publicaron juntas. Colapsadas, porque lo que se mira primero es
+              qué campañas hay — no las 126 piezas de corrido. */}
+          <ToggleGroupItem value="campanas" aria-label="Vista por campaña">Campañas</ToggleGroupItem>
           <ToggleGroupItem value="tablero" aria-label="Vista de tablero">Tablero</ToggleGroupItem>
         </ToggleGroup>
 
@@ -390,93 +557,57 @@ export default function InventarioClient({
       ) : vista === "tabla" ? (
         <div className="overflow-hidden rounded-lg border border-border">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{esAds ? "creativo" : "pieza"}</TableHead>
-                {esAds ? (
-                  <>
-                    <TableHead className="hidden w-24 sm:table-cell">persona</TableHead>
-                    <TableHead className="hidden w-16 md:table-cell">dolor</TableHead>
-                    <TableHead className="hidden w-32 md:table-cell">ángulo</TableHead>
-                    <TableHead className="w-24">formato</TableHead>
-                    <TableHead className="w-28 text-right">ronda</TableHead>
-                  </>
-                ) : (
-                  <>
-                    <TableHead className="hidden w-24 sm:table-cell">red</TableHead>
-                    <TableHead className="hidden w-16 md:table-cell">fórmula</TableHead>
-                    <TableHead className="hidden w-24 md:table-cell">fecha</TableHead>
-                    <TableHead className="w-28">cobertura</TableHead>
-                    <TableHead className="w-12 text-right">cortes</TableHead>
-                  </>
-                )}
-              </TableRow>
-            </TableHeader>
+            <CabeceraInventario esAds={esAds} />
             <TableBody>
-              {filas.map((r) => {
-                const cob = COBERTURA[r.coverage] ?? COBERTURA.untracked;
-                return (
-                  <TableRow key={r.llave}>
-                    <TableCell className="max-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <Estrella on={favoritos.has(r.llave)} otros={quienes.get(r.llave)} onClick={() => alternar(r.llave)} />
-                        <Link href={r.href} className="min-w-0 flex-1 truncate text-[13px] hover:underline">
-                          {r.title}
-                        </Link>
-                        <Enlaces url={r.url} driveUrl={r.driveUrl} />
-                      </div>
-                      {r.estado && (
-                        <span className="block truncate text-[11px] text-muted-foreground">
-                          {r.estado}
-                        </span>
-                      )}
-                    </TableCell>
-                    {esAds ? (
-                      <>
-                        <TableCell className="hidden text-[13px] sm:table-cell">
-                          {r.persona || "—"}
-                          {r.publico && (
-                            <span className="ml-1.5 text-[11px] text-muted-foreground">{r.publico}</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="hidden text-[13px] text-muted-foreground md:table-cell">
-                          {r.dolor || "—"}
-                        </TableCell>
-                        <TableCell className="hidden text-[13px] text-muted-foreground md:table-cell">
-                          {r.angulo || "—"}
-                        </TableCell>
-                        <TableCell className="text-[13px] text-muted-foreground">
-                          {r.formato || "—"}
-                        </TableCell>
-                        <TableCell className="text-right text-[11px] text-muted-foreground">
-                          {r.ronda || "—"}
-                        </TableCell>
-                      </>
-                    ) : (
-                      <>
-                        <TableCell className="hidden text-[13px] text-muted-foreground sm:table-cell">
-                          {r.canal}
-                        </TableCell>
-                        <TableCell className="hidden font-mono text-[13px] text-muted-foreground md:table-cell">
-                          {r.formulaCode || "—"}
-                        </TableCell>
-                        <TableCell className="hidden tabular-nums text-[13px] text-muted-foreground md:table-cell">
-                          {r.publishedAt || "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={cob.variant}>{cob.label}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums text-[13px] text-muted-foreground">
-                          {/* Cero cortes es raya: no se midió cero, no se midió. */}
-                          {r.cortes || "—"}
-                        </TableCell>
-                      </>
-                    )}
-                  </TableRow>
-                );
-              })}
+              {filas.map((r) => (
+                <FilaInventario key={r.llave} r={r} esAds={esAds} fav={fav} />
+              ))}
             </TableBody>
           </Table>
+        </div>
+      ) : vista === "campanas" ? (
+        <div className="space-y-2">
+          {campanas.map((c) => (
+            <Desplegable
+              key={c.carpeta}
+              titulo={
+                <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span>{c.nombre}</span>
+                  <span className="text-[11px] font-normal text-muted-foreground">
+                    {c.filas.length} {c.filas.length === 1 ? "pieza" : "piezas"}
+                    {c.canales.length > 0 && ` · ${c.canales.join(", ")}`}
+                  </span>
+                </span>
+              }
+              detalle={
+                <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                  {/* Cuántas de cuántas están medidas va SIEMPRE al lado del
+                      alcance: sin eso, "1.2k" parece el alcance de la campaña
+                      cuando puede ser el de una sola de sus seis piezas. */}
+                  <span>
+                    {c.medidas} de {c.filas.length} medidas
+                  </span>
+                  {c.medidas > 0 && <span className="tabular-nums">{c.alcance.toLocaleString("es-AR")} de alcance</span>}
+                  {c.desde && (
+                    <span className="tabular-nums">
+                      {c.desde === c.hasta ? c.desde : `${c.desde} → ${c.hasta}`}
+                    </span>
+                  )}
+                </span>
+              }
+            >
+              <div className="-mx-5 -my-4 overflow-hidden">
+                <Table>
+                  <CabeceraInventario esAds={esAds} />
+                  <TableBody>
+                    {c.filas.map((r) => (
+                      <FilaInventario key={r.llave} r={r} esAds={esAds} fav={fav} />
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </Desplegable>
+          ))}
         </div>
       ) : vista === "metricas" ? (
         <div className="overflow-hidden rounded-lg border border-border">

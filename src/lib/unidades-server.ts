@@ -44,6 +44,11 @@ const VACIO = {
   driveUrl: '',
 };
 
+/** La ruta sin el archivo: `Create/Organic/X/X4 - Builder`. `''` en la raíz. */
+function carpetaDe(relPath: string): string {
+  return relPath.split(/[\\/]/).slice(0, -1).join('/');
+}
+
 export function dePieza(
   p: Piece,
   account: string,
@@ -61,6 +66,7 @@ export function dePieza(
     title: p.title,
     href: `/${account}/piezas/${p.slug}`,
     canal: p.channel,
+    carpeta: carpetaDe(p.relPath),
     publishedAt: p.publishedAt ?? '',
     search: `${p.title} ${p.canal ?? ''} ${p.formula ?? ''} ${p.estado ?? ''} ${p.cuenta ?? ''}`.toLowerCase(),
     formulaCode: formulaCodeOf(p, catalogo) ?? '',
@@ -99,6 +105,7 @@ export function deCreativo(c: Creative, account: string): Unidad {
     title: c.title,
     href: `/${account}/campanas`,
     canal: 'meta-ads',
+    carpeta: carpetaDe(c.relPath),
     publishedAt: '',
     search: `${c.title} ${c.persona ?? ''} ${c.angulo ?? ''} ${c.formato ?? ''} ${c.ronda ?? ''}`.toLowerCase(),
     // Un creativo NO tiene la cobertura de medición del orgánico: al 2026-09-26
