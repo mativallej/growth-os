@@ -68,7 +68,10 @@ export function headers(c: Credenciales, extra: Record<string, string> = {}): He
  * este repo, con otro destino.
  */
 export async function respuesta<T>(r: Response, que: string): Promise<T> {
-  if (r.ok) return (await r.json()) as T;
+  // 204 y 201 sin cuerpo son el camino feliz de un DELETE y un POST de
+  // PostgREST: `.json()` sobre un cuerpo vacío tira un SyntaxError que parece un
+  // error de red y no lo es.
+  if (r.ok) return (r.status === 204 ? undefined : await r.json().catch(() => undefined)) as T;
 
   const cuerpo = await r.text().catch(() => '');
   if (r.status === 401 || r.status === 403) {

@@ -131,12 +131,10 @@ export async function POST(req: Request) {
     ),
     body: JSON.stringify({ piece_id: pieceId, user_id: c.userId, user_label: etiqueta }),
   });
-  if (!r.ok) {
-    return NextResponse.json(
-      { error: `Supabase: HTTP ${r.status} ${(await r.text()).slice(0, 200)}` },
-      { status: 502 },
-    );
-  }
+  // Por `respuesta()` y no por un mensaje armado acá: es el que sabe traducir un
+  // PGRST205 a "falta aplicar las migraciones" y un 401 a "falta Third-Party
+  // Auth". Escribir el error dos veces garantiza que uno de los dos quede peor.
+  await respuesta(r, 'favoritos');
   return NextResponse.json({ ok: true });
 }
 
@@ -156,11 +154,6 @@ export async function DELETE(req: Request) {
       `&user_id=eq.${encodeURIComponent(c.userId)}`,
     { method: 'DELETE', headers: headers({ ...c.cfg, token: c.token }) },
   );
-  if (!r.ok) {
-    return NextResponse.json(
-      { error: `Supabase: HTTP ${r.status} ${(await r.text()).slice(0, 200)}` },
-      { status: 502 },
-    );
-  }
+  await respuesta(r, 'favoritos');
   return NextResponse.json({ ok: true });
 }

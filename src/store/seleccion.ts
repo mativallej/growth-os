@@ -21,7 +21,22 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
  * `src/app/api/favoritos/route.ts`.
  */
 
-export type Modo = 'piezas' | 'campanas';
+/**
+ * QUÉ CLASE DE COSA se está comparando.
+ *
+ * `piezas`, o el id de la dimensión que agrupa: `campana`, `formulaCode`,
+ * `canal`, `persona`, `angulo`, `ronda`, `coverage`, `status`. Es un string y no
+ * una unión cerrada porque las dimensiones del tablero salen de `AGRUPACIONES`,
+ * y agregar una tiene que seguir siendo agregar un objeto a esa lista.
+ *
+ * Empezó siendo `'piezas' | 'campanas'` y se generalizó cuando hubo que poder
+ * comparar fórmulas: una fórmula, una red y una campaña son todas lo mismo para
+ * esto —un conjunto de piezas— y tener un caso por dimensión habría sido el
+ * mismo código seis veces.
+ */
+export type Ambito = string;
+
+export const PIEZAS = 'piezas';
 
 export type EstadoSeleccion = {
   /**
@@ -36,18 +51,18 @@ export type EstadoSeleccion = {
   llaves: string[];
   /**
    * Qué se está comparando. Cambiarlo VACÍA la selección: una lista con dos
-   * piezas y una campaña adentro no se puede dibujar en columnas comparables, y
+   * piezas y una fórmula adentro no se puede dibujar en columnas comparables, y
    * mezclarlas en silencio daría una tabla donde la mitad de las filas son
    * huecos.
    */
-  modo: Modo;
+  ambito: Ambito;
   abierto: boolean;
 };
 
 /** Con una sola no hay comparación; con más de cuatro no entran las columnas. */
 export const MAXIMO = 4;
 
-const inicial: EstadoSeleccion = { llaves: [], modo: 'piezas', abierto: false };
+const inicial: EstadoSeleccion = { llaves: [], ambito: PIEZAS, abierto: false };
 
 export const seleccionSlice = createSlice({
   name: 'seleccion',
@@ -67,9 +82,9 @@ export const seleccionSlice = createSlice({
       // simplemente no hace nada y el checkbox queda deshabilitado. Sacar una
       // que la persona eligió, sin avisar, es peor que no agregar la nueva.
     },
-    cambiarModo(state, { payload }: PayloadAction<Modo>) {
-      if (state.modo === payload) return;
-      state.modo = payload;
+    cambiarAmbito(state, { payload }: PayloadAction<Ambito>) {
+      if (state.ambito === payload) return;
+      state.ambito = payload;
       state.llaves = [];
       state.abierto = false;
     },
@@ -83,5 +98,5 @@ export const seleccionSlice = createSlice({
   },
 });
 
-export const { alternar, cambiarModo, limpiar, abrir } = seleccionSlice.actions;
+export const { alternar, cambiarAmbito, limpiar, abrir } = seleccionSlice.actions;
 export default seleccionSlice.reducer;

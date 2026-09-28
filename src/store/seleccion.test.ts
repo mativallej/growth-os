@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import reducer, { abrir, alternar, cambiarModo, limpiar, MAXIMO } from './seleccion';
+import reducer, { abrir, alternar, cambiarAmbito, limpiar, MAXIMO, PIEZAS } from './seleccion';
 
 const inicial = reducer(undefined, { type: '@@init' });
 /** Aplica una lista de acciones en orden, desde el estado inicial. */
@@ -27,17 +27,24 @@ describe('la selección para comparar', () => {
     expect(e.llaves[0]).toBe('p0');
   });
 
-  it('cambiar de modo vacía lo elegido', () => {
-    // Dos piezas y una campaña no se dibujan en columnas comparables, y
+  it('cambiar de ámbito vacía lo elegido', () => {
+    // Dos piezas y una fórmula no se dibujan en columnas comparables, y
     // mezclarlas daría una tabla donde la mitad de las filas son huecos.
-    const e = correr(alternar('a'), alternar('b'), abrir(true), cambiarModo('campanas'));
+    const e = correr(alternar('a'), alternar('b'), abrir(true), cambiarAmbito('formulaCode'));
     expect(e.llaves).toEqual([]);
     expect(e.abierto).toBe(false);
-    expect(e.modo).toBe('campanas');
+    expect(e.ambito).toBe('formulaCode');
   });
 
-  it('cambiar al modo que ya estaba no borra nada', () => {
-    expect(correr(alternar('a'), cambiarModo('piezas')).llaves).toEqual(['a']);
+  it('cambiar al ámbito que ya estaba no borra nada', () => {
+    expect(correr(alternar('a'), cambiarAmbito(PIEZAS)).llaves).toEqual(['a']);
+  });
+
+  it('una dimensión nueva del tablero no necesita tocar el slice', () => {
+    // El ámbito es un string justamente para esto: agregar una agrupación es
+    // agregar un objeto a AGRUPACIONES, no un caso acá.
+    const e = correr(cambiarAmbito('ronda'), alternar('R2'), alternar('R3'));
+    expect(e.llaves).toEqual(['R2', 'R3']);
   });
 
   it('el drawer se cierra al quedarse sin nada', () => {

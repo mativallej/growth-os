@@ -34,12 +34,15 @@ import { useAppDispatch, useAppSelector } from "@/store";
 import {
   abrir,
   alternar as alternarSeleccion,
-  cambiarModo,
+  cambiarAmbito,
   limpiar,
   MAXIMO,
-  type Modo,
+  PIEZAS,
+  type Ambito,
 } from "@/store/seleccion";
 import { Drawer } from "@/components/ui/drawer";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RedIcono } from "@/components/RedIcono";
 import { NIVELES, describir, type Umbrales } from "@/lib/viralidad";
 import { esHttp } from "@/lib/enlaces";
 
@@ -290,34 +293,56 @@ function FilaInventario({
   r,
   esAds,
   fav,
+  hermanas = [],
 }: {
   r: InventarioRow;
   esAds: boolean;
   fav: Favoritos;
+  /**
+   * Las OTRAS piezas de su carpeta. Salen del universo sin filtrar a propósito:
+   * la campaña es un hecho del vault, no del filtro puesto. Si estás mirando
+   * solo X y una pieza tiene dos reels hermanos, verlos es justamente el dato.
+   */
+  hermanas?: InventarioRow[];
 }) {
   const cob = COBERTURA[r.coverage] ?? COBERTURA.untracked;
   const [abierto, setAbierto] = useState(false);
-  const hayCortes = r.cortesDetalle.length > 0;
+  const hayHermanas = hermanas.length > 0;
 
   return (
     <>
     <TableRow>
       <TableCell className="max-w-0">
+        {/* LAS ACCIONES NO VAN ACÁ. Estuvieron —casilla, estrella y título en la
+            misma celda— y era la celda más cargada de la tabla: tres controles
+            distintos pegados al texto que hay que leer. Ahora la columna del
+            título tiene el título, y las dos acciones viven a la derecha, cada
+            una en su columna, donde el ojo ya sabe que hay botones. */}
         <div className="flex items-center gap-1.5">
-          <Casilla llave={r.llave} modo="piezas" />
-          <Estrella
-            on={fav.favoritos.has(r.llave)}
-            otros={fav.quienes.get(r.llave)}
-            onClick={() => fav.alternar(r.llave)}
-          />
+          {/* El desplegable de la PIEZA: con qué se publicó junto. Solo aparece
+              si hay con qué — una pieza sola en su carpeta no tiene campaña. */}
+          {hayHermanas ? (
+            <button
+              type="button"
+              onClick={() => setAbierto((v) => !v)}
+              aria-expanded={abierto}
+              title={`${hermanas.length + 1} piezas en esta campaña`}
+              className="shrink-0 text-muted-foreground/60 hover:text-foreground"
+            >
+              <svg viewBox="0 0 12 12" aria-hidden="true" className={cn("size-3 transition-transform", abierto && "rotate-90")}>
+                <path d="M4.5 2 8.5 6 4.5 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          ) : (
+            // El hueco se reserva igual: sin esto los títulos de las piezas sin
+            // campaña arrancan tres píxeles a la izquierda y la columna baila.
+            <span aria-hidden="true" className="size-3 shrink-0" />
+          )}
           <Link href={r.href} className="min-w-0 flex-1 truncate text-[13px] hover:underline">
             {r.title}
           </Link>
           <Enlaces url={r.url} driveUrl={r.driveUrl} />
         </div>
-        {r.estado && (
-          <span className="block truncate text-[11px] text-muted-foreground">{r.estado}</span>
-        )}
       </TableCell>
       {esAds ? (
         <>
@@ -340,8 +365,8 @@ function FilaInventario({
         </>
       ) : (
         <>
-          <TableCell className="hidden text-[13px] text-muted-foreground sm:table-cell">
-            {r.canal}
+          <TableCell className="hidden sm:table-cell">
+            <RedIcono canal={r.canal} />
           </TableCell>
           <TableCell className="hidden font-mono text-[13px] text-muted-foreground md:table-cell">
             {r.formulaCode || "—"}
@@ -352,41 +377,29 @@ function FilaInventario({
           <TableCell>
             <Badge variant={cob.variant}>{cob.label}</Badge>
           </TableCell>
-          <TableCell className="p-0 text-right">
-            {/* El número abre los cortes. Antes decía `4` y no había forma de ver
-                cuáles cuatro sin abrir la pieza — y el sentido de tomar cortes es
-                justamente comparar el +1h con el +24h. */}
-            {hayCortes ? (
-              <button
-                type="button"
-                onClick={() => setAbierto((v) => !v)}
-                aria-expanded={abierto}
-                className="flex w-full items-center justify-end gap-1 px-2 py-2 text-[13px] tabular-nums text-muted-foreground hover:text-foreground"
-                title={abierto ? "Ocultar los cortes" : `Ver los ${r.cortes} cortes`}
-              >
-                {r.cortes}
-                <svg
-                  viewBox="0 0 12 12"
-                  aria-hidden="true"
-                  className={cn("size-2.5 transition-transform", abierto && "rotate-90")}
-                >
-                  <path d="M4.5 2 8.5 6 4.5 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            ) : (
-              // Cero cortes es raya: no se midió cero, no se midió. Y sin cortes
-              // no hay nada que desplegar, así que tampoco es un botón.
-              <span className="block px-2 py-2 text-[13px] tabular-nums text-muted-foreground">—</span>
-            )}
-          </TableCell>
         </>
       )}
+
+      {/* LA CUENTA DE CORTES SE FUE de esta tabla. Un `4` suelto no dice nada
+          que se pueda usar desde acá: para saber qué midieron hay que abrir la
+          pieza, y para comparar dos piezas está el comparador. Sigue estando en
+          la vista de métricas y en el desplegable de campaña. */}
+      <TableCell className="w-10 text-center">
+        <Estrella
+          on={fav.favoritos.has(r.llave)}
+          otros={fav.quienes.get(r.llave)}
+          onClick={() => fav.alternar(r.llave)}
+        />
+      </TableCell>
+      <TableCell className="w-10 text-center">
+        <Casilla llave={r.llave} ambito={PIEZAS} />
+      </TableCell>
     </TableRow>
 
     {abierto && (
       <TableRow className="hover:bg-transparent">
-        <TableCell colSpan={7} className="bg-secondary/40 p-0">
-          <Cortes cortes={r.cortesDetalle} />
+        <TableCell colSpan={esAds ? 8 : 7} className="bg-secondary/40 p-0">
+          <Hermanas esta={r} hermanas={hermanas} fav={fav} />
         </TableCell>
       </TableRow>
     )}
@@ -395,51 +408,99 @@ function FilaInventario({
 }
 
 /**
- * Los cortes de una pieza, adentro de su fila.
+ * LAS PIEZAS HERMANAS: con qué se publicó esta.
  *
- * Una tabla propia y no una lista: son la misma medición repetida en el tiempo, y
- * lo que se hace con ellos es leer la columna para abajo —cuánto creció el
- * alcance entre el +1h y el +24h—. Una lista obliga a saltar de renglón.
+ * Una carpeta del vault es una campaña. Adentro conviven formatos distintos —un
+ * carrusel, dos reels, el tweet que los anunció— y hasta ahora el inventario los
+ * mostraba como filas sueltas separadas por veinte renglones de otras campañas.
  *
- * La CUENTA aparece solo si algún corte la declara. Una pieza cross-posteada
- * lleva un corte por cuenta y sin esa columna dos mediciones de redes distintas
- * se leen como la misma pieza medida dos veces; en una pieza de una sola cuenta,
- * la columna sería seis veces el mismo valor.
+ * Y LO QUE SE MUESTRA SON LAS MÉTRICAS, una al lado de la otra. La pregunta que
+ * esta tabla contesta no es "qué más hay en la carpeta" —eso ya lo dice el
+ * nombre— sino CUÁL DE LAS FORMAS FUNCIONÓ. El mismo contenido contado como reel
+ * y como carrusel es el único experimento limpio que este vault produce solo: el
+ * tema es igual, cambia la forma.
+ *
+ * El máximo se marca SOLO ENTRE LAS MEDIDAS, por lo mismo que en el comparador:
+ * una pieza sin números no perdió, todavía no compite.
+ *
+ * La pieza desde la que se abrió va resaltada y primera. Sin eso hay que buscar
+ * cuál de las cinco filas es la que se estaba mirando.
  */
-function Cortes({ cortes }: { cortes: Corte[] }) {
-  const hayCuenta = cortes.some((c) => c.cuenta);
+function Hermanas({
+  esta,
+  hermanas,
+  fav,
+}: {
+  esta: InventarioRow;
+  hermanas: InventarioRow[];
+  fav: Favoritos;
+}) {
+  const todas = [esta, ...hermanas];
+  const medidos = todas.map((r) => r.alcance).filter((v): v is number => v !== null);
+  const tope = medidos.length > 1 ? Math.max(...medidos) : null;
+
   return (
     <div className="overflow-x-auto px-3 py-2">
+      <div className="pb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground/70">
+        {/* El nombre de la campaña acá y no solo en la vista agrupada: desde la
+            tabla plana, esta es la única pista de por qué estas piezas van juntas. */}
+        Campaña: {esta.carpeta.split("/").pop() || "—"} · {todas.length} piezas
+      </div>
       <table className="w-full text-[12px]">
         <thead>
           <tr className="text-left text-[10px] uppercase tracking-wide text-muted-foreground/70">
-            <th className="py-1 pr-3 font-normal">corte</th>
-            <th className="py-1 pr-3 font-normal">fecha</th>
-            {hayCuenta && <th className="py-1 pr-3 font-normal">cuenta</th>}
+            <th className="py-1 pr-3 font-normal">pieza</th>
+            <th className="py-1 pr-3 font-normal">red</th>
+            <th className="hidden py-1 pr-3 font-normal sm:table-cell">formato</th>
+            <th className="hidden py-1 pr-3 font-normal md:table-cell">fecha</th>
             <th className="py-1 pr-3 text-right font-normal">alcance</th>
-            <th className="py-1 pr-3 text-right font-normal">eng</th>
             <th className="hidden py-1 pr-3 text-right font-normal sm:table-cell">eng %</th>
-            <th className="hidden py-1 pr-3 text-right font-normal sm:table-cell">likes</th>
-            <th className="hidden py-1 pr-3 text-right font-normal md:table-cell">guard.</th>
-            <th className="hidden py-1 text-right font-normal md:table-cell">follows</th>
+            <th className="hidden py-1 pr-3 text-right font-normal md:table-cell">save/like</th>
+            <th className="py-1 text-right font-normal">cortes</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/60">
-          {cortes.map((c, i) => (
-            <tr key={`${c.t}-${i}`}>
-              <td className="py-1.5 pr-3 font-mono">{c.t}</td>
-              <td className="py-1.5 pr-3 tabular-nums text-muted-foreground">{c.fecha}</td>
-              {hayCuenta && (
-                <td className="py-1.5 pr-3 text-muted-foreground">{c.cuenta || "—"}</td>
-              )}
-              <td className="py-1.5 pr-3 text-right tabular-nums">{c.alcance}</td>
-              <td className="py-1.5 pr-3 text-right tabular-nums text-muted-foreground">{c.engagements}</td>
-              <td className="hidden py-1.5 pr-3 text-right tabular-nums text-muted-foreground sm:table-cell">{c.engRate}</td>
-              <td className="hidden py-1.5 pr-3 text-right tabular-nums text-muted-foreground sm:table-cell">{c.likes}</td>
-              <td className="hidden py-1.5 pr-3 text-right tabular-nums text-muted-foreground md:table-cell">{c.guardados}</td>
-              <td className="hidden py-1.5 text-right tabular-nums text-muted-foreground md:table-cell">{c.follows}</td>
-            </tr>
-          ))}
+          {todas.map((h) => {
+            const gana = tope !== null && h.alcance === tope;
+            return (
+              <tr key={h.llave} className={cn(h.llave === esta.llave && "bg-background/60")}>
+                <td className="py-1.5 pr-3">
+                  <div className="flex items-center gap-1.5">
+                    <Casilla llave={h.llave} ambito={PIEZAS} />
+                    <Estrella
+                      on={fav.favoritos.has(h.llave)}
+                      otros={fav.quienes.get(h.llave)}
+                      onClick={() => fav.alternar(h.llave)}
+                    />
+                    <Link href={h.href} className="truncate hover:underline">
+                      {h.title}
+                    </Link>
+                    <Enlaces url={h.url} driveUrl={h.driveUrl} />
+                  </div>
+                </td>
+                <td className="py-1.5 pr-3"><RedIcono canal={h.canal} /></td>
+                <td className="hidden py-1.5 pr-3 text-muted-foreground sm:table-cell">
+                  {h.formato || "—"}
+                </td>
+                <td className="hidden py-1.5 pr-3 tabular-nums text-muted-foreground md:table-cell">
+                  {h.publishedAt || "—"}
+                </td>
+                <td className={cn("py-1.5 pr-3 text-right tabular-nums", gana ? "font-medium" : "text-muted-foreground")}>
+                  {h.alcanceFmt}
+                  {gana && <span className="ml-1 text-[10px] text-muted-foreground/60">máx</span>}
+                </td>
+                <td className="hidden py-1.5 pr-3 text-right tabular-nums text-muted-foreground sm:table-cell">
+                  {h.engRate}
+                </td>
+                <td className="hidden py-1.5 pr-3 text-right tabular-nums text-muted-foreground md:table-cell">
+                  {h.saveLike}
+                </td>
+                <td className="py-1.5 text-right tabular-nums text-muted-foreground">
+                  {h.cortes || "—"}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -451,7 +512,9 @@ function CabeceraInventario({ esAds }: { esAds: boolean }) {
   return (
     <TableHeader>
       <TableRow>
-        <TableHead>{esAds ? "creativo" : "pieza"}</TableHead>
+        {/* Sin rótulo: la columna del título no necesita que le digan "pieza"
+            arriba, y el espacio se lo lleva el título. */}
+        <TableHead />
         {esAds ? (
           <>
             <TableHead className="hidden w-24 sm:table-cell">persona</TableHead>
@@ -462,13 +525,16 @@ function CabeceraInventario({ esAds }: { esAds: boolean }) {
           </>
         ) : (
           <>
-            <TableHead className="hidden w-24 sm:table-cell">red</TableHead>
+            <TableHead className="hidden w-14 sm:table-cell">red</TableHead>
             <TableHead className="hidden w-16 md:table-cell">fórmula</TableHead>
             <TableHead className="hidden w-24 md:table-cell">fecha</TableHead>
             <TableHead className="w-28">cobertura</TableHead>
-            <TableHead className="w-12 text-right">cortes</TableHead>
           </>
         )}
+        {/* Los símbolos y no las palabras: dos columnas de 40px con "favorito" y
+            "seleccionar" escritos arriba se leen como el título de una sección. */}
+        <TableHead className="w-10 text-center" title="Favorito">★</TableHead>
+        <TableHead className="w-10 text-center" title="Comparar">☑</TableHead>
       </TableRow>
     </TableHeader>
   );
@@ -485,27 +551,27 @@ function CabeceraInventario({ esAds }: { esAds: boolean }) {
  * lugar: descartar en silencio algo que la persona eligió es peor que no agregar
  * lo nuevo. El `title` dice por qué no se puede.
  */
-function Casilla({ llave, modo }: { llave: string; modo: Modo }) {
+function Casilla({ llave, ambito }: { llave: string; ambito: Ambito }) {
   const d = useAppDispatch();
   const sel = useAppSelector((e) => e.seleccion);
-  const elegida = sel.modo === modo && sel.llaves.includes(llave);
-  const lleno = sel.modo === modo && sel.llaves.length >= MAXIMO && !elegida;
+  const elegida = sel.ambito === ambito && sel.llaves.includes(llave);
+  const lleno = sel.ambito === ambito && sel.llaves.length >= MAXIMO && !elegida;
 
   return (
-    <input
-      type="checkbox"
+    <Checkbox
       checked={elegida}
       disabled={lleno}
-      onChange={() => {
-        // Cambiar de modo vacía lo elegido: dos piezas y una campaña no se
+      onCheckedChange={() => {
+        // Cambiar de ámbito vacía lo elegido: dos piezas y una fórmula no se
         // dibujan en columnas comparables.
-        if (sel.modo !== modo) d(cambiarModo(modo));
+        if (sel.ambito !== ambito) d(cambiarAmbito(ambito));
         d(alternarSeleccion(llave));
       }}
+      // Adentro del `<summary>` de una campaña, un click que burbujea abre y
+      // cierra el desplegable. Tildar no es navegar.
       onClick={(e) => e.stopPropagation()}
       aria-label={elegida ? "Sacar de la comparación" : "Agregar a la comparación"}
       title={lleno ? `Hasta ${MAXIMO} a la vez` : "Comparar"}
-      className="size-3.5 shrink-0 cursor-pointer accent-primary disabled:cursor-not-allowed disabled:opacity-30"
     />
   );
 }
@@ -620,19 +686,45 @@ function CompararPiezas({ filas }: { filas: InventarioRow[] }) {
   );
 }
 
-/** El comparador de campañas. Los mismos datos, sumados por carpeta. */
-function CompararCampanas({ campanas }: { campanas: Campana[] }) {
+/**
+ * UN CONJUNTO DE PIEZAS con nombre: una campaña, una fórmula, una red, una ronda.
+ *
+ * Son todos lo mismo para comparar —un puñado de piezas que se quieren mirar
+ * juntas— así que hay un solo comparador y no seis. La diferencia entre "esta
+ * fórmula" y "esta campaña" vive en quién arma la lista, no en cómo se resume.
+ */
+type Conjunto = { clave: string; nombre: string; filas: InventarioRow[] };
+
+/** Resume un conjunto. Lo que no está medido NO se cuenta como cero. */
+function resumir(c: Conjunto) {
+  const fechas = c.filas.map((r) => r.publishedAt).filter(Boolean).sort();
+  const medidas = c.filas.filter((r) => r.alcance !== null);
+  return {
+    piezas: c.filas.length,
+    medidas: medidas.length,
+    alcance: medidas.reduce((t, r) => t + (r.alcance ?? 0), 0),
+    desde: fechas[0] ?? "",
+    hasta: fechas[fechas.length - 1] ?? "",
+    canales: [...new Set(c.filas.map((r) => r.canal))].sort(),
+  };
+}
+
+/** El comparador de conjuntos: los mismos datos, sumados. */
+function CompararConjuntos({ conjuntos }: { conjuntos: Conjunto[] }) {
+  const r = conjuntos.map(resumir);
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[30rem] border-collapse">
         <thead>
           <tr>
             <th />
-            {campanas.map((c) => (
-              <th key={c.carpeta} className="pb-2 pr-4 text-left align-bottom">
+            {conjuntos.map((c, i) => (
+              <th key={c.clave} className="pb-2 pr-4 text-left align-bottom">
                 <span className="block max-w-[14rem] text-[13px] font-medium">{c.nombre}</span>
-                <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
-                  {c.canales.join(", ") || "—"}
+                <span className="mt-0.5 flex items-center gap-1 text-[11px] font-normal text-muted-foreground">
+                  {r[i].canales.map((ca) => (
+                    <RedIcono key={ca} canal={ca} />
+                  ))}
                 </span>
               </th>
             ))}
@@ -641,29 +733,26 @@ function CompararCampanas({ campanas }: { campanas: Campana[] }) {
         <tbody>
           <FilaComparada
             etiqueta="piezas"
-            valores={campanas.map((c) => String(c.filas.length))}
-            crudos={campanas.map((c) => c.filas.length)}
+            valores={r.map((x) => String(x.piezas))}
+            crudos={r.map((x) => x.piezas)}
           />
-          {/* Cuántas de cuántas, y NUNCA el alcance solo: una campaña con una de
-              seis piezas medida y otra con las seis no se comparan por el total. */}
-          <FilaComparada
-            etiqueta="medidas"
-            valores={campanas.map((c) => `${c.medidas} de ${c.filas.length}`)}
-          />
+          {/* Cuántas de cuántas, y NUNCA el alcance solo: un conjunto con una de
+              seis piezas medida y otro con las seis no se comparan por el total. */}
+          <FilaComparada etiqueta="medidas" valores={r.map((x) => `${x.medidas} de ${x.piezas}`)} />
           <FilaComparada
             etiqueta="alcance"
-            valores={campanas.map((c) => (c.medidas ? c.alcance.toLocaleString("es-AR") : "—"))}
-            crudos={campanas.map((c) => (c.medidas ? c.alcance : null))}
+            valores={r.map((x) => (x.medidas ? x.alcance.toLocaleString("es-AR") : "—"))}
+            crudos={r.map((x) => (x.medidas ? x.alcance : null))}
           />
-          {/* Por pieza MEDIDA, no por pieza: dividir por las seis cuando se
-              midió una dice que le fue seis veces peor de lo que le fue. */}
+          {/* Por pieza MEDIDA, no por pieza: dividir por las seis cuando se midió
+              una dice que le fue seis veces peor de lo que le fue. */}
           <FilaComparada
             etiqueta="por medida"
-            valores={campanas.map((c) => (c.medidas ? Math.round(c.alcance / c.medidas).toLocaleString("es-AR") : "—"))}
-            crudos={campanas.map((c) => (c.medidas ? Math.round(c.alcance / c.medidas) : null))}
+            valores={r.map((x) => (x.medidas ? Math.round(x.alcance / x.medidas).toLocaleString("es-AR") : "—"))}
+            crudos={r.map((x) => (x.medidas ? Math.round(x.alcance / x.medidas) : null))}
           />
-          <FilaComparada etiqueta="desde" valores={campanas.map((c) => c.desde || "—")} />
-          <FilaComparada etiqueta="hasta" valores={campanas.map((c) => c.hasta || "—")} />
+          <FilaComparada etiqueta="desde" valores={r.map((x) => x.desde || "—")} />
+          <FilaComparada etiqueta="hasta" valores={r.map((x) => x.hasta || "—")} />
         </tbody>
       </table>
     </div>
@@ -681,24 +770,44 @@ function CompararCampanas({ campanas }: { campanas: Campana[] }) {
  * sigue elegida pero ya no hay qué dibujar. Se deja afuera y el conteo lo dice,
  * en vez de abrir una columna con datos que la vista ya no muestra.
  */
-function BarraComparar({ filas, campanas }: { filas: InventarioRow[]; campanas: Campana[] }) {
+function BarraComparar({
+  filas,
+  campanas,
+  grupos,
+  etiquetaGrupo,
+}: {
+  filas: InventarioRow[];
+  campanas: Campana[];
+  /** Los grupos de la vista de tablero: fórmula, red, persona, ronda… */
+  grupos: { clave: string; label: string; filas: InventarioRow[] }[];
+  /** Cómo se llama en singular lo que agrupa hoy el tablero. */
+  etiquetaGrupo: string;
+}) {
   const d = useAppDispatch();
   const sel = useAppSelector((e) => e.seleccion);
 
   const elegidas = useMemo(() => {
-    if (sel.modo === "campanas") {
-      const m = new Map(campanas.map((c) => [c.carpeta, c]));
-      return sel.llaves.map((k) => m.get(k)).filter((c): c is Campana => Boolean(c));
+    // Una campaña, una fórmula y una red son lo mismo para esto: un conjunto de
+    // piezas con un nombre. Se normalizan a la misma forma y el comparador de
+    // grupos no sabe de cuál vino.
+    if (sel.ambito === "campana") {
+      const m = new Map(campanas.map((c) => [c.carpeta, { clave: c.carpeta, nombre: c.nombre, filas: c.filas }]));
+      return sel.llaves.map((k) => m.get(k)).filter(Boolean) as Conjunto[];
+    }
+    if (sel.ambito !== PIEZAS) {
+      const m = new Map(grupos.map((g) => [g.clave, { clave: g.clave, nombre: g.label, filas: g.filas }]));
+      return sel.llaves.map((k) => m.get(k)).filter(Boolean) as Conjunto[];
     }
     const m = new Map(filas.map((r) => [r.llave, r]));
     return sel.llaves.map((k) => m.get(k)).filter((r): r is InventarioRow => Boolean(r));
-  }, [sel.modo, sel.llaves, filas, campanas]);
+  }, [sel.ambito, sel.llaves, filas, campanas, grupos]);
 
   if (sel.llaves.length === 0) return null;
 
   const n = sel.llaves.length;
-  const que =
-    sel.modo === "campanas" ? (n === 1 ? "campaña" : "campañas") : n === 1 ? "pieza" : "piezas";
+  const singular =
+    sel.ambito === PIEZAS ? "pieza" : sel.ambito === "campana" ? "campaña" : etiquetaGrupo;
+  const que = n === 1 ? singular : `${singular}s`;
   const fuera = n - elegidas.length;
 
   return (
@@ -736,10 +845,10 @@ function BarraComparar({ filas, campanas }: { filas: InventarioRow[]; campanas: 
         titulo={`Comparando ${elegidas.length} ${que}`}
         detalle="El máximo de cada fila se marca solo entre las que tienen número: una sin medir no pierde, todavía no compite."
       >
-        {sel.modo === "campanas" ? (
-          <CompararCampanas campanas={elegidas as Campana[]} />
-        ) : (
+        {sel.ambito === PIEZAS ? (
           <CompararPiezas filas={elegidas as InventarioRow[]} />
+        ) : (
+          <CompararConjuntos conjuntos={elegidas as Conjunto[]} />
         )}
       </Drawer>
     </>
@@ -951,7 +1060,7 @@ export default function InventarioClient({
                   </span>
                 </span>
               }
-              acciones={<Casilla llave={c.carpeta} modo="campanas" />}
+              acciones={<Casilla llave={c.carpeta} ambito="campana" />}
               detalle={
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
                   {/* Cuántas de cuántas están medidas va SIEMPRE al lado del
@@ -985,7 +1094,6 @@ export default function InventarioClient({
       ) : vista === "metricas" ? (
         <div className="overflow-hidden rounded-lg border border-border">
           <div className="hidden items-center gap-3 border-b border-border px-4 py-2 text-[11px] uppercase tracking-wide text-muted-foreground/70 md:flex">
-            <span className="flex-1">pieza</span>
             {haySeries && <span className="w-[108px] shrink-0">evolución</span>}
             <span className="w-20 shrink-0 text-right">alcance</span>
             <span className="w-14 shrink-0 text-right">eng</span>
@@ -999,7 +1107,8 @@ export default function InventarioClient({
                 key={r.llave}
                 className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 md:flex-nowrap"
               >
-                <div className="flex min-w-0 flex-1 items-start gap-1.5">
+                <div className="flex min-w-0 flex-1 items-start gap-2">
+                  <Casilla llave={r.llave} ambito={PIEZAS} />
                   <Estrella on={favoritos.has(r.llave)} otros={quienes.get(r.llave)} onClick={() => alternar(r.llave)} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
@@ -1009,7 +1118,7 @@ export default function InventarioClient({
                       <Enlaces url={r.url} driveUrl={r.driveUrl} />
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                      <span>{r.canal}</span>
+                      <RedIcono canal={r.canal} />
                       {r.formulaCode && (
                         <>
                           <span aria-hidden="true">·</span>
@@ -1069,11 +1178,18 @@ export default function InventarioClient({
         <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
           {columnas.map((col) => (
             <section key={col.clave} className="flex w-[15.5rem] shrink-0 flex-col">
-              <header className="mb-2 flex items-baseline justify-between gap-2 px-1">
+              <header className="mb-2 flex items-center justify-between gap-2 px-1">
                 <h3 className="truncate text-[13px] font-medium">{col.label}</h3>
-                <span className="shrink-0 tabular-nums text-[11px] text-muted-foreground">
-                  {col.filas.length}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="tabular-nums text-[11px] text-muted-foreground">
+                    {col.filas.length}
+                  </span>
+                  {/* La columna entera se compara como un conjunto: dos fórmulas,
+                      dos redes, dos rondas. El ámbito es la dimensión que agrupa
+                      hoy, así que agregar una a AGRUPACIONES la hace comparable
+                      sin tocar nada más. */}
+                  <Casilla llave={col.clave} ambito={agrupar} />
+                </div>
               </header>
               <div className="flex flex-col gap-1.5">
                 {col.filas.slice(0, 60).map((r) => (
@@ -1087,9 +1203,10 @@ export default function InventarioClient({
                         {r.title}
                       </Link>
                       <Enlaces url={r.url} driveUrl={r.driveUrl} />
+                      <Casilla llave={r.llave} ambito={PIEZAS} />
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
-                      <span>{r.canal}</span>
+                      <RedIcono canal={r.canal} />
                       {r.formulaCode && (
                         <>
                           <span aria-hidden="true">·</span>
@@ -1139,7 +1256,12 @@ export default function InventarioClient({
         </p>
       )}
 
-      <BarraComparar filas={filas} campanas={campanas} />
+      <BarraComparar
+        filas={filas}
+        campanas={campanas}
+        grupos={columnas}
+        etiquetaGrupo={(AGRUPACIONES.find((a) => a.value === agrupar)?.label ?? "grupo").toLowerCase()}
+      />
     </>
   );
 }
