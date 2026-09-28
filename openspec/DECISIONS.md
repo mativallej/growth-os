@@ -21,7 +21,8 @@ reconstruir el razonamiento desde cero.
 | D-13 | El proyecto pasa a ser open source | **decidida** | 2026-09-24 |
 | D-14 | Nombre definitivo, remote y licencia | **licencia decidida · nombre y remote abiertos** | 2026-09-28 |
 | D-15 | Supabase como índice derivado del vault | **decidida — con condiciones** | 2026-09-24 |
-| D-16 | Supabase es una dimensión por marca, no dos proyectos fijos | **decidida** | 2026-09-26 |
+| D-16 | Supabase es una dimensión por marca, no dos proyectos fijos | **decidida · superada en parte por D-17** | 2026-09-26 |
+| D-17 | El dashboard consulta el índice, y un vault es una marca | **decidida** | 2026-09-28 |
 
 ---
 
@@ -362,3 +363,72 @@ llaveado por ruta reproduce el problema de `move-resilient-keys`.
 en la org `tegu`, `growth-loop-mativallej` en `matiasvallejos`), con sus claves
 en `.env.local`. Falta el código que las lea por convención, que entra con el
 change de Supabase cuando se escriba.
+
+## D-17 · El dashboard consulta el índice, y un vault es una marca — decidida
+
+**Qué se decidió.** Dos cosas que se sostienen entre sí:
+
+1. **El dashboard deja de leer los `.md` y consulta Supabase.** Las páginas dejan
+   de prerenderizarse; el contenido llega por API.
+2. **Un vault es UNA marca.** `growth-os` es el código; cada marca lo *instala*
+   apuntando a su vault y a su proyecto de Supabase. Las instalaciones no se
+   conocen entre sí.
+
+**Qué contradice.** D-16 dice, textual: *"el dashboard lee los `.md`; nunca consulta
+Supabase. Si el índice se cae o queda viejo, el dashboard anda igual."* Esa cláusula
+muere. El resto de D-16 —un proyecto por marca— no solo sobrevive: pasa a ser
+portante.
+
+D-16 no se edita. El razonamiento de por qué se había decidido al revés tiene que
+seguir legible, porque es el que hay que releer si esto sale mal.
+
+**Por qué.** El detonante no es técnico: **la plataforma tiene que ser
+colaborativa.** Favoritos compartidos entre personas, y lo que venga después.
+`localStorage` no puede hacerlo por definición, y ese dato no es del vault — no es
+trabajo creativo ni una métrica, nace en la plataforma. Es una tercera categoría
+que la doctrina no tenía nombrada.
+
+Y una vez que hay una base con identidad de usuario, sostener dos caminos de datos
+—el build para el contenido y la API para la colaboración— cuesta más que tener uno.
+
+**Lo que las cinco condiciones de D-15 siguen rigiendo.** Todas sobreviven, y dos
+pasan de ser una promesa a ser una propiedad del motor: no existe API para un
+rebuild parcial, y cualquier error deja el índice bueno anterior. Lo único que
+cambia es el disparador de la condición 4: el merge al repo del vault, no el ingest.
+
+**Por qué el rebuild SÍ puede correr solo, contra la regla dura 6.** La regla existe
+porque un sync a Notion escribe en un sistema con estado propio —el carril del
+kanban— y el 2026-09-23 uno puso "En producción" en 51 piezas que el vault no
+marcaba. Un índice derivado es lo contrario: se borra entero y se reconstruye, no
+reconcilia nada y no hay trabajo ajeno que pisar. La regla protege contra escrituras
+que destruyen; acá no hay ninguna.
+
+### Lo que se pierde, sin suavizar
+
+1. **El deploy deja de ser autocontenido.** Supabase caído es dashboard caído.
+2. **La pantalla refleja el último rebuild, no el `.md`.** Si el rebuild falla y
+   nadie mira, muestra datos viejos con cara de actuales. Por eso hay un sello de
+   frescura visible leído de la tabla `builds`: sin él, "fallar ruidoso" se degrada
+   a "mentir en silencio", que es el bug fundacional de este repo con otro destino.
+3. **Una segunda copia del vault entero en un host**, con su propia superficie de
+   acceso. D-16 la acota a un proyecto por marca; no la elimina.
+4. **Latencia.** Hoy cero I/O al renderizar; después, consultas por request.
+5. **Lo que el esquema no tenga deja de existir.** Hoy una clave rara se pierde en
+   el parser pero el archivo sigue ahí. Por eso `pieces.unknown_keys` guarda lo que
+   el parser descarta: es la worklist del validador que D-15 pide y que se sigue
+   debiendo.
+
+### Lo que NO se pierde, y por qué
+
+El costo que más pesaba era el aislamiento entre marcas: hoy una marca que no entró
+al build **no existe** en el artefacto. **La decisión 2 lo devuelve por otra vía.**
+Con una instalación por marca no hay otra marca en el deploy de la cual aislarse:
+el vault, la base y las credenciales son de una sola, y las de otra no están.
+
+**La regla que no se negocia:** dos marcas nunca en el mismo proyecto de Supabase
+separadas por RLS. Eso sería exactamente el `if` que este proyecto evita, y un bug
+ahí filtra contenido de otra marca.
+
+**Qué la reabriría.** Que haga falta servir más de una marca desde un solo deploy.
+Ahí el aislamiento vuelve a depender de un chequeo en runtime, y esta decisión hay
+que rehacerla entera.
