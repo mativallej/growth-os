@@ -79,5 +79,15 @@ export async function respuesta<T>(r: Response, que: string): Promise<T> {
         `no le dan nada a \`anon\`. ${cuerpo.slice(0, 200)}`,
     );
   }
+  // PGRST205 = la tabla no existe. Es un 404 con una causa muy concreta y una
+  // solución de un paso; sin nombrarla, el mensaje manda a leer el log de
+  // PostgREST para descubrir que faltaba correr las migraciones.
+  if (r.status === 404 && cuerpo.includes('PGRST205')) {
+    throw new Error(
+      `La tabla \`${que}\` no existe en este proyecto de Supabase. Falta aplicar ` +
+        'las migraciones: pegá `supabase/aplicar-todo.sql` en el SQL Editor, o ' +
+        'dejá que corra el job `migrar` del workflow con el secret SUPABASE_DB_URL.',
+    );
+  }
   throw new Error(`Supabase devolvió HTTP ${r.status} al leer ${que}. ${cuerpo.slice(0, 200)}`);
 }

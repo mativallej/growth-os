@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import DashboardNav from "@/components/DashboardNav";
-import Link from "next/link";
 import type { Comando } from "@/components/CommandPalette";
 import { findSource, listSources } from "@/lib/sources";
 import { consolaLocal } from "@/lib/consola";
@@ -83,53 +82,9 @@ export default async function AccountLayout({
       <DashboardNav
         account={account}
         comandos={comandos}
-        accionesLocales={accionesLocales()}
         configHref={consolaLocal() ? "/configuracion" : null}
       />
       <main className="max-w-[1080px] px-4 py-6 sm:px-6 md:ml-[220px] md:px-10 md:py-9">{children}</main>
     </>
-  );
-}
-
-/**
- * El acceso a configuración, que solo existe en el entorno local.
- *
- * Se construye ACÁ, en un componente de servidor, y no en el nav: un
- * `{local && <Link href="/configuracion">}` dentro de un componente de cliente
- * deja esa ruta escrita en el bundle del navegador aunque la condición sea falsa.
- * Armarlo del lado del servidor hace que, sin la variable, no exista nada que
- * serializar.
- *
- * Y CUANDO NO ESTÁ, NO DICE NADA. Había un aviso en desarrollo explicando que no
- * estaba compilada y con qué comando aparecía. La idea era que su ausencia no se
- * confundiera con algo roto, pero el resultado era un cartel permanente en el nav
- * sobre una pantalla que no se está buscando.
- */
-function accionesLocales() {
-  // `consolaLocal()` y no `GROWTH_CONSOLE === "1"`: esta condición era una copia
-  // de la de `next.config.ts` y se separó de ella. En un `npm run dev` normal la
-  // consola SÍ se compila —la regla prende en desarrollo— pero acá se leía que
-  // no, así que `/configuracion` existía sin un solo link hacia ella. Se veía
-  // igual que si la pantalla no estuviera implementada.
-  if (!consolaLocal()) return null;
-  return (
-    <div className="mb-3 border-t border-border pt-3">
-      {/* Decía "Solo local", que se lee como "esta app es local" — y no lo es:
-          el dashboard se deploya. Lo que no se comparte es esta pantalla, porque
-          muestra credenciales y escribe la config del repo. */}
-      <div
-        className="px-2.5 pb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground/60"
-        title="No se compila en un build que se comparte: muestra credenciales y escribe config/sources.json."
-      >
-        No se comparte
-      </div>
-      <Link
-        href="/configuracion"
-        className="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-secondary hover:text-foreground"
-      >
-        Configuración
-        <span aria-hidden="true" className="text-muted-foreground/40">→</span>
-      </Link>
-    </div>
   );
 }

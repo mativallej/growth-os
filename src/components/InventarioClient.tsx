@@ -30,6 +30,16 @@ import MateriaToggle from "@/components/MateriaToggle";
 import { useFavoritos, type Favoritos } from "@/components/useFavoritos";
 import { facetas, type Corte, type Materia, type Unidad } from "@/lib/unidades";
 import { cn } from "@/lib/utils";
+import { useAppDispatch, useAppSelector } from "@/store";
+import {
+  abrir,
+  alternar as alternarSeleccion,
+  cambiarModo,
+  limpiar,
+  MAXIMO,
+  type Modo,
+} from "@/store/seleccion";
+import { Drawer } from "@/components/ui/drawer";
 import { NIVELES, describir, type Umbrales } from "@/lib/viralidad";
 import { esHttp } from "@/lib/enlaces";
 
@@ -294,6 +304,7 @@ function FilaInventario({
     <TableRow>
       <TableCell className="max-w-0">
         <div className="flex items-center gap-1.5">
+          <Casilla llave={r.llave} modo="piezas" />
           <Estrella
             on={fav.favoritos.has(r.llave)}
             otros={fav.quienes.get(r.llave)}
@@ -374,7 +385,7 @@ function FilaInventario({
 
     {abierto && (
       <TableRow className="hover:bg-transparent">
-        <TableCell colSpan={6} className="bg-secondary/40 p-0">
+        <TableCell colSpan={7} className="bg-secondary/40 p-0">
           <Cortes cortes={r.cortesDetalle} />
         </TableCell>
       </TableRow>
@@ -460,6 +471,278 @@ function CabeceraInventario({ esAds }: { esAds: boolean }) {
         )}
       </TableRow>
     </TableHeader>
+  );
+}
+
+/**
+ * La casilla de "comparar esto".
+ *
+ * Lee del store y no de una prop porque quien necesita el dato —la barra de
+ * acciones y el drawer— no es ni padre ni hijo de esta fila. Ver
+ * `src/store/seleccion.ts`.
+ *
+ * Deshabilitada al llegar al máximo, en vez de sacar la más vieja para hacer
+ * lugar: descartar en silencio algo que la persona eligió es peor que no agregar
+ * lo nuevo. El `title` dice por qué no se puede.
+ */
+function Casilla({ llave, modo }: { llave: string; modo: Modo }) {
+  const d = useAppDispatch();
+  const sel = useAppSelector((e) => e.seleccion);
+  const elegida = sel.modo === modo && sel.llaves.includes(llave);
+  const lleno = sel.modo === modo && sel.llaves.length >= MAXIMO && !elegida;
+
+  return (
+    <input
+      type="checkbox"
+      checked={elegida}
+      disabled={lleno}
+      onChange={() => {
+        // Cambiar de modo vacía lo elegido: dos piezas y una campaña no se
+        // dibujan en columnas comparables.
+        if (sel.modo !== modo) d(cambiarModo(modo));
+        d(alternarSeleccion(llave));
+      }}
+      onClick={(e) => e.stopPropagation()}
+      aria-label={elegida ? "Sacar de la comparación" : "Agregar a la comparación"}
+      title={lleno ? `Hasta ${MAXIMO} a la vez` : "Comparar"}
+      className="size-3.5 shrink-0 cursor-pointer accent-primary disabled:cursor-not-allowed disabled:opacity-30"
+    />
+  );
+}
+
+/**
+ * UNA FILA DEL COMPARADOR: un dato, una columna por cosa comparada.
+ *
+ * `máx` marca el mayor ENTRE LOS MEDIDOS. Una pieza sin números no pierde:
+ * todavía no compite. Marcarla como peor sería leer "no medido" como "midió
+ * poco", que es el error que la regla dura 5 existe para no cometer — y es la
+ * misma decisión que `compararVariantes` ya toma en el detalle de una pieza.
+ */
+function FilaComparada({
+  etiqueta,
+  valores,
+  crudos,
+}: {
+  etiqueta: string;
+  valores: string[];
+  /** Los números detrás del texto, para saber cuál gana. `null` = sin medir. */
+  crudos?: (number | null)[];
+}) {
+  const medidos = (crudos ?? []).filter((v): v is number => v !== null);
+  const tope = medidos.length > 1 ? Math.max(...medidos) : null;
+
+  return (
+    <tr className="border-t border-border">
+      <th className="w-24 py-2 pr-3 text-left align-top text-[11px] font-normal uppercase tracking-wide text-muted-foreground/70">
+        {etiqueta}
+      </th>
+      {valores.map((v, i) => {
+        const gana = tope !== null && crudos?.[i] === tope;
+        return (
+          <td
+            key={i}
+            className={cn(
+              "py-2 pr-4 align-top text-[13px] tabular-nums",
+              gana ? "font-medium text-foreground" : "text-muted-foreground",
+            )}
+          >
+            {v}
+            {gana && <span className="ml-1 text-[10px] text-muted-foreground/60">máx</span>}
+          </td>
+        );
+      })}
+    </tr>
+  );
+}
+
+/** El comparador de piezas: una columna por pieza, una fila por dato. */
+function CompararPiezas({ filas }: { filas: InventarioRow[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[30rem] border-collapse">
+        <thead>
+          <tr>
+            <th />
+            {filas.map((r) => (
+              <th key={r.llave} className="pb-2 pr-4 text-left align-bottom">
+                <Link
+                  href={r.href}
+                  className="block max-w-[14rem] text-[13px] font-medium hover:underline"
+                >
+                  {r.title}
+                </Link>
+                <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
+                  {r.canal}
+                  {r.formulaCode && ` · ${r.formulaCode}`}
+                </span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <FilaComparada etiqueta="fecha" valores={filas.map((r) => r.publishedAt || "—")} />
+          <FilaComparada
+            etiqueta="cobertura"
+            valores={filas.map((r) => (COBERTURA[r.coverage] ?? COBERTURA.untracked).label)}
+          />
+          <FilaComparada
+            etiqueta="cortes"
+            valores={filas.map((r) => String(r.cortes || "—"))}
+            crudos={filas.map((r) => r.cortes || null)}
+          />
+          <FilaComparada
+            etiqueta="alcance"
+            valores={filas.map((r) => r.alcanceFmt)}
+            crudos={filas.map((r) => r.alcance)}
+          />
+          <FilaComparada etiqueta="eng %" valores={filas.map((r) => r.engRate)} />
+          <FilaComparada
+            etiqueta="eng"
+            valores={filas.map((r) => (r.engagements === null ? "—" : r.engagements.toLocaleString("es-AR")))}
+            crudos={filas.map((r) => r.engagements)}
+          />
+          <FilaComparada etiqueta="save/like" valores={filas.map((r) => r.saveLike)} />
+          <FilaComparada
+            etiqueta="follows"
+            valores={filas.map((r) => r.followsFmt)}
+            crudos={filas.map((r) => r.follows)}
+          />
+          <FilaComparada etiqueta="veredicto" valores={filas.map((r) => r.verdict || "—")} />
+          {/* La campaña al final: dos piezas de la misma tanda se comparan por
+              contenido; de tandas distintas, la diferencia empieza por acá. */}
+          <FilaComparada
+            etiqueta="campaña"
+            valores={filas.map((r) => r.carpeta.split("/").pop() || "—")}
+          />
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** El comparador de campañas. Los mismos datos, sumados por carpeta. */
+function CompararCampanas({ campanas }: { campanas: Campana[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[30rem] border-collapse">
+        <thead>
+          <tr>
+            <th />
+            {campanas.map((c) => (
+              <th key={c.carpeta} className="pb-2 pr-4 text-left align-bottom">
+                <span className="block max-w-[14rem] text-[13px] font-medium">{c.nombre}</span>
+                <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
+                  {c.canales.join(", ") || "—"}
+                </span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <FilaComparada
+            etiqueta="piezas"
+            valores={campanas.map((c) => String(c.filas.length))}
+            crudos={campanas.map((c) => c.filas.length)}
+          />
+          {/* Cuántas de cuántas, y NUNCA el alcance solo: una campaña con una de
+              seis piezas medida y otra con las seis no se comparan por el total. */}
+          <FilaComparada
+            etiqueta="medidas"
+            valores={campanas.map((c) => `${c.medidas} de ${c.filas.length}`)}
+          />
+          <FilaComparada
+            etiqueta="alcance"
+            valores={campanas.map((c) => (c.medidas ? c.alcance.toLocaleString("es-AR") : "—"))}
+            crudos={campanas.map((c) => (c.medidas ? c.alcance : null))}
+          />
+          {/* Por pieza MEDIDA, no por pieza: dividir por las seis cuando se
+              midió una dice que le fue seis veces peor de lo que le fue. */}
+          <FilaComparada
+            etiqueta="por medida"
+            valores={campanas.map((c) => (c.medidas ? Math.round(c.alcance / c.medidas).toLocaleString("es-AR") : "—"))}
+            crudos={campanas.map((c) => (c.medidas ? Math.round(c.alcance / c.medidas) : null))}
+          />
+          <FilaComparada etiqueta="desde" valores={campanas.map((c) => c.desde || "—")} />
+          <FilaComparada etiqueta="hasta" valores={campanas.map((c) => c.hasta || "—")} />
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/**
+ * La barra que aparece al elegir algo, y el drawer que abre.
+ *
+ * Fija abajo: el botón tiene que estar donde está la mano después de tildar la
+ * cuarta casilla, no arriba de todo obligando a volver a subir.
+ *
+ * Las llaves elegidas se resuelven ACÁ contra lo que está a la vista, y el store
+ * no guarda la fila entera: si un filtro saca una pieza de la lista, su llave
+ * sigue elegida pero ya no hay qué dibujar. Se deja afuera y el conteo lo dice,
+ * en vez de abrir una columna con datos que la vista ya no muestra.
+ */
+function BarraComparar({ filas, campanas }: { filas: InventarioRow[]; campanas: Campana[] }) {
+  const d = useAppDispatch();
+  const sel = useAppSelector((e) => e.seleccion);
+
+  const elegidas = useMemo(() => {
+    if (sel.modo === "campanas") {
+      const m = new Map(campanas.map((c) => [c.carpeta, c]));
+      return sel.llaves.map((k) => m.get(k)).filter((c): c is Campana => Boolean(c));
+    }
+    const m = new Map(filas.map((r) => [r.llave, r]));
+    return sel.llaves.map((k) => m.get(k)).filter((r): r is InventarioRow => Boolean(r));
+  }, [sel.modo, sel.llaves, filas, campanas]);
+
+  if (sel.llaves.length === 0) return null;
+
+  const n = sel.llaves.length;
+  const que =
+    sel.modo === "campanas" ? (n === 1 ? "campaña" : "campañas") : n === 1 ? "pieza" : "piezas";
+  const fuera = n - elegidas.length;
+
+  return (
+    <>
+      <div className="sticky bottom-3 z-30 mx-auto flex w-fit items-center gap-3 rounded-full border border-border bg-background/95 px-4 py-2 shadow-lg backdrop-blur">
+        <span className="text-[13px] tabular-nums">
+          {n} {que}
+          {/* Las que un filtro dejó fuera de la lista se dicen: si no, el botón
+              abriría tres columnas habiendo tildado cuatro, sin explicación. */}
+          {fuera > 0 && (
+            <span className="ml-1 text-[11px] text-muted-foreground">({fuera} fuera del filtro)</span>
+          )}
+        </span>
+        <button
+          type="button"
+          onClick={() => d(abrir(true))}
+          disabled={elegidas.length < 2}
+          title={elegidas.length < 2 ? "Elegí al menos dos" : undefined}
+          className="rounded-full bg-primary px-3 py-1 text-[13px] font-medium text-primary-foreground disabled:opacity-40"
+        >
+          Comparar
+        </button>
+        <button
+          type="button"
+          onClick={() => d(limpiar())}
+          className="text-[12px] text-muted-foreground hover:text-foreground"
+        >
+          Limpiar
+        </button>
+      </div>
+
+      <Drawer
+        abierto={sel.abierto}
+        onAbierto={(v) => d(abrir(v))}
+        titulo={`Comparando ${elegidas.length} ${que}`}
+        detalle="El máximo de cada fila se marca solo entre las que tienen número: una sin medir no pierde, todavía no compite."
+      >
+        {sel.modo === "campanas" ? (
+          <CompararCampanas campanas={elegidas as Campana[]} />
+        ) : (
+          <CompararPiezas filas={elegidas as InventarioRow[]} />
+        )}
+      </Drawer>
+    </>
   );
 }
 
@@ -668,6 +951,7 @@ export default function InventarioClient({
                   </span>
                 </span>
               }
+              acciones={<Casilla llave={c.carpeta} modo="campanas" />}
               detalle={
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
                   {/* Cuántas de cuántas están medidas va SIEMPRE al lado del
@@ -854,6 +1138,8 @@ export default function InventarioClient({
           no suben. Mover una pieza de carril se sigue haciendo en Notion.
         </p>
       )}
+
+      <BarraComparar filas={filas} campanas={campanas} />
     </>
   );
 }

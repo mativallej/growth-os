@@ -26,7 +26,6 @@ const nav = [
 export default function DashboardNav({
   account,
   comandos,
-  accionesLocales,
   configHref = null,
 }: {
   account: string;
@@ -43,7 +42,6 @@ export default function DashboardNav({
    * Es el mismo error que las notas de `operations-console` ya habían anotado, y
    * que se volvió a cometer al sumar estos accesos al nav.
    */
-  accionesLocales?: React.ReactNode;
   /** La ruta de Configuración, o null si no está compilada. Ver SesionControles. */
   configHref?: string | null;
 }) {
@@ -146,8 +144,6 @@ export default function DashboardNav({
       })}
 
       <div className="mt-auto pt-4">
-        {accionesLocales}
-
         {/* La sesión al pie. El texto que la acompañaba —"la verdad son los .md
             del vault"— decía algo cierto en un lugar donde nadie lo leía dos
             veces; vive en docs/metodo.md, que es donde se va a buscar. */}
